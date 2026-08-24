@@ -6,7 +6,11 @@ export class GameState {
     this.stageData = null;
     this.currentTaskIndex = 0;
     this.skillPts = 450;
-    this.shardsCollected = 0;
+    this.combatPower = 350; // Điểm chiến lực cá nhân (hỗ trợ unlock & level jump)
+    this.collectedShards = [1]; // Danh sách các ID mảnh bản đồ đã thu thập
+    this.clearedStages = { 1: { stars: 3, score: 950 } }; // Màn 1 đã hoàn thành mẫu
+    this.shardsCollected = this.collectedShards.length;
+    this.selectedMode = 'single'; // 'single' hoặc 'multi'
     this.timeRemaining = 300;
     this.timerInterval = null;
     this.myHeroId = 'leo';
@@ -645,8 +649,71 @@ export class GameState {
   }
 
   handleStageVictory() {
+    this.addCombatPower(200);
+    if (!this.collectedShards.includes(1)) {
+      this.collectedShards.push(1);
+      this.shardsCollected = this.collectedShards.length;
+    }
+    this.clearedStages[1] = { stars: 3, score: 1000 };
     setTimeout(() => {
-      alert(`🏆 CHIẾN THẮNG MÀN 1!\nChúc mừng bạn đã giải cứu tàu thám hiểm và thu thập Mảnh bản đồ 1/30!\nĐiểm chiến lực: +200 Pts`);
+      alert(`🏆 CHIẾN THẮNG MÀN 1!\nChúc mừng bạn đã giải cứu tàu thám hiểm và thu thập Mảnh bản đồ 1/30!\nĐiểm chiến lực: +200 Pts (Tổng: ${this.combatPower})`);
+      EventBus.emit('RETURN_TO_STAGE_SELECT');
     }, 500);
+  }
+
+  // ===================== STAGE SELECTION & COMBAT POWER HELPERS =====================
+  getCombatPower() {
+    return this.combatPower;
+  }
+
+  addCombatPower(pts) {
+    this.combatPower += pts;
+    EventBus.emit('COMBAT_POWER_CHANGED', this.combatPower);
+  }
+
+  isStageCleared(stageId) {
+    return !!this.clearedStages[stageId];
+  }
+
+  hasShard(stageId) {
+    return this.collectedShards.includes(stageId);
+  }
+
+  isStageUnlocked(stage) {
+    if (stage.id === 1) return true;
+    // Đã vượt qua màn trước đó hoặc đủ điểm chiến lực
+    const prevStageCleared = !!this.clearedStages[stage.id - 1];
+    const enoughCombatPower = this.combatPower >= stage.minCombatPower;
+    return prevStageCleared || enoughCombatPower;
+  }
+
+  canJumpToStage(stage) {
+    if (stage.id === 1) return false;
+    const prevStageCleared = !!this.clearedStages[stage.id - 1];
+    // Nhảy bậc: Màn trước chưa hoàn thành nhưng đã đủ điểm chiến lực yêu cầu
+    return !prevStageCleared && this.combatPower >= stage.minCombatPower;
+  }
+
+  setSelectedMode(mode) {
+    this.selectedMode = mode; // 'single' hoặc 'multi'
+    EventBus.emit('MODE_CHANGED', mode);
+  }
+
+  getTimePortalStatus() {
+    const totalRequired = 30;
+    const currentCollected = this.collectedShards.length;
+    const isReady = currentCollected >= totalRequired;
+    const missingShards = [];
+    for (let i = 1; i <= totalRequired; i++) {
+      if (!this.collectedShards.includes(i)) {
+        missingShards.push(i);
+      }
+    }
+    return {
+      isReady,
+      currentCollected,
+      totalRequired,
+      missingShards
+    };
   }
 }

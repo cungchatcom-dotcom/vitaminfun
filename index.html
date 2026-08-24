@@ -8,13 +8,266 @@
 </head>
 <body>
   <div id="app">
-    <!-- 1. TOP STATUS BAR (3 SECTIONS: LEFT, CENTER, RIGHT) -->
-    <header id="top-bar">
-      <!-- Top Bar Left: Chapter & Title -->
-      <div class="top-bar-left">
-        <span class="badge">CHƯƠNG 1 - MÀN 1</span>
-        <h1 class="stage-title" id="stage-title">Cơn bão bất ngờ</h1>
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: HẢI ĐỒ THÁM HIỂM ATLANTIS (LEVEL / STAGE SELECTION SCREEN)        -->
+    <!-- ========================================================================= -->
+    <section id="stage-select-screen" class="view-screen active">
+      <!-- 1.1 TOP BAR HẢI ĐỒ -->
+      <header class="map-top-bar">
+        <div class="map-top-left">
+          <div class="player-profile-chip" id="btn-player-profile">
+            <img src="./assets/portraits/leo.jpg" alt="Leo" class="player-chip-avatar" id="map-player-avatar">
+            <div class="player-chip-info">
+              <div class="player-chip-name" id="map-player-name">Leo Harrison</div>
+              <div class="player-chip-role">Đội trưởng • The Guardian</div>
+            </div>
+          </div>
+          <div class="stat-badge-chip combat-power" title="Điểm chiến lực tích lũy (Dùng để mở khóa & nhảy bậc màn chơi)">
+            <span class="chip-icon">⚔️</span>
+            <div class="chip-content">
+              <span class="chip-label">Chiến Lực</span>
+              <span class="chip-val highlight" id="map-combat-power">350 Pts</span>
+            </div>
+          </div>
+          <div class="stat-badge-chip map-shards" title="Bộ sưu tập Mảnh bản đồ cổ (Cần 30 mảnh để về đích)">
+            <span class="chip-icon">🧩</span>
+            <div class="chip-content">
+              <span class="chip-label">Mảnh Bản Đồ</span>
+              <span class="chip-val highlight" id="map-shards-count">1 / 30</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-top-center">
+          <div class="world-title-box">
+            <span class="world-tag">WORLD 1 • CỔ ĐẠI BÍ ẨN</span>
+            <h1 class="world-main-title">LOST IN ATLANTIS</h1>
+            <span class="world-subtitle">Lạc vào vương quốc huyền thoại</span>
+          </div>
+        </div>
+
+        <div class="map-top-right">
+          <!-- Nút kích hoạt Cánh cổng Thời gian (End-game Portal Hub) -->
+          <button class="btn-time-portal-trigger" id="btn-open-time-portal" title="Cánh cổng Thời gian (Kiểm tra điều kiện về đích)">
+            <span class="portal-icon-spin">🌀</span>
+            <div class="portal-btn-text">
+              <span class="portal-title">CỔNG THỜI GIAN</span>
+              <span class="portal-status-txt" id="top-portal-status">1/30 Mảnh Cổ</span>
+            </div>
+          </button>
+
+          <!-- Nút Cài đặt -->
+          <button class="btn-settings-toggle" id="btn-map-settings-toggle" title="Cài đặt game">
+            <span>⚙️</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 1.2 THANH CHUYỂN NHANH 5 CHƯƠNG (CHAPTER SELECTOR) -->
+      <nav class="chapter-nav-bar" id="chapter-nav-bar">
+        <!-- Rendered dynamically or static with active states -->
+      </nav>
+
+      <!-- 1.3 KHÔNG GIAN HẢI ĐỒ HÀNH TRÌNH TƯƠNG TÁC (INTERACTIVE NAUTICAL CHART) -->
+      <main class="nautical-chart-viewport" id="nautical-chart-viewport">
+        <div class="chart-canvas-world" id="chart-canvas-world">
+          <!-- Hiệu ứng sóng ngầm & caustics phản chiếu -->
+          <div class="chart-deep-caustics"></div>
+
+          <!-- SVG vẽ đường luồng sáng nối các trạm màn chơi -->
+          <svg class="chart-energy-paths-svg" id="chart-energy-paths-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
+                <stop offset="50%" stop-color="#d4af37" stop-opacity="0.9"/>
+                <stop offset="100%" stop-color="#9b51e0" stop-opacity="0.8"/>
+              </linearGradient>
+              <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <g id="svg-paths-group"></g>
+          </svg>
+
+          <!-- Lưới các Node trạm màn chơi (30 Nodes + Chronos Portal Node) -->
+          <div class="chart-waypoints-layer" id="chart-waypoints-layer">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Floating Quick Scroll Controls -->
+        <div class="map-floating-controls">
+          <button class="btn-map-float-nav" id="btn-scroll-to-portal" title="Cuộn nhanh lên Cánh cổng Thời gian (Đỉnh bản đồ)">
+            <span>🌀</span>
+            <span>Lên Cổng Thời Gian</span>
+          </button>
+          <button class="btn-map-float-nav" id="btn-scroll-to-start" title="Cuộn nhanh về Màn 1 (Đáy bản đồ)">
+            <span>⚓</span>
+            <span>Về Màn 1</span>
+          </button>
+        </div>
+      </main>
+
+      <!-- 1.4 SLIDE-OUT STAGE DETAIL INSPECTOR (BẢNG KHẢO SÁT CHI TIẾT MÀN CHƠI) -->
+      <aside class="stage-inspector-panel" id="stage-inspector-panel">
+        <button class="btn-inspector-close" id="btn-inspector-close" title="Đóng bảng">✕</button>
+
+        <div class="inspector-header">
+          <div class="inspector-chapter-tag" id="insp-chapter-tag">CHƯƠNG 1 • MÀN 1</div>
+          <h2 class="inspector-stage-title" id="insp-stage-title">Cơn bão bất ngờ</h2>
+          <p class="inspector-stage-story" id="insp-stage-story">
+            Nhóm bạn điều khiển thuyền vượt qua giông bão dữ dội, tàu bị lật chìm xuống biển sâu.
+          </p>
+        </div>
+
+        <div class="inspector-meta-row">
+          <div class="meta-item">
+            <span class="meta-label">Độ khó</span>
+            <span class="meta-badge difficulty-easy" id="insp-difficulty">Easy</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Yêu cầu Chiến Lực</span>
+            <span class="meta-badge combat-req" id="insp-combat-req">⚔️ 0 Pts</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Phần Thưởng</span>
+            <span class="meta-badge shard-reward" id="insp-shard-reward">🧩 Mảnh 1</span>
+          </div>
+        </div>
+
+        <!-- Tag 4 Kỹ Năng Học Tiếng Anh -->
+        <div class="inspector-skills-section">
+          <span class="section-title">KỸ NĂNG TIẾNG ANH RÈN LUYỆN</span>
+          <div class="skills-tag-wrap" id="insp-skills-tags">
+            <span class="skill-tag">🎧 Nghe</span>
+            <span class="skill-tag">🗣️ Nói</span>
+            <span class="skill-tag">📖 Đọc</span>
+            <span class="skill-tag">✍️ Viết</span>
+          </div>
+        </div>
+
+        <!-- NPC Cố Vấn Của Màn -->
+        <div class="inspector-advisor-box">
+          <img src="./assets/portraits/leo.jpg" alt="Advisor" class="advisor-thumb" id="insp-advisor-avatar">
+          <div class="advisor-info">
+            <div class="advisor-badge">⚓ NPC CỐ VẤN DẪN DẮT</div>
+            <div class="advisor-name" id="insp-advisor-name">Thuyền trưởng Drake</div>
+            <div class="advisor-role" id="insp-advisor-role">Chỉ huy mẫu mực</div>
+            <div class="advisor-quote" id="insp-advisor-quote">
+              "Giữ vững bánh lái, phản xạ nhanh với hiệu lệnh hướng gió và kiểm tra ngay hòm cứu sinh!"
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Nhiệm Vụ Chi Tiết -->
+        <div class="inspector-tasks-section">
+          <span class="section-title">4 NHIỆM VỤ CẦN VƯỢT QUA</span>
+          <div class="inspector-tasks-list" id="insp-tasks-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Lựa Chọn Chế Độ Chơi (Single / Multiplayer) -->
+        <div class="inspector-mode-section">
+          <span class="section-title">LỰA CHỌN HÌNH THỨC THAM GIA</span>
+          <div class="mode-select-grid">
+            <label class="mode-card active" id="mode-card-single">
+              <input type="radio" name="game-mode" value="single" checked>
+              <div class="mode-card-content">
+                <span class="mode-icon">👤</span>
+                <span class="mode-title">Chơi Đơn</span>
+                <span class="mode-desc">Vào chơi ngay, 3 đồng đội là Bot AI</span>
+              </div>
+            </label>
+            <label class="mode-card" id="mode-card-multi">
+              <input type="radio" name="game-mode" value="multi">
+              <div class="mode-card-content">
+                <span class="mode-icon">👥</span>
+                <span class="mode-title">Chơi Đội (4 Người)</span>
+                <span class="mode-desc">Ghép đội realtime (Tối đa 30s chờ)</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Footer Action -->
+        <div class="inspector-actions">
+          <button class="btn-start-stage" id="btn-start-stage">
+            <span>⚔️</span>
+            <span>BẮT ĐẦU VƯỢT ẢI</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- 1.5 MODAL CÁNH CỔNG THỜI GIAN (TIME PORTAL HUB) -->
+      <div class="time-portal-modal" id="time-portal-modal">
+        <div class="portal-modal-card">
+          <button class="btn-portal-modal-close" id="btn-portal-modal-close">✕</button>
+
+          <div class="portal-modal-header">
+            <div class="portal-badge">✨ ĐÍCH ĐẾN CUỐI CÙNG WORLD 1</div>
+            <h2>CÁNH CỔNG THỜI GIAN (CHRONOS PORTAL)</h2>
+            <p>
+              Ghép đủ 30 Mảnh Bản Đồ cổ đại từ 30 màn chơi để kích hoạt cánh cổng không gian, đưa nhóm bạn thoát khỏi Atlantis trở về nhà.
+            </p>
+          </div>
+
+          <div class="portal-shards-status-wrap">
+            <div class="portal-wheel-box">
+              <div class="portal-core-orb" id="portal-core-orb">
+                <span class="orb-icon">🌀</span>
+                <span class="orb-count" id="portal-wheel-count">1/30</span>
+              </div>
+              <div class="portal-shards-radial-grid" id="portal-shards-radial-grid">
+                <!-- 30 slots rendered by JS -->
+              </div>
+            </div>
+
+            <div class="portal-details-pane">
+              <div class="portal-stat-box">
+                <span class="stat-title">Tiến độ thu thập:</span>
+                <div class="portal-progress-bar-wrap">
+                  <div class="portal-progress-fill" id="portal-progress-fill" style="width: 3.33%;"></div>
+                </div>
+                <div class="portal-stat-number" id="portal-stat-text">1 / 30 Mảnh bản đồ cổ (3%)</div>
+              </div>
+
+              <div class="missing-stages-box">
+                <span class="missing-title">⚠️ CÁC MÀN CHƠI CÒN THIẾU MẢNH BẢN ĐỒ:</span>
+                <div class="missing-chips-list" id="missing-chips-list">
+                  <!-- Generated by JS -->
+                </div>
+              </div>
+
+              <button class="btn-activate-portal disabled" id="btn-activate-portal">
+                <span>🌀</span>
+                <span>KÍCH HOẠT MỞ CỔNG THỜI GIAN</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: MÀN CHƠI GAMEPLAY CHI TIẾT (STAGE PLAY VIEW)                     -->
+    <!-- ========================================================================= -->
+    <section id="stage-gameplay-screen" class="view-screen">
+      <!-- 2.1 TOP STATUS BAR (3 SECTIONS: LEFT, CENTER, RIGHT) -->
+      <header id="top-bar">
+        <!-- Top Bar Left: Back to Map + Chapter & Title -->
+        <div class="top-bar-left">
+          <button class="btn-back-to-map" id="btn-back-to-map" title="Quay lại Hải Đồ chọn màn">
+            <span>🗺️</span>
+            <span>Hải Đồ</span>
+          </button>
+          <span class="badge" id="gameplay-badge">CHƯƠNG 1 - MÀN 1</span>
+          <h1 class="stage-title" id="stage-title">Cơn bão bất ngờ</h1>
+        </div>
 
       <!-- Top Bar Center: Timer Box -->
       <div class="top-bar-center">
@@ -208,6 +461,7 @@
         </div>
       </footer>
     </section>
+  </section>
 
     <!-- 5. CHARACTER PROFILE MODAL POPUP -->
     <div id="profile-modal">
@@ -230,7 +484,7 @@
           </div>
           <div class="stat-card">
             <span class="stat-label">🏆 Điểm chiến lực</span>
-            <span class="stat-value highlight" id="modal-skill-pts">450 Pts</span>
+            <span class="stat-value highlight" id="modal-skill-pts">350 Pts</span>
           </div>
           <div class="stat-card">
             <span class="stat-label">⚡ Năng lượng cá nhân</span>
@@ -238,7 +492,7 @@
           </div>
           <div class="stat-card">
             <span class="stat-label">🧩 Mảnh bản đồ đã có</span>
-            <span class="stat-value highlight" id="modal-shards">0 / 30 Mảnh</span>
+            <span class="stat-value highlight" id="modal-shards">1 / 30 Mảnh</span>
           </div>
         </div>
 
@@ -280,7 +534,7 @@
           </label>
         </div>
 
-        <button class="btn-exit-stage" id="btn-exit-stage">🚪 Thoát Màn Chơi (Về Sảnh)</button>
+        <button class="btn-exit-stage" id="btn-exit-stage">🗺️ Thoát Màn Chơi (Về Hải Đồ)</button>
       </div>
     </div>
   </div>
