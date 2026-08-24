@@ -45,6 +45,11 @@
   - Điểm chiến lực ban đầu = 0. Tích lũy điểm cá nhân sau mỗi lần hoàn thành nhiệm vụ trong màn chơi.
   - Đủ Điểm chiến lực yêu cầu mới được phép unlock và tham gia màn chơi tiếp theo.
   - Cho phép chơi lại màn đã qua nhiều lần để cày thêm điểm chiến lực và nhảy cóc bỏ qua các màn chơi trung gian (nhảy bậc).
+- **Cơ chế Tương tác NPC Cố vấn & Đối tượng Nhiệm vụ (NPC Advisor & Quest Objects):**
+  - **Mỗi màn chơi có 1 nhân vật NPC chính (Cố vấn / Người dẫn dắt):** Ví dụ màn 1 có Thuyền trưởng (Captain).
+  - **Giai đoạn 1 — Tiếp cận & Mở khóa Bí quyết:** Người chơi cần di chuyển đến gặp NPC này trước. Để nhận được lời khuyên/bí quyết/kinh nghiệm/mật khẩu vượt ải, người chơi phải trả lời một chuỗi câu hỏi giao tiếp tiếng Anh (chào hỏi, giới thiệu tên tuổi và kỹ năng của bản thân, trình bày mục đích đến đây xin hỗ trợ). Khi hoàn thành, NPC mới trao bí quyết, sổ tay hướng dẫn hoặc mật khẩu.
+  - **Giai đoạn 2 — Vận dụng giải quyết Đối tượng Nhiệm vụ:** Khi bấm vào các đối tượng nhiệm vụ trong màn (Cột buồm, Thân tàu, Đèn phao cứu sinh, Hòm báu...), người chơi phải vận dụng chính các lời khuyên, bí quyết, kinh nghiệm hoặc mật khẩu mà NPC cố vấn đã cung cấp để giải quyết vấn đề.
+  - **Hình thức giải quyết đa dạng:** Người chơi có thể trả lời câu hỏi bằng Voice (Nói), gõ Text (Viết), hoặc chọn đáp án trắc nghiệm đúng bằng tiếng Anh để vượt qua nhiệm vụ và thu thập Mảnh bản đồ.
 - **Điều kiện Mở Cánh cổng Thời gian (End-game Rule):**
   - Khi chơi hết 30 màn, người chơi tiến đến địa điểm Cánh cổng Thời gian và bấm Mở cửa.
   - Nếu đủ 30 mảnh bản đồ khác nhau → Được mở cổng trở về nhà.

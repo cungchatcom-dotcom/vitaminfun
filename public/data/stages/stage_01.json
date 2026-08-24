@@ -3,60 +3,108 @@
   "chapter": 1,
   "chapterName": "Sự cố dưới đáy biển",
   "title": "Cơn bão bất ngờ",
-  "story": "Nhóm bạn điều khiển thuyền vượt qua giông bão, tàu bị lật và rơi vào lối vào thế giới Atlantis.",
+  "story": "Nhóm bạn điều khiển thuyền vượt qua giông bão. Hãy đến gặp Thuyền trưởng Drake để lấy bí quyết vượt bão, sau đó vận dụng để xử lý buồm, thân tàu, phao cứu sinh và mở hòm báu.",
   "timeLimitSeconds": 300,
   "initialEnergy": 100,
   "requiredSkillPts": 0,
   "grammarHint": "Imperatives & Present Simple (Khẩu lệnh & Thì hiện tại đơn)",
-  "activeHero": {
-    "id": "leo",
-    "name": "Leo Harrison",
-    "role": "The Guardian",
-    "portrait": "assets/portraits/leo.jpg"
+  "advisor": {
+    "id": "captain",
+    "name": "Captain Drake (Thuyền trưởng)",
+    "role": "NPC Cố vấn trưởng Màn 1",
+    "portrait": "./assets/portraits/captain.jpg",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "title": "1. Chào hỏi & Giới thiệu bản thân (Greeting & Intro)",
+        "npcPrompt": "Ahoy! The tempest is raging! Who are you and what is your role in this expedition?",
+        "options": [
+          { "key": "A", "text": "Hello Captain Drake! I am Leo, the Guardian leader of this expedition.", "isCorrect": true },
+          { "key": "B", "text": "I am just a passenger looking for snacks.", "isCorrect": false },
+          { "key": "C", "text": "Who are you? Stop shouting at me!", "isCorrect": false }
+        ],
+        "targetKeywords": ["i am leo", "guardian leader", "hello captain", "leo the guardian", "expedition"]
+      },
+      {
+        "step": 2,
+        "title": "2. Trình bày mục đích & Xin chỉ dẫn (Purpose & Request)",
+        "npcPrompt": "Welcome aboard, Leo! What brings you to my helm in this deadly storm?",
+        "options": [
+          { "key": "A", "text": "We are trapped in the tempest and need your guidance and secrets to survive!", "isCorrect": true },
+          { "key": "B", "text": "I want to watch the lightning from up here.", "isCorrect": false },
+          { "key": "C", "text": "Give me all the treasure right now!", "isCorrect": false }
+        ],
+        "targetKeywords": ["need your guidance", "secrets to survive", "trapped in the tempest", "survive", "guidance"]
+      }
+    ],
+    "cluebook": {
+      "title": "📜 SỔ TAY BÍ QUYẾT CỦA THUYỀN TRƯỞNG DRAKE",
+      "summary": "1. Cột buồm: Hô to 'Lower the sails immediately!' | 2. Thân tàu: Chọn công cụ 'wrench' | 3. Phao cứu sinh: Định vị ở 'left side' | 4. Hòm báu: Mật mã cổ ngữ là 'Orichalcum'!"
+    }
   },
   "tasks": [
     {
       "id": 1,
       "skill": "Nghe & Nói (Listen & Speak)",
-      "desc": "Hạ buồm đón gió: Nghe Thuyền trưởng hô hiệu lệnh và Nói/Gõ khẩu lệnh xác nhận.",
-      "npc": "Captain Golem",
-      "npcDialogue": "Storm incoming! Lower the sails immediately!",
+      "desc": "Hạ buồm đón gió: Sử dụng khẩu lệnh bí quyết của Thuyền trưởng để hạ buồm.",
+      "npc": "Cột Buồm Chính",
+      "npcDialogue": "Gió bão đang giật đứt dây kéo buồm! Cần khẩu lệnh chuẩn tiếng Anh để hạ buồm!",
       "targetPhrase": "Lower the sails immediately",
       "targetKeywords": ["lower the sails", "lower sails", "lower the sails immediately"],
-      "hint": "Cấu trúc mệnh lệnh: Lower the sails...",
+      "options": [
+        { "key": "A", "text": "Lower the sails immediately!", "isCorrect": true },
+        { "key": "B", "text": "Raise all sails to the top!", "isCorrect": false },
+        { "key": "C", "text": "Cut the anchor rope!", "isCorrect": false }
+      ],
+      "hint": "Bí quyết Thuyền trưởng: Lower the sails immediately!",
       "completed": false
     },
     {
       "id": 2,
       "skill": "Đọc & Viết (Read & Write)",
-      "desc": "Gia cố thân tàu nứt: Đọc hướng dẫn và Viết tên công cụ cần NPC thợ máy chuyền cho.",
-      "npc": "Sam (The Fixer)",
-      "npcDialogue": "The hull is cracking! Tell me which tool to use: [wrench / hammer / welding torch]!",
+      "desc": "Gia cố thân tàu nứt: Chọn và viết tên công cụ thích hợp để sửa vết nứt khoang tàu.",
+      "npc": "Thân Tàu Rạn Nứt",
+      "npcDialogue": "Vỏ tàu đang bị nứt! Nước biển tràn vào! Cần công cụ gì theo chỉ dẫn Thuyền trưởng?",
       "targetPhrase": "Use the wrench",
       "targetKeywords": ["wrench", "use wrench", "use the wrench"],
-      "hint": "Gõ tên công cụ: wrench",
+      "options": [
+        { "key": "A", "text": "Use the wrench to tighten bolts", "isCorrect": true },
+        { "key": "B", "text": "Use a paintbrush", "isCorrect": false },
+        { "key": "C", "text": "Use a plastic cup", "isCorrect": false }
+      ],
+      "hint": "Bí quyết Thuyền trưởng: Dùng 'wrench' (cờ lê) gia cố thân tàu",
       "completed": false
     },
     {
       "id": 3,
       "skill": "Nghe & Nói (Listen & Speak)",
-      "desc": "Định vị phao cứu sinh: Nghe radar và Nói/Gõ mô tả vị trí phát sáng của đèn khẩn cấp.",
-      "npc": "Maya (The Scholar)",
-      "npcDialogue": "Radar ping detected! Which side is the beacon on? Left or right?",
+      "desc": "Định vị phao cứu sinh: Báo cáo chính xác vị trí đèn tín hiệu radar cứu nạn.",
+      "npc": "Đèn Phao Cứu Sinh",
+      "npcDialogue": "Radar ngầm phát tín hiệu nhấp nháy! Vị trí phao khẩn cấp nằm ở bên nào?",
       "targetPhrase": "The beacon is on the left side",
       "targetKeywords": ["left", "left side", "port side", "on the left"],
-      "hint": "Trả lời vị trí: left side / port side",
+      "options": [
+        { "key": "A", "text": "The beacon is on the left side (port side)!", "isCorrect": true },
+        { "key": "B", "text": "The beacon is on the right side (starboard)!", "isCorrect": false },
+        { "key": "C", "text": "The beacon is completely lost!", "isCorrect": false }
+      ],
+      "hint": "Bí quyết Thuyền trưởng: Vị trí ở bên trái (left side / port side)",
       "completed": false
     },
     {
       "id": 4,
       "skill": "Đọc & Viết (Read & Write)",
-      "desc": "Thu thập Mảnh bản đồ 1: Đọc gợi ý trên khóa hòm cứu nạn và Viết từ khóa giải mã.",
-      "npc": "Ancient Chest Spirit",
-      "npcDialogue": "Speak the sacred ancient metal of Atlantis to unlock this chest: O_I_H_L_U_?",
+      "desc": "Thu thập Mảnh bản đồ 1: Nhập mật mã kim loại cổ Atlantis để mở hòm báu.",
+      "npc": "Hòm Báu Cổ Atlantis",
+      "npcDialogue": "Khóa cổ tự Atlantis yêu cầu nhập tên kim loại huyền thoại để giải phóng Mảnh bản đồ 1!",
       "targetPhrase": "Orichalcum",
       "targetKeywords": ["orichalcum"],
-      "hint": "Kim loại thần thoại Atlantis: orichalcum",
+      "options": [
+        { "key": "A", "text": "Orichalcum (Kim loại thần thoại)", "isCorrect": true },
+        { "key": "B", "text": "Titanium Alloy", "isCorrect": false },
+        { "key": "C", "text": "Stainless Steel", "isCorrect": false }
+      ],
+      "hint": "Bí quyết Thuyền trưởng: Mật khẩu là 'Orichalcum'",
       "reward": "map_shard_01",
       "completed": false
     }
