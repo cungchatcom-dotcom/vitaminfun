@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VITAMINFUN - Episode 1: Lost in the Evergreen</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for Web Audio Synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            850: '#06382b',
+                            950: '#022119',
+                        },
+                        amber: {
+                            450: '#f79f1b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar and ambient UI glow */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(16, 185, 129, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(16, 185, 129, 0.7);
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+        .glass-panel-amber {
+            background: rgba(30, 20, 10, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-ring-anim 2s infinite;
+        }
+        @keyframes pulse-ring-anim {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .pin-glow {
+            filter: drop-shadow(0 0 8px #f59e0b);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen overflow-x-hidden flex flex-col select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="h-16 bg-slate-900/90 border-b border-emerald-900/50 px-4 md:px-6 flex items-center justify-between z-30 sticky top-0 backdrop-blur-md">
+        <!-- Logo & Episode Title -->
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-display font-bold text-slate-950 text-xl shadow-lg shadow-emerald-900/50">
+                V
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-display text-lg font-bold tracking-wide text-emerald-400">VITAMINFUN</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 font-mono">A1–A2 LEVEL</span>
+                </div>
+                <p class="text-xs text-slate-400 flex items-center gap-1">
+                    <span>Ep. 1: Lost in the Evergreen</span>
+                    <span class="text-emerald-500">•</span>
+                    <span class="text-amber-400 font-medium">Goal: Cold Survival</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Currencies & Action Buttons -->
+        <div class="flex items-center space-x-3 md:space-x-5">
+            <!-- Energy Xu Balance -->
+            <div class="flex items-center space-x-1.5 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-full text-xs" title="Energy Xu (Tiêu hao 10 Xu/lượt nói)">
+                <i class="fa-solid font-bold fa-bolt text-amber-400 animate-pulse"></i>
+                <span class="font-mono font-bold text-amber-300" id="energy-xu-display">90</span>
+                <span class="text-slate-400 text-[10px]">/ 100</span>
+            </div>
+
+            <!-- V-Points -->
+            <div class="flex items-center space-x-1.5 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-full text-xs" title="V-Points (Đổi Voucher Fahasa)">
+                <i class="fa-solid fa-trophy text-emerald-400"></i>
+                <span class="font-mono font-bold text-emerald-300" id="vpoints-display">120</span>
+            </div>
+
+            <!-- Passport Button -->
+            <button onclick="togglePassportModal()" class="flex items-center space-x-1.5 bg-emerald-900/40 hover:bg-emerald-800/50 border border-emerald-600/50 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-200 transition">
+                <i class="fa-solid fa-passport text-emerald-400"></i>
+                <span class="hidden sm:inline">Passport</span>
+            </button>
+
+            <!-- Facilitator Analytics Panel Trigger -->
+            <button onclick="toggleAnalyticsModal()" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg text-xs text-slate-300 transition" title="Facilitator Dashboard">
+                <i class="fa-solid fa-chart-line text-teal-400"></i>
+                <span class="hidden md:inline">Analytics</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Episode Beats Tracker Bar -->
+    <div class="bg-slate-900/60 border-b border-slate-800 px-4 py-2 flex items-center justify-between text-xs overflow-x-auto">
+        <div class="flex items-center space-x-2 min-w-max mx-auto md:mx-0">
+            <span class="text-slate-500 font-semibold uppercase text-[10px] tracking-wider mr-2">Episode Beat:</span>
+            <div id="beat-step-0" class="beat-step px-2.5 py-1 rounded-md bg-emerald-600 text-slate-950 font-bold flex items-center gap-1.5 transition-all">
+                <span>1. Cold Open</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-700"></i>
+            <div id="beat-step-1" class="beat-step px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 flex items-center gap-1.5 transition-all">
+                <span>2. Private Clues</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-700"></i>
+            <div id="beat-step-2" class="beat-step px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 flex items-center gap-1.5 transition-all">
+                <span>3. Investigation</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-700"></i>
+            <div id="beat-step-3" class="beat-step px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 flex items-center gap-1.5 transition-all">
+                <span>4. Reversal</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-700"></i>
+            <div id="beat-step-4" class="beat-step px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 flex items-center gap-1.5 transition-all">
+                <span>5. Decision Room</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-700"></i>
+            <div id="beat-step-5" class="beat-step px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 flex items-center gap-1.5 transition-all">
+                <span>6. Consequence</span>
+            </div>
+        </div>
+
+        <div class="hidden lg:flex items-center space-x-2 text-slate-400 text-xs">
+            <i class="fa-solid fa-clock text-emerald-400"></i>
+            <span>Est. Time: 20–25m</span>
+        </div>
+    </div>
+
+    <!-- Main Content Area Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 max-w-7xl mx-auto w-full">
+
+        <!-- LEFT COLUMN: Interactive World Scene & Map (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col space-y-4">
+            
+            <!-- Canvas Container -->
+            <div class="relative w-full aspect-[16/10] bg-slate-900 rounded-2xl overflow-hidden border border-emerald-900/60 shadow-2xl group">
+                <!-- Canvas Element -->
+                <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+                <!-- Weather Overlay Banner -->
+                <div class="absolute top-3 left-3 glass-panel px-3 py-1.5 rounded-lg flex items-center space-x-2 text-xs">
+                    <i class="fa-solid fa-cloud-showers-heavy text-cyan-400 animate-bounce"></i>
+                    <div>
+                        <span class="text-slate-300 font-medium">Weather: </span>
+                        <span id="weather-text" class="text-amber-400 font-bold">Rain Incoming (30m)</span>
+                    </div>
+                </div>
+
+                <!-- World State Indicator -->
+                <div class="absolute top-3 right-3 glass-panel px-3 py-1.5 rounded-lg flex items-center space-x-2 text-xs">
+                    <i class="fa-solid fa-handshake text-emerald-400"></i>
+                    <span>Ranger Trust: <strong id="trust-val-display" class="text-emerald-300 font-mono">50/100</strong></span>
+                </div>
+
+                <!-- Hotspot Click Info Hint -->
+                <div class="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-between items-center">
+                    <span class="bg-slate-950/80 backdrop-blur text-emerald-300 text-[11px] px-3 py-1 rounded-full border border-emerald-800/40">
+                        <i class="fa-solid fa-hand-pointer mr-1"></i> Click interactive objects on map to inspect
+                    </span>
+                    <button onclick="playAmbientSound()" class="pointer-events-auto bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs p-2 rounded-full border border-slate-600">
+                        <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Role Selector Tabs (The 47 Club Asymmetric View) -->
+            <div class="glass-panel p-3 rounded-2xl flex flex-col space-y-2">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Select Player Role (Information Asymmetry):</span>
+                    <span class="text-[11px] text-amber-400"><i class="fa-solid fa-circle-info mr-1"></i>Each role holds unique clues</span>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <!-- Alex Button -->
+                    <button id="role-btn-ALEX" onclick="selectRole('ALEX')" class="role-card-btn p-2.5 rounded-xl border border-emerald-500 bg-emerald-950/60 flex items-center space-x-2 text-left transition">
+                        <div class="w-8 h-8 rounded-lg bg-blue-600/30 border border-blue-400 text-blue-300 font-bold flex items-center justify-center text-xs">AL</div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-200">ALEX</div>
+                            <div class="text-[10px] text-slate-400">Pattern Hunter</div>
+                        </div>
+                    </button>
+
+                    <!-- Maya Button -->
+                    <button id="role-btn-MAYA" onclick="selectRole('MAYA')" class="role-card-btn p-2.5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center space-x-2 text-left opacity-70 hover:opacity-100 transition">
+                        <div class="w-8 h-8 rounded-lg bg-pink-600/30 border border-pink-400 text-pink-300 font-bold flex items-center justify-center text-xs">MA</div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-200">MAYA</div>
+                            <div class="text-[10px] text-slate-400">Bridge Builder</div>
+                        </div>
+                    </button>
+
+                    <!-- Leo Button -->
+                    <button id="role-btn-LEO" onclick="selectRole('LEO')" class="role-card-btn p-2.5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center space-x-2 text-left opacity-70 hover:opacity-100 transition">
+                        <div class="w-8 h-8 rounded-lg bg-amber-600/30 border border-amber-400 text-amber-300 font-bold flex items-center justify-center text-xs">LE</div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-200">LEO</div>
+                            <div class="text-[10px] text-slate-400">Maker/Operator</div>
+                        </div>
+                    </button>
+
+                    <!-- Nora Button -->
+                    <button id="role-btn-NORA" onclick="selectRole('NORA')" class="role-card-btn p-2.5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center space-x-2 text-left opacity-70 hover:opacity-100 transition">
+                        <div class="w-8 h-8 rounded-lg bg-purple-600/30 border border-purple-400 text-purple-300 font-bold flex items-center justify-center text-xs">NO</div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-200">NORA</div>
+                            <div class="text-[10px] text-slate-400">Archivist</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Role Private Clue Display Box -->
+            <div id="private-clue-box" class="glass-panel p-4 rounded-2xl border-l-4 border-l-blue-500 flex flex-col space-y-2">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Interaction Dock (Dialogue, Evidence Board, Decision) (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col space-y-4">
+            
+            <!-- Navigation Tabs for Right Dock -->
+            <div class="flex border-b border-slate-800 space-x-2 text-xs font-medium">
+                <button id="dock-tab-dialogue" onclick="switchDockTab('dialogue')" class="px-4 py-2 rounded-t-xl bg-emerald-950 border-t border-x border-emerald-700/50 text-emerald-300 font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-comments"></i> Dialogue AI
+                </button>
+                <button id="dock-tab-evidence" onclick="switchDockTab('evidence')" class="px-4 py-2 rounded-t-xl bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-map-pin"></i> Evidence Board (<span id="evidence-count">0</span>)
+                </button>
+                <button id="dock-tab-decision" onclick="switchDockTab('decision')" class="px-4 py-2 rounded-t-xl bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-gavel text-amber-400"></i> Decision Room
+                </button>
+            </div>
+
+            <!-- TAB 1: DIALOGUE & VOICE AI INTERACTION PANEL -->
+            <div id="dock-content-dialogue" class="glass-panel p-4 rounded-b-2xl rounded-tr-2xl flex-1 flex flex-col justify-between min-h-[440px]">
+                <!-- NPC Info Header -->
+                <div class="flex items-center space-x-3 pb-3 border-b border-slate-800">
+                    <div class="relative">
+                        <div class="w-11 h-11 rounded-full bg-slate-800 border-2 border-emerald-500 overflow-hidden flex items-center justify-center font-bold text-lg text-emerald-400">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-slate-200 text-sm">Ranger Gideon</h3>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">Forest Caretaker</span>
+                        </div>
+                        <p class="text-xs text-slate-400 italic">"Speak clearly in English to get supplies or directions."</p>
+                    </div>
+                </div>
+
+                <!-- Chat History Window -->
+                <div id="chat-history" class="flex-1 my-3 overflow-y-auto space-y-3 pr-1 max-h-[220px]">
+                    <!-- Initial NPC Speech -->
+                    <div class="flex items-start space-x-2">
+                        <div class="bg-slate-800 border border-slate-700 text-slate-200 text-xs p-3 rounded-2xl rounded-tl-none max-w-[85%] shadow-sm">
+                            <p class="font-medium text-emerald-400 text-[11px] mb-1">Ranger Gideon:</p>
+                            Hello travelers! The storm is coming fast. What do you need for survival? You can ask me for supplies or directions.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Evaluation Rubric Feedback Badge (Hidden by default) -->
+                <div id="ai-feedback-badge" class="hidden mb-2 p-2.5 bg-slate-900/90 border border-amber-500/40 rounded-xl text-xs flex flex-col space-y-1 animate-fade-in">
+                    <!-- Populated via JS -->
+                </div>
+
+                <!-- Voice & Input Control Box -->
+                <div class="space-y-2 pt-2 border-t border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <!-- Microphone Button -->
+                        <button id="mic-btn" onclick="toggleVoiceInput()" class="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold flex items-center justify-center transition shadow-lg shrink-0" title="Click to Speak (Web Speech API)">
+                            <i id="mic-icon" class="fa-solid fa-microphone"></i>
+                        </button>
+
+                        <!-- Text Input -->
+                        <input id="speech-input" type="text" placeholder="Type or speak in English (e.g., Can we have matches?)..." class="flex-1 bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none transition">
+
+                        <!-- Send Button -->
+                        <button onclick="sendUserUtterance()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-600 flex items-center justify-center transition shrink-0">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+
+                    <!-- Target Form Suggestion & Intent Hint -->
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                        <span><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Target Grammar: <code class="text-amber-300 font-mono">can / must / imperatives</code></span>
+                        <span id="stt-status" class="text-slate-500">Mic Idle</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: EVIDENCE BOARD PANEL -->
+            <div id="dock-content-evidence" class="hidden glass-panel p-4 rounded-b-2xl rounded-tr-2xl flex-1 flex-col justify-between min-h-[440px]">
+                <div>
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+                        <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-list text-emerald-400"></i> Evidence Board
+                        </h3>
+                        <span class="text-[11px] text-slate-400">Pin clues to use in Decision Room</span>
+                    </div>
+
+                    <!-- Pinned Clues List -->
+                    <div id="pinned-clues-list" class="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                        <p class="text-xs text-slate-500 italic text-center py-6">No evidence pinned yet. Inspect objects on the map or read private clues to pin evidence.</p>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>Tag Types: <strong class="text-blue-400">Fact</strong> | <strong class="text-amber-400">Testimony</strong> | <strong class="text-purple-400">Inference</strong></span>
+                </div>
+            </div>
+
+            <!-- TAB 3: DECISION ROOM PANEL -->
+            <div id="dock-content-decision" class="hidden glass-panel-amber p-4 rounded-b-2xl rounded-tr-2xl flex-1 flex-col justify-between min-h-[440px]">
+                <div>
+                    <div class="flex items-center justify-between pb-2 border-b border-amber-900/40 mb-3">
+                        <h3 class="font-bold text-amber-300 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-gavel"></i> Decision Room (Beat 5)
+                        </h3>
+                        <span class="text-[10px] bg-amber-950 text-amber-400 px-2 py-0.5 rounded border border-amber-800">Must Provide Reason</span>
+                    </div>
+
+                    <p class="text-xs text-slate-300 mb-3">
+                        <strong>Episode Dilemma:</strong> Night is falling and storm is coming. What should The 47 Club do?
+                    </p>
+
+                    <!-- Choice Options -->
+                    <div class="space-y-2 mb-4">
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 cursor-pointer hover:border-amber-500/60 transition">
+                            <input type="radio" name="decision-choice" value="SHELTER" checked class="mt-1 accent-amber-500">
+                            <div>
+                                <div class="text-xs font-bold text-amber-200">Option A: Build Pine Branch Shelter</div>
+                                <div class="text-[11px] text-slate-400">Stay safe on this side, request matches & tarp from Gideon. Tradeoff: Delayed journey.</div>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 cursor-pointer hover:border-amber-500/60 transition">
+                            <input type="radio" name="decision-choice" value="BRIDGE" class="mt-1 accent-amber-500">
+                            <div>
+                                <div class="text-xs font-bold text-amber-200">Option B: Cross River Rope Bridge Now</div>
+                                <div class="text-[11px] text-slate-400">Reach the wooden cabin fast. Tradeoff: Rope bridge is old and sways in high wind.</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- English Reason Input -->
+                    <div class="space-y-1 mb-3">
+                        <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                            <span>English Justification (Required):</span>
+                            <span class="text-amber-400 text-[10px]">Must use: because / should / must</span>
+                        </label>
+                        <textarea id="decision-reason-text" rows="2" placeholder="e.g. We must build a shelter because the storm is coming and the rope bridge is unsafe..." class="w-full bg-slate-950 border border-amber-900/60 focus:border-amber-500 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Commit Decision Button -->
+                <button onclick="commitDecision()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 font-bold text-slate-950 text-xs shadow-lg shadow-amber-950/50 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <span>Commit Team Vote & Trigger World State</span>
+                </button>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- MODAL 1: PASSPORT LITE LEDGER -->
+    <div id="passport-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-emerald-700/60 rounded-2xl w-full max-w-lg p-5 shadow-2xl flex flex-col space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-passport text-emerald-400 text-xl"></i>
+                    <h2 class="font-display font-bold text-slate-100 text-base">The 47 Club Passport Lite</h2>
+                </div>
+                <button onclick="togglePassportModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Passport Body -->
+            <div class="space-y-3 text-xs">
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-center">
+                    <div>
+                        <div class="text-slate-400 text-[10px]">HOLDER IDENTITY</div>
+                        <div class="font-bold text-emerald-300">Alex / Maya / Leo / Nora</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-[10px]">CURRENT TRUST</div>
+                        <div id="passport-trust-val" class="font-mono font-bold text-amber-400">50 Points</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-slate-300 mb-2">Consequence History (Remembered Flags):</h4>
+                    <ul id="passport-flags-list" class="space-y-1.5 text-slate-300">
+                        <li class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-bookmark text-emerald-500 mr-2"></i>Ep.1 Started: Entered Evergreen Forest</span>
+                            <span class="text-[10px] text-slate-500">Just now</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="p-2.5 bg-amber-950/30 border border-amber-800/40 rounded-xl text-[11px] text-amber-300/90">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                    <span>"Passport remembers choices. Consequences impact price, trust, and route in Ep 2–3."</span>
+                </div>
+            </div>
+
+            <button onclick="togglePassportModal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition">Close Passport</button>
+        </div>
+    </div>
+
+    <!-- MODAL 2: FACILITATOR & LEARNING METRICS DASHBOARD -->
+    <div id="analytics-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-teal-700/60 rounded-2xl w-full max-w-2xl p-5 shadow-2xl flex flex-col space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-pie text-teal-400 text-xl"></i>
+                    <h2 class="font-display font-bold text-slate-100 text-base">Facilitator Dashboard & Stealth Learning Metrics</h2>
+                </div>
+                <button onclick="toggleAnalyticsModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px]">Episode Completion</div>
+                    <div class="text-lg font-bold text-emerald-400 font-mono" id="kpi-completion">85%</div>
+                    <div class="text-[9px] text-emerald-500">● Green (Target ≥85%)</div>
+                </div>
+
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px]">English Bypass Rate</div>
+                    <div class="text-lg font-bold text-emerald-400 font-mono" id="kpi-bypass">0%</div>
+                    <div class="text-[9px] text-emerald-500">● Green (Target ≤10%)</div>
+                </div>
+
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px]">Repair Success</div>
+                    <div class="text-lg font-bold text-teal-400 font-mono" id="kpi-repair">100%</div>
+                    <div class="text-[9px] text-emerald-500">● Green (Target ≥65%)</div>
+                </div>
+
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px]">Role Equity (P90/P10)</div>
+                    <div class="text-lg font-bold text-amber-400 font-mono" id="kpi-equity">1.2</div>
+                    <div class="text-[9px] text-emerald-500">● Balanced (Target ≤3.0)</div>
+                </div>
+            </div>
+
+            <!-- Telemetry Event Stream Log -->
+            <div class="space-y-1">
+                <h4 class="font-bold text-slate-300 text-xs">Real-time Telemetry Event Stream:</h4>
+                <div id="telemetry-log" class="bg-slate-950 border border-slate-800 rounded-xl p-3 h-36 overflow-y-auto text-[11px] font-mono text-slate-400 space-y-1">
+                    <div>[SYSTEM_INIT] Stage loaded: LOST_IN_EVERGREEN_EP1</div>
+                    <div>[ROLE_ASSIGN] Initial role: ALEX (Pattern Hunter)</div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center text-xs pt-2">
+                <span class="text-slate-500">Unit Cost Estimate: ~$0.0005/turn</span>
+                <button onclick="toggleAnalyticsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition">Close Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Game State Architecture
+        const gameState = {
+            currentBeat: 0, // 0: Cold Open, 1: Private Clues, 2: Investigation, 3: False Solution, 4: Decision Room, 5: Consequence
+            selectedRole: 'ALEX',
+            energyXu: 90,
+            vPoints: 120,
+            trustScore: 50,
+            hasMatches: false,
+            hasTarp: false,
+            weatherTime: 30, // minutes before storm
+            pinnedEvidence: [],
+            passportFlags: ['Entered Evergreen Forest'],
+            metrics: {
+                totalAttempts: 0,
+                successfulAttempts: 0,
+                repairsNeeded: 0,
+                repairsFixed: 0,
+                englishBypass: false
+            }
+        };
+
+        // Asymmetric Private Clues per Role (The 47 Club)
+        const roleClues = {
+            'ALEX': {
+                title: 'Alex (Pattern Hunter)',
+                badgeBg: 'bg-blue-600/30 border-blue-400 text-blue-300',
+                clueText: 'Timeline Pattern: The storm hits in 30 minutes. High winds exceed 25mph, making the rope bridge swing violently.',
+                tag: 'Fact',
+                tagClass: 'bg-blue-900 text-blue-300 border-blue-700'
+            },
+            'MAYA': {
+                title: 'Maya (Bridge Builder)',
+                badgeBg: 'bg-pink-600/30 border-pink-400 text-pink-300',
+                clueText: 'Testimony Clue: Ranger Gideon said: "The wooden cabin across the river has blankets, but the rope bridge needs repairs."',
+                tag: 'Testimony',
+                tagClass: 'bg-amber-900 text-amber-300 border-amber-700'
+            },
+            'LEO': {
+                title: 'Leo (Maker/Operator)',
+                badgeBg: 'bg-amber-600/30 border-amber-400 text-amber-300',
+                clueText: 'Rule Clue: Pine branches + waterproof tarp = safe dry shelter for 4 people. Requires 3 items: matches, rope, tarp.',
+                tag: 'Fact',
+                tagClass: 'bg-blue-900 text-blue-300 border-blue-700'
+            },
+            'NORA': {
+                title: 'Nora (Archivist)',
+                badgeBg: 'bg-purple-600/30 border-purple-400 text-purple-300',
+                clueText: 'Archive Clue: Old map note from Cartographer Zero: "The river floods at 7:00 PM during storm season without fail."',
+                tag: 'Inference',
+                tagClass: 'bg-purple-900 text-purple-300 border-purple-700'
+            }
+        };
+
+        let synth, noiseSynth;
+        let isAudioInit = false;
+
+        function initAudio() {
+            if (isAudioInit) return;
+            try {
+                Tone.start();
+                synth = new Tone.Synth().toDestination();
+                isAudioInit = true;
+            } catch (e) {
+                console.log("Audio context standard fallback");
+            }
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!isAudioInit) return;
+            try {
+                if (type === 'click') {
+                    synth.triggerAttackRelease("C5", "8n");
+                } else if (type === 'success') {
+                    synth.triggerAttackRelease("G5", "16n", Tone.now());
+                    synth.triggerAttackRelease("C6", "8n", Tone.now() + 0.1);
+                } else if (type === 'error') {
+                    synth.triggerAttackRelease("F3", "8n");
+                } else if (type === 'pin') {
+                    synth.triggerAttackRelease("E5", "16n");
+                }
+            } catch (e) {}
+        }
+
+        function playAmbientSound() {
+            playSound('click');
+            const icon = document.getElementById('audio-icon');
+            if (icon.classList.contains('fa-volume-high')) {
+                icon.classList.replace('fa-volume-high', 'fa-volume-xmark');
+            } else {
+                icon.classList.replace('fa-volume-xmark', 'fa-volume-high');
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Canvas Game Objects Hotspots
+        const hotspots = [
+            { id: 'sign', x: 0.25, y: 0.65, radius: 25, label: 'Broken Signpost', icon: '🪧' },
+            { id: 'gideon', x: 0.50, y: 0.50, radius: 30, label: 'Ranger Gideon', icon: '👤' },
+            { id: 'bridge', x: 0.80, y: 0.40, radius: 35, label: 'Rope Bridge', icon: '🌉' },
+            { id: 'shelter_site', x: 0.20, y: 0.35, radius: 30, label: 'Pine Shelter Site', icon: '⛺' }
+        ];
+
+        // Animated particles (Rain)
+        const rainDrops = Array.from({ length: 40 }, () => ({
+            x: Math.random(),
+            y: Math.random(),
+            speed: 0.01 + Math.random() * 0.02,
+            length: 10 + Math.random() * 15
+        }));
+
+        function drawScene() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Background Forest Gradient
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+            bgGrad.addColorStop(0, '#022119'); // Dark Emerald Sky
+            bgGrad.addColorStop(0.6, '#06382b');
+            bgGrad.addColorStop(1, '#02140f');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Draw Silhouetted Pine Trees
+            ctx.fillStyle = '#011711';
+            for (let i = 0; i < w; i += 40) {
+                const treeH = 80 + Math.sin(i) * 30;
+                ctx.beginPath();
+                ctx.moveTo(i, h - 50);
+                ctx.lineTo(i + 20, h - 50 - treeH);
+                ctx.lineTo(i + 40, h - 50);
+                ctx.fill();
+            }
+
+            // Draw River
+            ctx.fillStyle = '#0f384d';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.7, h);
+            ctx.bezierCurveTo(w * 0.75, h * 0.6, w * 0.85, h * 0.4, w * 0.8, 0);
+            ctx.lineTo(w, 0);
+            ctx.lineTo(w, h);
+            ctx.fill();
+
+            // Draw Bridge Lines
+            ctx.strokeStyle = '#854d0e';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.72, h * 0.45);
+            ctx.lineTo(w * 0.88, h * 0.35);
+            ctx.stroke();
+
+            // Draw Ground Surface
+            ctx.fillStyle = '#042e23';
+            ctx.fillRect(0, h - 50, w, 50);
+
+            // Draw Rain Particles
+            ctx.strokeStyle = 'rgba(103, 232, 249, 0.3)';
+            ctx.lineWidth = 1;
+            rainDrops.forEach(drop => {
+                drop.y += drop.speed;
+                if (drop.y > 1) drop.y = 0;
+                ctx.beginPath();
+                ctx.moveTo(drop.x * w, drop.y * h);
+                ctx.lineTo(drop.x * w - 2, (drop.y * h) + drop.length);
+                ctx.stroke();
+            });
+
+            // Draw Interactive Hotspots
+            hotspots.forEach(hs => {
+                const hx = hs.x * w;
+                const hy = hs.y * h;
+
+                // Pulsing outer circle
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+                ctx.beginPath();
+                ctx.arc(hx, hy, hs.radius + 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner circle
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(hx, hy, hs.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Emoji Icon
+                ctx.font = '18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(hs.icon, hx, hy);
+
+                // Label
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillText(hs.label, hx, hy + hs.radius + 14);
+            });
+
+            requestAnimationFrame(drawScene);
+        }
+
+        canvas.addEventListener('click', function(e) {
+            playSound('click');
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) / canvas.width;
+            const clickY = (e.clientY - rect.top) / canvas.height;
+
+            hotspots.forEach(hs => {
+                const dist = Math.hypot(clickX - hs.x, clickY - hs.y);
+                if (dist < 0.08) {
+                    handleHotspotInspect(hs.id);
+                }
+            });
+        });
+
+        function handleHotspotInspect(id) {
+            if (id === 'gideon') {
+                switchDockTab('dialogue');
+                addChatMessage('Ranger Gideon', 'Ask me for matches, rope, or bridge status in English!', 'npc');
+            } else if (id === 'sign') {
+                const text = "Broken Signpost Clue: Arrow pointing left says 'River Whispers (Danger)'. Arrow pointing right is missing.";
+                pinEvidence('Broken Signpost', text, 'Fact');
+            } else if (id === 'bridge') {
+                const text = "Old Rope Bridge Clue: Rope is worn out. Strong wind makes crossing risky.";
+                pinEvidence('Rope Bridge State', text, 'Fact');
+            } else if (id === 'shelter_site') {
+                const text = "Shelter Site Clue: Abundant pine branches nearby. Dry ground under cliff overhang.";
+                pinEvidence('Pine Branch Shelter', text, 'Inference');
+            }
+        }
+
+        function selectRole(roleKey) {
+            playSound('click');
+            gameState.selectedRole = roleKey;
+            
+            // Highlight role buttons
+            document.querySelectorAll('.role-card-btn').forEach(btn => {
+                btn.classList.remove('border-emerald-500', 'bg-emerald-950/60');
+                btn.classList.add('border-slate-800', 'bg-slate-900/60', 'opacity-70');
+            });
+            const activeBtn = document.getElementById(`role-btn-${roleKey}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-slate-800', 'bg-slate-900/60', 'opacity-70');
+                activeBtn.classList.add('border-emerald-500', 'bg-emerald-950/60');
+            }
+
+            // Render Private Clues Panel
+            const clueData = roleClues[roleKey];
+            const clueBox = document.getElementById('private-clue-box');
+            clueBox.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-user-tag text-emerald-400"></i> ${clueData.title}'s Private Clue
+                    </span>
+                    <span class="text-[10px] px-2 py-0.5 rounded border ${clueData.tagClass}">${clueData.tag}</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">${clueData.clueText}</p>
+                <div class="flex justify-end pt-1">
+                    <button onclick="pinEvidence('${clueData.title}', '${clueData.clueText.replace(/'/g, "\\'")}', '${clueData.tag}')" class="text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-600 px-2.5 py-1 rounded-lg text-emerald-300 transition flex items-center gap-1">
+                        <i class="fa-solid fa-pin"></i> Pin to Evidence Board
+                    </button>
+                </div>
+            `;
+
+            logTelemetry(`[ROLE_SWITCH] Switched view to role: ${roleKey}`);
+        }
+
+        function pinEvidence(source, text, tag) {
+            playSound('pin');
+            const exists = gameState.pinnedEvidence.some(e => e.text === text);
+            if (exists) {
+                showToast("Evidence already pinned!");
+                return;
+            }
+
+            gameState.pinnedEvidence.push({ source, text, tag });
+            document.getElementById('evidence-count').innerText = gameState.pinnedEvidence.length;
+
+            renderEvidenceList();
+            showToast("Clue pinned to Evidence Board!");
+            logTelemetry(`[EVIDENCE_PIN] Pinned clue from ${source}`);
+        }
+
+        function renderEvidenceList() {
+            const listContainer = document.getElementById('pinned-clues-list');
+            if (gameState.pinnedEvidence.length === 0) {
+                listContainer.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-6">No evidence pinned yet. Inspect objects on map or private clues to pin evidence.</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = gameState.pinnedEvidence.map((ev, idx) => `
+                <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/40 transition text-xs space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-emerald-400 text-[11px]">${ev.source}</span>
+                        <span class="text-[9px] px-2 py-0.5 rounded border ${ev.tag === 'Fact' ? 'bg-blue-950 text-blue-300 border-blue-800' : ev.tag === 'Testimony' ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-purple-950 text-purple-300 border-purple-800'}">${ev.tag}</span>
+                    </div>
+                    <p class="text-slate-300 text-[11px]">${ev.text}</p>
+                </div>
+            `).join('');
+        }
+
+        let recognition = null;
+        let isListening = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRec();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById('mic-btn').classList.add('bg-red-600', 'animate-pulse');
+                document.getElementById('stt-status').innerText = 'Listening (Speak English)...';
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('speech-input').value = transcript;
+                stopVoiceInput();
+                sendUserUtterance();
+            };
+
+            recognition.onerror = function() {
+                stopVoiceInput();
+                document.getElementById('stt-status').innerText = 'Voice input error (Fallback to typing)';
+            };
+
+            recognition.onend = function() {
+                stopVoiceInput();
+            };
+        }
+
+        function toggleVoiceInput() {
+            playSound('click');
+            if (!recognition) {
+                showToast("Web Speech API not supported on this browser. Please type!");
+                return;
+            }
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try { recognition.start(); } catch(e){}
+            }
+        }
+
+        function stopVoiceInput() {
+            isListening = false;
+            document.getElementById('mic-btn').classList.remove('bg-red-600', 'animate-pulse');
+            document.getElementById('stt-status').innerText = 'Mic Idle';
+        }
+
+        function sendUserUtterance() {
+            const inputEl = document.getElementById('speech-input');
+            const userText = inputEl.value.trim();
+            if (!userText) return;
+
+            // Check Energy Xu
+            if (gameState.energyXu < 10) {
+                showToast("Not enough Energy Xu! Switch to non-AI mode.");
+                return;
+            }
+            gameState.energyXu -= 10;
+            document.getElementById('energy-xu-display').innerText = gameState.energyXu;
+
+            playSound('click');
+            addChatMessage('You (' + gameState.selectedRole + ')', userText, 'user');
+            inputEl.value = '';
+
+            // Process Utterance Evaluation Algorithm (Intent & Grammar Validator)
+            setTimeout(() => {
+                evaluateAndRespond(userText);
+            }, 600);
+        }
+
+        function evaluateAndRespond(text) {
+            const lower = text.toLowerCase();
+            gameState.metrics.totalAttempts++;
+
+            // Target Form Keywords Checklist
+            const hasModal = lower.includes('can') || lower.includes('must') || lower.includes('could') || lower.includes('need') || lower.includes('give');
+            const hasKeyword = lower.includes('match') || lower.includes('tarp') || lower.includes('shelter') || lower.includes('bridge') || lower.includes('water') || lower.includes('help');
+
+            let taskCompleted = false;
+            let score = 0;
+            let npcResponse = "";
+            let feedbackMsg = "";
+
+            if (hasModal && hasKeyword) {
+                taskCompleted = true;
+                score = 88;
+                gameState.metrics.successfulAttempts++;
+                gameState.trustScore = Math.min(100, gameState.trustScore + 10);
+                
+                if (lower.includes('match') || lower.includes('tarp') || lower.includes('shelter')) {
+                    gameState.hasMatches = true;
+                    gameState.hasTarp = true;
+                    npcResponse = "Good thinking! Here are two boxes of matches and a waterproof tarp. You can build a safe pine shelter now!";
+                } else if (lower.includes('bridge')) {
+                    npcResponse = "The rope bridge is dangerous in high winds. I recommend staying on this side unless you must hurry!";
+                } else {
+                    npcResponse = "I can help you with supplies! Make sure you stay warm before the rain starts.";
+                }
+                feedbackMsg = `<span class="text-emerald-400 font-bold">✓ Task Completed (Score: ${score}/100)</span>: Great use of request modals and survival vocabulary!`;
+                playSound('success');
+            } else {
+                // Trigger Repair Prompt (Does not cause Game Over)
+                score = 45;
+                gameState.metrics.repairsNeeded++;
+                npcResponse = "I didn't quite understand. Could you rephrase your request using 'Can we have...' or 'We need...'?";
+                feedbackMsg = `<span class="text-amber-400 font-bold">⚠ Repair Prompt Needed</span>: Try using polite forms like <code class="font-mono">"Can we have [matches/tarp]?"</code>`;
+                playSound('error');
+            }
+
+            // Update UI elements
+            addChatMessage('Ranger Gideon', npcResponse, 'npc');
+            showAIFeedbackBadge(feedbackMsg, score);
+            document.getElementById('trust-val-display').innerText = gameState.trustScore + '/100';
+            document.getElementById('passport-trust-val').innerText = gameState.trustScore + ' Points';
+
+            // Advance Beat from Investigation to Decision if supplies acquired
+            if (gameState.currentBeat < 2) {
+                advanceBeat(2); // Investigation Beat
+            }
+
+            logTelemetry(`[AI_UTTERANCE] Score: ${score}, Completed: ${taskCompleted}`);
+        }
+
+        function addChatMessage(sender, text, type) {
+            const history = document.getElementById('chat-history');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex items-start space-x-2 ${type === 'user' ? 'justify-end' : ''}`;
+
+            msgDiv.innerHTML = `
+                <div class="${type === 'user' ? 'bg-emerald-950 border border-emerald-700/60 text-slate-100' : 'bg-slate-800 border border-slate-700 text-slate-200'} text-xs p-3 rounded-2xl ${type === 'user' ? 'rounded-tr-none' : 'rounded-tl-none'} max-w-[85%] shadow-sm">
+                    <p class="font-medium ${type === 'user' ? 'text-teal-300' : 'text-emerald-400'} text-[11px] mb-1">${sender}:</p>
+                    ${text}
+                </div>
+            `;
+
+            history.appendChild(msgDiv);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function showAIFeedbackBadge(htmlContent, score) {
+            const badge = document.getElementById('ai-feedback-badge');
+            badge.classList.remove('hidden');
+            badge.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px]">${htmlContent}</span>
+                    <span class="font-mono font-bold ${score >= 70 ? 'text-emerald-400' : 'text-amber-400'} text-xs">${score}/100</span>
+                </div>
+            `;
+        }
+
+        function commitDecision() {
+            playSound('click');
+            const choice = document.querySelector('input[name="decision-choice"]:checked').value;
+            const reason = document.getElementById('decision-reason-text').value.trim();
+
+            if (reason.length < 15) {
+                showToast("Please write a complete English reason (at least 15 characters)!");
+                return;
+            }
+
+            advanceBeat(4); // Advance to Decision Room / Consequence
+
+            if (choice === 'SHELTER') {
+                gameState.passportFlags.push("Ep.1 Outcome: Built Pine Shelter with Ranger Gideon's supplies. Stayed safe during storm.");
+                gameState.vPoints += 50;
+                document.getElementById('vpoints-display').innerText = gameState.vPoints;
+                
+                showOutcomeModal(
+                    "WORLD STATE CHANGED: SAFELY SHELTERED!",
+                    "The team successfully built a pine shelter using matches and waterproof tarp. You stayed warm while the storm raged outside. Passport updated!",
+                    "Metaplot Sting: Nora found an ancient compass embedded in the pine cliff with Cartographer Zero's emblem."
+                );
+            } else {
+                gameState.passportFlags.push("Ep.1 Outcome: Crossed Rope Bridge in high winds. Maya lost her map fragment in the river.");
+                
+                showOutcomeModal(
+                    "WORLD STATE CHANGED: CROSSED BRIDGE WITH LOSS!",
+                    "The team rushed across the swaying rope bridge. Everyone reached the cabin, but Maya lost her map fragment in the roaring river!",
+                    "Metaplot Sting: On the cabin table lies a letter addressed to 'The 47 Club' signed by Zero."
+                );
+            }
+
+            renderPassportFlags();
+            logTelemetry(`[DECISION_COMMIT] Choice: ${choice}, Reason: ${reason}`);
+        }
+
+        function showOutcomeModal(title, bodyText, stingText) {
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in";
+            modal.innerHTML = `
+                <div class="bg-slate-900 border-2 border-emerald-500 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 text-center">
+                    <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-2xl border border-emerald-500">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <h2 class="font-display font-bold text-lg text-emerald-300">${title}</h2>
+                    <p class="text-xs text-slate-300 leading-relaxed">${bodyText}</p>
+                    
+                    <div class="p-3 bg-slate-950 rounded-xl border border-amber-800/40 text-xs text-amber-300 italic">
+                        <i class="fa-solid fa-key mr-1"></i> ${stingText}
+                    </div>
+
+                    <button onclick="this.parentElement.parentElement.remove()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition">
+                        Continue to Episode 2 Setup
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function switchDockTab(tabKey) {
+            playSound('click');
+            ['dialogue', 'evidence', 'decision'].forEach(k => {
+                const btn = document.getElementById(`dock-tab-${k}`);
+                const content = document.getElementById(`dock-content-${k}`);
+                if (k === tabKey) {
+                    btn.className = "px-4 py-2 rounded-t-xl bg-emerald-950 border-t border-x border-emerald-700/50 text-emerald-300 font-bold flex items-center gap-1.5";
+                    content.classList.remove('hidden');
+                    content.classList.add('flex');
+                } else {
+                    btn.className = "px-4 py-2 rounded-t-xl bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center gap-1.5";
+                    content.classList.add('hidden');
+                    content.classList.remove('flex');
+                }
+            });
+        }
+
+        function advanceBeat(stepIdx) {
+            gameState.currentBeat = stepIdx;
+            document.querySelectorAll('.beat-step').forEach((el, idx) => {
+                if (idx === stepIdx) {
+                    el.className = "beat-step px-2.5 py-1 rounded-md bg-emerald-600 text-slate-950 font-bold flex items-center gap-1.5 transition-all";
+                } else if (idx < stepIdx) {
+                    el.className = "beat-step px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1.5 transition-all";
+                } else {
+                    el.className = "beat-step px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 flex items-center gap-1.5 transition-all";
+                }
+            });
+        }
+
+        function togglePassportModal() {
+            playSound('click');
+            const el = document.getElementById('passport-modal');
+            el.classList.toggle('hidden');
+        }
+
+        function toggleAnalyticsModal() {
+            playSound('click');
+            const el = document.getElementById('analytics-modal');
+            el.classList.toggle('hidden');
+        }
+
+        function renderPassportFlags() {
+            const list = document.getElementById('passport-flags-list');
+            list.innerHTML = gameState.passportFlags.map(flag => `
+                <li class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                    <span><i class="fa-solid fa-bookmark text-emerald-500 mr-2"></i>${flag}</span>
+                    <span class="text-[10px] text-slate-500">Saved</span>
+                </li>
+            `).join('');
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-5 right-5 bg-slate-900 border border-emerald-500 text-emerald-300 text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50 animate-bounce";
+            toast.innerHTML = `<i class="fa-solid fa-info-circle mr-1.5"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        function logTelemetry(eventStr) {
+            const logEl = document.getElementById('telemetry-log');
+            const div = document.createElement('div');
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${eventStr}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        window.onload = function() {
+            selectRole('ALEX');
+            requestAnimationFrame(drawScene);
+            logTelemetry("[ENGINE_READY] Deterministic world state engine initialized.");
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VITAMINFUN - Episode 1: Lost in the Evergreen</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for Web Audio Synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts for Gen Z/Alpha Gamified Aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        forest: {
+                            50: '#f2fbf7',
+                            100: '#e1f7ed',
+                            400: '#34d399',
+                            600: '#059669',
+                            800: '#065f46',
+                            900: '#064e3b',
+                            950: '#022c22',
+                        },
+                        amber: {
+                            450: '#f79f1b',
+                        },
+                        game: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#10b981',
+                            amber: '#fbbf24',
+                            rose: '#f43f5e',
+                            violet: '#a855f7',
+                            sky: '#38bdf8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(52, 211, 153, 0.5);
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(52, 211, 153, 0.8);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1.5px solid rgba(52, 211, 153, 0.25);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .glass-panel-amber {
+            background: rgba(45, 28, 12, 0.88);
+            backdrop-filter: blur(16px);
+            border: 1.5px solid rgba(251, 191, 36, 0.35);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+        .game-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 0 0 rgba(0,0,0,0.25);
+        }
+        .game-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 0 rgba(0,0,0,0.25);
+        }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+            animation: pulse-ring-anim 2s infinite;
+        }
+        @keyframes pulse-ring-anim {
+            0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+            70% { box-shadow: 0 0 0 12px rgba(52, 211, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+        }
+        .chat-bubble-npc {
+            border-top-left-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .chat-bubble-user {
+            border-top-right-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .avatar-frame {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen overflow-x-hidden flex flex-col select-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+
+    <!-- Top Navigation Header -->
+    <header class="h-16 bg-slate-900/90 border-b border-emerald-500/20 px-4 md:px-6 flex items-center justify-between z-30 sticky top-0 backdrop-blur-xl">
+        <!-- Logo & Episode Title -->
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-300 flex items-center justify-center font-display font-black text-slate-950 text-2xl shadow-lg shadow-emerald-500/30 transform hover:rotate-6 transition">
+                🌿
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-display text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-300">VITAMINFUN</span>
+                    <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold">LEVEL A1–A2</span>
+                </div>
+                <p class="text-[11px] text-slate-300 flex items-center gap-1.5 font-medium">
+                    <span>Ep 1: Lost in the Evergreen</span>
+                    <span class="text-emerald-400">•</span>
+                    <span class="text-amber-300 font-semibold"><i class="fa-solid fa-compass mr-1"></i>Cold Survival</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Currencies & Action Buttons -->
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <!-- Energy Xu Balance -->
+            <div class="flex items-center space-x-1.5 bg-slate-800/90 border border-amber-500/40 px-3 py-1.5 rounded-full text-xs shadow-inner" title="Energy Xu (Tiêu hao 10 Xu/lượt nói)">
+                <span class="text-amber-400 text-sm animate-bounce">⚡</span>
+                <span class="font-display font-bold text-amber-300 text-sm" id="energy-xu-display">90</span>
+                <span class="text-slate-400 text-[10px]">/ 100</span>
+            </div>
+
+            <!-- V-Points -->
+            <div class="flex items-center space-x-1.5 bg-slate-800/90 border border-emerald-500/40 px-3 py-1.5 rounded-full text-xs shadow-inner" title="V-Points (Đổi Voucher Fahasa)">
+                <span class="text-emerald-400 text-sm">⭐</span>
+                <span class="font-display font-bold text-emerald-300 text-sm" id="vpoints-display">120</span>
+            </div>
+
+            <!-- Passport Button -->
+            <button onclick="togglePassportModal()" class="game-btn flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-xl text-xs transition">
+                <i class="fa-solid fa-book-bookmark text-slate-950"></i>
+                <span class="hidden sm:inline font-display">Sổ Passport</span>
+            </button>
+
+            <!-- Facilitator Analytics Panel Trigger -->
+            <button onclick="toggleAnalyticsModal()" class="game-btn flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-xl text-xs text-slate-300 transition" title="Facilitator Dashboard">
+                <i class="fa-solid fa-chart-pie text-teal-400"></i>
+                <span class="hidden md:inline font-semibold">Thống Kê</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Episode Beats Tracker Bar -->
+    <div class="bg-slate-900/80 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between text-xs overflow-x-auto">
+        <div class="flex items-center space-x-2 min-w-max mx-auto md:mx-0">
+            <span class="text-emerald-400 font-display font-bold text-xs uppercase tracking-wider mr-1">Tiến Trình:</span>
+            <div id="beat-step-0" class="beat-step px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-display font-bold flex items-center gap-1.5 shadow-md transition-all">
+                <span>1. Cold Open 🌟</span>
+            </div>
+            <i class="fa-solid fa-angle-right text-xs text-slate-600"></i>
+            <div id="beat-step-1" class="beat-step px-3 py-1 rounded-xl bg-slate-800/90 text-slate-400 font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50">
+                <span>2. Clues 🔎</span>
+            </div>
+            <i class="fa-solid fa-angle-right text-xs text-slate-600"></i>
+            <div id="beat-step-2" class="beat-step px-3 py-1 rounded-xl bg-slate-800/90 text-slate-400 font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50">
+                <span>3. Explore 🌲</span>
+            </div>
+            <i class="fa-solid fa-angle-right text-xs text-slate-600"></i>
+            <div id="beat-step-3" class="beat-step px-3 py-1 rounded-xl bg-slate-800/90 text-slate-400 font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50">
+                <span>4. Twist 🌀</span>
+            </div>
+            <i class="fa-solid fa-angle-right text-xs text-slate-600"></i>
+            <div id="beat-step-4" class="beat-step px-3 py-1 rounded-xl bg-slate-800/90 text-slate-400 font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50">
+                <span>5. Decide ⚖️</span>
+            </div>
+            <i class="fa-solid fa-angle-right text-xs text-slate-600"></i>
+            <div id="beat-step-5" class="beat-step px-3 py-1 rounded-xl bg-slate-800/90 text-slate-400 font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50">
+                <span>6. Outcome 🎉</span>
+            </div>
+        </div>
+
+        <div class="hidden lg:flex items-center space-x-2 text-slate-300 text-xs bg-slate-800/60 px-3 py-1 rounded-full border border-slate-700">
+            <i class="fa-solid fa-stopwatch text-amber-400"></i>
+            <span class="font-medium">Thời gian dự kiến: 20–25 phút</span>
+        </div>
+    </div>
+
+    <!-- Main Content Area Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 max-w-7xl mx-auto w-full">
+
+        <!-- LEFT COLUMN: Interactive World Scene & Map (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col space-y-4">
+            
+            <!-- Canvas Container -->
+            <div class="relative w-full aspect-[16/10] bg-slate-900 rounded-3xl overflow-hidden border-2 border-emerald-500/30 shadow-2xl group ring-4 ring-emerald-500/10">
+                <!-- Canvas Element -->
+                <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+                <!-- Weather Overlay Banner -->
+                <div class="absolute top-3 left-3 glass-panel px-3.5 py-2 rounded-2xl flex items-center space-x-2.5 text-xs shadow-lg">
+                    <span class="text-xl animate-bounce">🌧️</span>
+                    <div>
+                        <div class="text-[10px] text-slate-300 font-semibold uppercase tracking-wider">Thời tiết</div>
+                        <span id="weather-text" class="text-amber-300 font-display font-bold text-xs">Mưa giông sắp tới (30 phút)</span>
+                    </div>
+                </div>
+
+                <!-- World State Indicator -->
+                <div class="absolute top-3 right-3 glass-panel px-3.5 py-2 rounded-2xl flex items-center space-x-2 text-xs shadow-lg">
+                    <span class="text-emerald-400 text-base">🤝</span>
+                    <div>
+                        <div class="text-[10px] text-slate-300 font-semibold uppercase tracking-wider">Lòng tin Ranger</div>
+                        <strong id="trust-val-display" class="text-emerald-300 font-display font-bold text-sm">50/100</strong>
+                    </div>
+                </div>
+
+                <!-- Hotspot Click Info Hint -->
+                <div class="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-between items-center">
+                    <span class="bg-slate-950/85 backdrop-blur text-emerald-300 text-xs px-3.5 py-1.5 rounded-full border border-emerald-500/40 shadow-lg font-medium flex items-center gap-1.5">
+                        <span class="text-amber-400 text-sm">💡</span> Chạm vào các vật thể trên bản đồ để khám phá
+                    </span>
+                    <button onclick="playAmbientSound()" class="pointer-events-auto bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-full border border-slate-600 shadow-lg transition flex items-center gap-1">
+                        <i id="audio-icon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                        <span class="font-semibold text-[11px]">Âm thanh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Role Selector Tabs (The 47 Club Asymmetric View) -->
+            <div class="glass-panel p-3.5 rounded-3xl flex flex-col space-y-2.5">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-xs font-display font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-users text-amber-400"></i> Chọn Nhân Vật (The 47 Club):
+                    </span>
+                    <span class="text-[11px] text-amber-300 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium">
+                        <i class="fa-solid fa-sparkles mr-1"></i>Mỗi bạn giữ 1 manh mối bí mật
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <!-- Alex Button -->
+                    <button id="role-btn-ALEX" onclick="selectRole('ALEX')" class="role-card-btn p-3 rounded-2xl border-2 border-emerald-400 bg-emerald-950/70 flex items-center space-x-2.5 text-left transition transform hover:-translate-y-0.5 shadow-md">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 border-2 border-blue-400 text-blue-300 font-display font-bold flex items-center justify-center text-sm shadow-inner shrink-0">
+                            🧩
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-xs font-display font-bold text-slate-100">ALEX</div>
+                            <div class="text-[10px] text-blue-300 truncate font-medium">Ghép mẫu & Logic</div>
+                        </div>
+                    </button>
+
+                    <!-- Maya Button -->
+                    <button id="role-btn-MAYA" onclick="selectRole('MAYA')" class="role-card-btn p-3 rounded-2xl border-2 border-slate-800 bg-slate-900/60 flex items-center space-x-2.5 text-left opacity-70 hover:opacity-100 transition transform hover:-translate-y-0.5 shadow-md">
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/20 border-2 border-rose-400 text-rose-300 font-display font-bold flex items-center justify-center text-sm shadow-inner shrink-0">
+                            🤝
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-xs font-display font-bold text-slate-100">MAYA</div>
+                            <div class="text-[10px] text-rose-300 truncate font-medium">Giao tiếp & Cảm xúc</div>
+                        </div>
+                    </button>
+
+                    <!-- Leo Button -->
+                    <button id="role-btn-LEO" onclick="selectRole('LEO')" class="role-card-btn p-3 rounded-2xl border-2 border-slate-800 bg-slate-900/60 flex items-center space-x-2.5 text-left opacity-70 hover:opacity-100 transition transform hover:-translate-y-0.5 shadow-md">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border-2 border-amber-400 text-amber-300 font-display font-bold flex items-center justify-center text-sm shadow-inner shrink-0">
+                            🛠️
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-xs font-display font-bold text-slate-100">LEO</div>
+                            <div class="text-[10px] text-amber-300 truncate font-medium">Tháo vát & Thử nghiệm</div>
+                        </div>
+                    </button>
+
+                    <!-- Nora Button -->
+                    <button id="role-btn-NORA" onclick="selectRole('NORA')" class="role-card-btn p-3 rounded-2xl border-2 border-slate-800 bg-slate-900/60 flex items-center space-x-2.5 text-left opacity-70 hover:opacity-100 transition transform hover:-translate-y-0.5 shadow-md">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 border-2 border-purple-400 text-purple-300 font-display font-bold flex items-center justify-center text-sm shadow-inner shrink-0">
+                            📜
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-xs font-display font-bold text-slate-100">NORA</div>
+                            <div class="text-[10px] text-purple-300 truncate font-medium">Lưu trữ & Phản biện</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Role Private Clue Display Box -->
+            <div id="private-clue-box" class="glass-panel p-4 rounded-3xl border-l-4 border-l-blue-400 flex flex-col space-y-2">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Interaction Dock (Dialogue, Evidence Board, Decision) (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col space-y-4">
+            
+            <!-- Navigation Tabs for Right Dock -->
+            <div class="flex border-b border-slate-800 space-x-2 text-xs font-display font-bold">
+                <button id="dock-tab-dialogue" onclick="switchDockTab('dialogue')" class="px-4 py-2.5 rounded-t-2xl bg-emerald-950 border-t-2 border-x-2 border-emerald-500/50 text-emerald-300 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-comments text-emerald-400"></i> Hội Thoại AI
+                </button>
+                <button id="dock-tab-evidence" onclick="switchDockTab('evidence')" class="px-4 py-2.5 rounded-t-2xl bg-slate-900/80 text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-clipboard-check text-amber-400"></i> Bằng Chứng (<span id="evidence-count">0</span>)
+                </button>
+                <button id="dock-tab-decision" onclick="switchDockTab('decision')" class="px-4 py-2.5 rounded-t-2xl bg-slate-900/80 text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-gavel text-amber-400"></i> Phòng Quyết Định
+                </button>
+            </div>
+
+            <!-- TAB 1: DIALOGUE & VOICE AI INTERACTION PANEL -->
+            <div id="dock-content-dialogue" class="glass-panel p-4 rounded-b-3xl rounded-tr-3xl flex-1 flex flex-col justify-between min-h-[440px]">
+                <!-- NPC Info Header -->
+                <div class="flex items-center space-x-3 pb-3 border-b border-slate-800">
+                    <div class="relative">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 border-2 border-emerald-400 overflow-hidden flex items-center justify-center text-2xl shadow-md">
+                            🧔
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-2 border-slate-950 rounded-full flex items-center justify-center text-[8px] text-slate-950 font-bold">✓</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-display font-bold text-slate-100 text-sm">Ranger Gideon</h3>
+                            <span class="text-[10px] bg-emerald-950 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-700/50 font-medium">Người Bảo Vệ Rừng</span>
+                        </div>
+                        <p class="text-xs text-slate-300 italic font-medium">"Hãy dùng Tiếng Anh để hỏi đường hoặc xin vật dụng sinh tồn!"</p>
+                    </div>
+                </div>
+
+                <!-- Chat History Window -->
+                <div id="chat-history" class="flex-1 my-3 overflow-y-auto space-y-3 pr-1 max-h-[220px]">
+                    <!-- Initial NPC Speech -->
+                    <div class="flex items-start space-x-2">
+                        <div class="bg-slate-800/90 border border-slate-700 text-slate-100 text-xs p-3.5 rounded-2xl chat-bubble-npc max-w-[88%] shadow-md">
+                            <p class="font-display font-bold text-emerald-400 text-xs mb-1">Ranger Gideon:</p>
+                            Hello young explorers! The storm is coming fast. What do you need for cold survival? You can ask me for matches, tarp, or directions.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Evaluation Rubric Feedback Badge (Hidden by default) -->
+                <div id="ai-feedback-badge" class="hidden mb-2 p-3 bg-slate-900/95 border border-amber-500/40 rounded-2xl text-xs flex flex-col space-y-1 animate-fade-in shadow-lg">
+                    <!-- Populated via JS -->
+                </div>
+
+                <!-- Voice & Input Control Box -->
+                <div class="space-y-2 pt-2 border-t border-slate-800">
+                    <!-- Quick Prompt Suggestions for Beginners -->
+                    <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px]">
+                        <span class="text-slate-400 text-[10px] font-semibold whitespace-nowrap">Gợi ý nói:</span>
+                        <button onclick="fillQuickPrompt('Can we have matches and tarp please?')" class="bg-slate-800 hover:bg-emerald-900/60 border border-slate-700 hover:border-emerald-500 text-emerald-300 px-2.5 py-0.5 rounded-full whitespace-nowrap transition">"Can we have matches?"</button>
+                        <button onclick="fillQuickPrompt('Is the rope bridge safe in high wind?')" class="bg-slate-800 hover:bg-emerald-900/60 border border-slate-700 hover:border-emerald-500 text-emerald-300 px-2.5 py-0.5 rounded-full whitespace-nowrap transition">"Is the bridge safe?"</button>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <!-- Microphone Button -->
+                        <button id="mic-btn" onclick="toggleVoiceInput()" class="game-btn w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold flex items-center justify-center transition shadow-lg shrink-0" title="Bấm để nói bằng Giọng Nói (Web Speech API)">
+                            <i id="mic-icon" class="fa-solid fa-microphone text-base"></i>
+                        </button>
+
+                        <!-- Text Input -->
+                        <input id="speech-input" type="text" placeholder="Nhập hoặc nói Tiếng Anh (vd: Can we have matches?)..." class="flex-1 bg-slate-950/80 border border-slate-700 focus:border-emerald-400 rounded-2xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none transition shadow-inner">
+
+                        <!-- Send Button -->
+                        <button onclick="sendUserUtterance()" class="game-btn w-11 h-11 rounded-2xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-600 flex items-center justify-center transition shrink-0">
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Target Form Suggestion & Intent Hint -->
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                        <span><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Ngữ pháp mục tiêu: <code class="text-amber-300 font-mono">can / must / imperatives</code></span>
+                        <span id="stt-status" class="text-slate-400 font-medium">Mic Sẵn Sàng</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: EVIDENCE BOARD PANEL -->
+            <div id="dock-content-evidence" class="hidden glass-panel p-4 rounded-b-3xl rounded-tr-3xl flex-1 flex-col justify-between min-h-[440px]">
+                <div>
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+                        <h3 class="font-display font-bold text-slate-100 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-emerald-400"></i> Bảng Bằng Chứng Bổ Sung
+                        </h3>
+                        <span class="text-[11px] text-slate-400 font-medium">Ghim manh mối để lập luận</span>
+                    </div>
+
+                    <!-- Pinned Clues List -->
+                    <div id="pinned-clues-list" class="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                        <p class="text-xs text-slate-400 italic text-center py-8">Chưa có bằng chứng nào được ghim. Hãy khám phá bản đồ hoặc xem manh mối nhân vật để ghim!</p>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                    <span class="font-medium">Loại thẻ: <strong class="text-blue-400">Fact (Sự thật)</strong> | <strong class="text-amber-400">Testimony (Lời khai)</strong> | <strong class="text-purple-400">Inference (Suy luận)</strong></span>
+                </div>
+            </div>
+
+            <!-- TAB 3: DECISION ROOM PANEL -->
+            <div id="dock-content-decision" class="hidden glass-panel-amber p-4 rounded-b-3xl rounded-tr-3xl flex-1 flex-col justify-between min-h-[440px]">
+                <div>
+                    <div class="flex items-center justify-between pb-2 border-b border-amber-500/30 mb-3">
+                        <h3 class="font-display font-bold text-amber-300 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-gavel text-amber-400"></i> Phòng Quyết Định (Beat 5)
+                        </h3>
+                        <span class="text-[10px] bg-amber-950 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/40 font-semibold">Bắt buộc nêu lý do</span>
+                    </div>
+
+                    <p class="text-xs text-slate-200 mb-3 leading-relaxed font-medium">
+                        <strong>Tình huống sinh tồn:</strong> Đêm đang xuống và cơn giông sắp tới. Tổ đội The 47 Club nên làm gì?
+                    </p>
+
+                    <!-- Choice Options -->
+                    <div class="space-y-2.5 mb-4">
+                        <label class="flex items-start space-x-3 p-3 rounded-2xl bg-slate-900/90 border-2 border-slate-700 cursor-pointer hover:border-amber-400/80 transition shadow-sm">
+                            <input type="radio" name="decision-choice" value="SHELTER" checked class="mt-1 accent-amber-400 w-4 h-4">
+                            <div>
+                                <div class="text-xs font-display font-bold text-amber-200">Phương án A: Dựng Trú Uẩn Cành Thông ⛺</div>
+                                <div class="text-[11px] text-slate-300">Ở lại bên này sông, dùng bạt và diêm xin được từ Gideon. Đánh đổi: Hành trình bị chậm lại.</div>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 rounded-2xl bg-slate-900/90 border-2 border-slate-700 cursor-pointer hover:border-amber-400/80 transition shadow-sm">
+                            <input type="radio" name="decision-choice" value="BRIDGE" class="mt-1 accent-amber-400 w-4 h-4">
+                            <div>
+                                <div class="text-xs font-display font-bold text-amber-200">Phương án B: Băng Qua Cầu Dây Thừng Vượt Sông 🌉</div>
+                                <div class="text-[11px] text-slate-300">Đến căn nhà gỗ bên kia sông nhanh chóng. Đánh đổi: Cầu dây cũ mòn, đu đưa mạnh trong gió lớn.</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- English Reason Input -->
+                    <div class="space-y-1.5 mb-3">
+                        <label class="text-[11px] font-display font-bold text-slate-200 flex items-center justify-between">
+                            <span>Lý do Tiếng Anh (Bắt buộc):</span>
+                            <span class="text-amber-300 text-[10px] font-normal">Cần dùng từ: because / should / must</span>
+                        </label>
+                        <textarea id="decision-reason-text" rows="2" placeholder="e.g. We must build a shelter because the storm is coming and the bridge is unsafe..." class="w-full bg-slate-950/90 border border-amber-500/40 focus:border-amber-400 rounded-2xl p-3 text-xs text-slate-100 focus:outline-none resize-none shadow-inner"></textarea>
+                    </div>
+                </div>
+
+                <!-- Commit Decision Button -->
+                <button onclick="commitDecision()" class="game-btn w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-450 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-display font-bold text-slate-950 text-xs shadow-lg shadow-amber-950/50 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-check-circle text-base"></i>
+                    <span>Chốt Phương Án & Kích Hoạt Thế Giới</span>
+                </button>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- MODAL 1: PASSPORT LITE LEDGER -->
+    <div id="passport-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-emerald-500/50 rounded-3xl w-full max-w-lg p-6 shadow-2xl flex flex-col space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-2xl">📘</span>
+                    <h2 class="font-display font-bold text-slate-100 text-lg">Sổ Passport Thám Hiểm</h2>
+                </div>
+                <button onclick="togglePassportModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <!-- Passport Body -->
+            <div class="space-y-3.5 text-xs">
+                <div class="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center shadow-inner">
+                    <div>
+                        <div class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">CHỦ SỞ HỮU</div>
+                        <div class="font-display font-bold text-emerald-300 text-sm">Alex / Maya / Leo / Nora</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">ĐỘ TIN CẬY (TRUST)</div>
+                        <div id="passport-trust-val" class="font-display font-bold text-amber-400 text-sm">50 Điểm</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-display font-bold text-slate-200 mb-2">Lịch Sử Hậu Quả Được Ghi Nhận:</h4>
+                    <ul id="passport-flags-list" class="space-y-2 text-slate-300">
+                        <li class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-bookmark text-emerald-400 mr-2"></i>Bắt đầu Tập 1: Bước vào Rừng Thường Xanh</span>
+                            <span class="text-[10px] text-slate-500">Vừa xong</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="p-3 bg-amber-950/40 border border-amber-500/30 rounded-2xl text-[11px] text-amber-300/90 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                    <span>"Passport ghi nhớ mọi quyết định. Hậu quả sẽ làm thay đổi tuyến đường và nhân vật ở các Tập 2–3 tiếp theo."</span>
+                </div>
+            </div>
+
+            <button onclick="togglePassportModal()" class="game-btn w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-display font-bold rounded-2xl text-xs transition">Đóng Sổ Passport</button>
+        </div>
+    </div>
+
+    <!-- MODAL 2: FACILITATOR & LEARNING METRICS DASHBOARD -->
+    <div id="analytics-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-teal-500/50 rounded-3xl w-full max-w-2xl p-6 shadow-2xl flex flex-col space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-2xl">📊</span>
+                    <h2 class="font-display font-bold text-slate-100 text-lg">Bảng Thống Kê Sư Phạm (Facilitator Dashboard)</h2>
+                </div>
+                <button onclick="toggleAnalyticsModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div class="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px] font-semibold">Tỷ Lệ Hoàn Thành Tập</div>
+                    <div class="text-xl font-display font-bold text-emerald-400" id="kpi-completion">85%</div>
+                    <div class="text-[9px] text-emerald-400 font-medium">● Đạt chỉ tiêu (≥85%)</div>
+                </div>
+
+                <div class="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px] font-semibold">Tỷ Lệ Thắng Không Tiếng Anh</div>
+                    <div class="text-xl font-display font-bold text-emerald-400" id="kpi-bypass">0%</div>
+                    <div class="text-[9px] text-emerald-400 font-medium">● Tuyệt vời (≤10%)</div>
+                </div>
+
+                <div class="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px] font-semibold">Sửa Lỗi Tương Tác</div>
+                    <div class="text-xl font-display font-bold text-teal-400" id="kpi-repair">100%</div>
+                    <div class="text-[9px] text-emerald-400 font-medium">● Đạt chuẩn (≥65%)</div>
+                </div>
+
+                <div class="p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                    <div class="text-slate-400 text-[10px] font-semibold">Cân Bằng Vai Trò (Equity)</div>
+                    <div class="text-xl font-display font-bold text-amber-400" id="kpi-equity">1.2</div>
+                    <div class="text-[9px] text-emerald-400 font-medium">● Cân bằng (≤3.0)</div>
+                </div>
+            </div>
+
+            <!-- Telemetry Event Stream Log -->
+            <div class="space-y-1">
+                <h4 class="font-display font-bold text-slate-200 text-xs">Nhật Ký Dữ Liệu Học Tập (Telemetry Stream):</h4>
+                <div id="telemetry-log" class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 h-36 overflow-y-auto text-[11px] font-mono text-slate-400 space-y-1">
+                    <div>[SYSTEM_INIT] Khởi chạy màn chơi: LOST_IN_EVERGREEN_EP1</div>
+                    <div>[ROLE_ASSIGN] Vai trò ban đầu: ALEX (Ghép Mẫu Logic)</div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center text-xs pt-2">
+                <span class="text-slate-400 font-medium">Chi phí AI ước tính: ~$0.0005/lượt nói</span>
+                <button onclick="toggleAnalyticsModal()" class="game-btn px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-display font-bold rounded-2xl transition">Đóng Bảng Thống Kê</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Game State Architecture
+        const gameState = {
+            currentBeat: 0, 
+            selectedRole: 'ALEX',
+            energyXu: 90,
+            vPoints: 120,
+            trustScore: 50,
+            hasMatches: false,
+            hasTarp: false,
+            weatherTime: 30,
+            pinnedEvidence: [],
+            passportFlags: ['Bắt đầu Tập 1: Bước vào Rừng Thường Xanh'],
+            metrics: {
+                totalAttempts: 0,
+                successfulAttempts: 0,
+                repairsNeeded: 0,
+                repairsFixed: 0,
+                englishBypass: false
+            }
+        };
+
+        // Asymmetric Private Clues per Role (The 47 Club)
+        const roleClues = {
+            'ALEX': {
+                title: 'Alex (Ghép Mẫu & Logic 🧩)',
+                badgeBg: 'bg-blue-600/30 border-blue-400 text-blue-300',
+                clueText: 'Timeline Pattern: Cơn giông sẽ đổ bộ trong 30 phút nữa. Gió lớn vượt 25mph khiến cầu dây thừng đu đưa rất mạnh.',
+                tag: 'Fact',
+                tagClass: 'bg-blue-950 text-blue-300 border-blue-800'
+            },
+            'MAYA': {
+                title: 'Maya (Giao Tiếp & Cảm Xúc 🤝)',
+                badgeBg: 'bg-rose-600/30 border-rose-400 text-rose-300',
+                clueText: 'Testimony Clue: Ranger Gideon nói: "Căn nhà gỗ bên kia sông có mền ấm, nhưng cầu dây thừng đã lâu chưa bảo trì."',
+                tag: 'Testimony',
+                tagClass: 'bg-amber-950 text-amber-300 border-amber-800'
+            },
+            'LEO': {
+                title: 'Leo (Tháo Vát & Thử Nghiệm 🛠️)',
+                badgeBg: 'bg-amber-600/30 border-amber-400 text-amber-300',
+                clueText: 'Rule Clue: Cành thông khô + bạt chống nước = nơi trú ẩn khô ráo cho 4 người. Cần 3 thứ: diêm, dây thừng, bạt.',
+                tag: 'Fact',
+                tagClass: 'bg-blue-950 text-blue-300 border-blue-800'
+            },
+            'NORA': {
+                title: 'Nora (Lưu Trữ & Phản Biện 📜)',
+                badgeBg: 'bg-purple-600/30 border-purple-400 text-purple-300',
+                clueText: 'Archive Clue: Ghi chú bản đồ cũ từ Nhà Làm Bản Đồ Zero: "Dòng sông sẽ dâng cao lúc 7:00 tối trong mùa mưa giông."',
+                tag: 'Inference',
+                tagClass: 'bg-purple-950 text-purple-300 border-purple-800'
+            }
+        };
+
+        // ... existing audio code ...
+        let synth, noiseSynth;
+        let isAudioInit = false;
+
+        function initAudio() {
+            if (isAudioInit) return;
+            try {
+                Tone.start();
+                synth = new Tone.Synth().toDestination();
+                isAudioInit = true;
+            } catch (e) {}
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!isAudioInit) return;
+            try {
+                if (type === 'click') {
+                    synth.triggerAttackRelease("C5", "8n");
+                } else if (type === 'success') {
+                    synth.triggerAttackRelease("G5", "16n", Tone.now());
+                    synth.triggerAttackRelease("C6", "8n", Tone.now() + 0.1);
+                } else if (type === 'error') {
+                    synth.triggerAttackRelease("F3", "8n");
+                } else if (type === 'pin') {
+                    synth.triggerAttackRelease("E5", "16n");
+                }
+            } catch (e) {}
+        }
+
+        function playAmbientSound() {
+            playSound('click');
+            const icon = document.getElementById('audio-icon');
+            if (icon.classList.contains('fa-volume-high')) {
+                icon.classList.replace('fa-volume-high', 'fa-volume-xmark');
+            } else {
+                icon.classList.replace('fa-volume-xmark', 'fa-volume-high');
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Canvas Game Objects Hotspots
+        const hotspots = [
+            { id: 'sign', x: 0.25, y: 0.65, radius: 26, label: 'Biển Báo Gãy', icon: '🪧' },
+            { id: 'gideon', x: 0.50, y: 0.50, radius: 32, label: 'Ranger Gideon', icon: '🧔' },
+            { id: 'bridge', x: 0.80, y: 0.40, radius: 34, label: 'Cầu Dây Thừng', icon: '🌉' },
+            { id: 'shelter_site', x: 0.20, y: 0.35, radius: 30, label: 'Khu Trú Cành Thông', icon: '⛺' }
+        ];
+
+        // Rain particles
+        const rainDrops = Array.from({ length: 35 }, () => ({
+            x: Math.random(),
+            y: Math.random(),
+            speed: 0.012 + Math.random() * 0.02,
+            length: 12 + Math.random() * 14
+        }));
+
+        function drawScene() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Warm Dusk Forest Background
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+            bgGrad.addColorStop(0, '#0c2420'); 
+            bgGrad.addColorStop(0.6, '#134e4a');
+            bgGrad.addColorStop(1, '#06201b');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Stylized Pine Trees
+            ctx.fillStyle = '#064e3b';
+            for (let i = -10; i < w + 20; i += 45) {
+                const treeH = 90 + Math.sin(i * 0.5) * 25;
+                ctx.beginPath();
+                ctx.moveTo(i, h - 45);
+                ctx.lineTo(i + 22, h - 45 - treeH);
+                ctx.lineTo(i + 44, h - 45);
+                ctx.fill();
+            }
+
+            // River
+            ctx.fillStyle = '#0891b2';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.7, h);
+            ctx.bezierCurveTo(w * 0.74, h * 0.6, w * 0.84, h * 0.4, w * 0.8, 0);
+            ctx.lineTo(w, 0);
+            ctx.lineTo(w, h);
+            ctx.fill();
+
+            // Rope Bridge
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.71, h * 0.46);
+            ctx.lineTo(w * 0.88, h * 0.36);
+            ctx.stroke();
+
+            // Ground Surface
+            ctx.fillStyle = '#0f766e';
+            ctx.fillRect(0, h - 48, w, 48);
+
+            // Rain Effect
+            ctx.strokeStyle = 'rgba(165, 243, 252, 0.4)';
+            ctx.lineWidth = 1.5;
+            rainDrops.forEach(drop => {
+                drop.y += drop.speed;
+                if (drop.y > 1) drop.y = 0;
+                ctx.beginPath();
+                ctx.moveTo(drop.x * w, drop.y * h);
+                ctx.lineTo(drop.x * w - 3, (drop.y * h) + drop.length);
+                ctx.stroke();
+            });
+
+            // Draw Interactive Hotspots with friendly glow
+            hotspots.forEach(hs => {
+                const hx = hs.x * w;
+                const hy = hs.y * h;
+
+                // Pulsing ring
+                ctx.fillStyle = 'rgba(52, 211, 153, 0.25)';
+                ctx.beginPath();
+                ctx.arc(hx, hy, hs.radius + 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner circle
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#34d399';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(hx, hy, hs.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Icon Emoji
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(hs.icon, hx, hy);
+
+                // Label
+                ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
+                ctx.fillStyle = '#f1f5f9';
+                ctx.fillText(hs.label, hx, hy + hs.radius + 15);
+            });
+
+            requestAnimationFrame(drawScene);
+        }
+
+        // ... existing event handling and interaction code ...
+        canvas.addEventListener('click', function(e) {
+            playSound('click');
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) / canvas.width;
+            const clickY = (e.clientY - rect.top) / canvas.height;
+
+            hotspots.forEach(hs => {
+                const dist = Math.hypot(clickX - hs.x, clickY - hs.y);
+                if (dist < 0.08) {
+                    handleHotspotInspect(hs.id);
+                }
+            });
+        });
+
+        function handleHotspotInspect(id) {
+            if (id === 'gideon') {
+                switchDockTab('dialogue');
+                addChatMessage('Ranger Gideon', 'Ask me for matches, tarp, or bridge status in English!', 'npc');
+            } else if (id === 'sign') {
+                const text = "Biển báo gãy: Mũi tên chỉ trái ghi 'Dòng sông Thì Thầm (Nguy hiểm)'. Mũi tên phải bị mất.";
+                pinEvidence('Biển Báo Gãy', text, 'Fact');
+            } else if (id === 'bridge') {
+                const text = "Cầu Dây Thừng Cũ: Dây xơ sần sùi. Gió mạnh khiến việc qua sông rất nguy hiểm.";
+                pinEvidence('Tình Trạng Cầu Dây', text, 'Fact');
+            } else if (id === 'shelter_site') {
+                const text = "Khu Trú Uẩn: Nhiều cành thông khô rải rác. Mặt đất khô ráo dưới vách đá.";
+                pinEvidence('Vị Trí Trú Uẩn Cành Thông', text, 'Inference');
+            }
+        }
+
+        function fillQuickPrompt(text) {
+            playSound('click');
+            document.getElementById('speech-input').value = text;
+        }
+
+        function selectRole(roleKey) {
+            playSound('click');
+            gameState.selectedRole = roleKey;
+            
+            document.querySelectorAll('.role-card-btn').forEach(btn => {
+                btn.classList.remove('border-emerald-400', 'bg-emerald-950/70');
+                btn.classList.add('border-slate-800', 'bg-slate-900/60', 'opacity-70');
+            });
+            const activeBtn = document.getElementById(`role-btn-${roleKey}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-slate-800', 'bg-slate-900/60', 'opacity-70');
+                activeBtn.classList.add('border-emerald-400', 'bg-emerald-950/70');
+            }
+
+            const clueData = roleClues[roleKey];
+            const clueBox = document.getElementById('private-clue-box');
+            clueBox.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-display font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield text-emerald-400"></i> Manh Mối Riêng Của ${clueData.title}
+                    </span>
+                    <span class="text-[10px] px-2.5 py-0.5 rounded-full border ${clueData.tagClass} font-semibold">${clueData.tag}</span>
+                </div>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${clueData.clueText}</p>
+                <div class="flex justify-end pt-1">
+                    <button onclick="pinEvidence('${clueData.title}', '${clueData.clueText.replace(/'/g, "\\'")}', '${clueData.tag}')" class="game-btn text-[11px] bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1 rounded-xl text-emerald-300 font-semibold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-thumbtack"></i> Ghim Vào Bảng Bằng Chứng
+                    </button>
+                </div>
+            `;
+
+            logTelemetry(`[ROLE_SWITCH] Đổi góc nhìn sang nhân vật: ${roleKey}`);
+        }
+
+        // ... existing evidence, STT, AI evaluation and decision logic ...
+        function pinEvidence(source, text, tag) {
+            playSound('pin');
+            const exists = gameState.pinnedEvidence.some(e => e.text === text);
+            if (exists) {
+                showToast("Bằng chứng đã được ghim rồi!");
+                return;
+            }
+
+            gameState.pinnedEvidence.push({ source, text, tag });
+            document.getElementById('evidence-count').innerText = gameState.pinnedEvidence.length;
+
+            renderEvidenceList();
+            showToast("Đã ghim manh mối vào Bảng Bằng Chứng!");
+            logTelemetry(`[EVIDENCE_PIN] Ghim manh mối từ ${source}`);
+        }
+
+        function renderEvidenceList() {
+            const listContainer = document.getElementById('pinned-clues-list');
+            if (gameState.pinnedEvidence.length === 0) {
+                listContainer.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-8">Chưa có bằng chứng nào được ghim. Hãy khám phá bản đồ hoặc xem manh mối nhân vật để ghim!</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = gameState.pinnedEvidence.map((ev, idx) => `
+                <div class="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/40 transition text-xs space-y-1 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="font-display font-bold text-emerald-400 text-xs">${ev.source}</span>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full border ${ev.tag === 'Fact' ? 'bg-blue-950 text-blue-300 border-blue-800' : ev.tag === 'Testimony' ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-purple-950 text-purple-300 border-purple-800'} font-semibold">${ev.tag}</span>
+                    </div>
+                    <p class="text-slate-200 text-[11px] font-medium">${ev.text}</p>
+                </div>
+            `).join('');
+        }
+
+        // Speech recognition setup
+        let recognition = null;
+        let isListening = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRec();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById('mic-btn').classList.add('bg-red-500', 'animate-pulse');
+                document.getElementById('stt-status').innerText = 'Đang nghe (Nói Tiếng Anh)...';
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('speech-input').value = transcript;
+                stopVoiceInput();
+                sendUserUtterance();
+            };
+
+            recognition.onerror = function() {
+                stopVoiceInput();
+                document.getElementById('stt-status').innerText = 'Lỗi thu âm (Hãy gõ phím)';
+            };
+
+            recognition.onend = function() {
+                stopVoiceInput();
+            };
+        }
+
+        function toggleVoiceInput() {
+            playSound('click');
+            if (!recognition) {
+                showToast("Trình duyệt không hỗ trợ Web Speech. Vui lòng gõ chữ!");
+                return;
+            }
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try { recognition.start(); } catch(e){}
+            }
+        }
+
+        function stopVoiceInput() {
+            isListening = false;
+            document.getElementById('mic-btn').classList.remove('bg-red-500', 'animate-pulse');
+            document.getElementById('stt-status').innerText = 'Mic Sẵn Sàng';
+        }
+
+        function sendUserUtterance() {
+            const inputEl = document.getElementById('speech-input');
+            const userText = inputEl.value.trim();
+            if (!userText) return;
+
+            if (gameState.energyXu < 10) {
+                showToast("Hết Xu Năng Lượng! Hãy dùng chế độ thử thách.");
+                return;
+            }
+            gameState.energyXu -= 10;
+            document.getElementById('energy-xu-display').innerText = gameState.energyXu;
+
+            playSound('click');
+            addChatMessage('Bạn (' + gameState.selectedRole + ')', userText, 'user');
+            inputEl.value = '';
+
+            setTimeout(() => {
+                evaluateAndRespond(userText);
+            }, 500);
+        }
+
+        function evaluateAndRespond(text) {
+            const lower = text.toLowerCase();
+            gameState.metrics.totalAttempts++;
+
+            const hasModal = lower.includes('can') || lower.includes('must') || lower.includes('could') || lower.includes('need') || lower.includes('give');
+            const hasKeyword = lower.includes('match') || lower.includes('tarp') || lower.includes('shelter') || lower.includes('bridge') || lower.includes('water') || lower.includes('help');
+
+            let taskCompleted = false;
+            let score = 0;
+            let npcResponse = "";
+            let feedbackMsg = "";
+
+            if (hasModal && hasKeyword) {
+                taskCompleted = true;
+                score = 88;
+                gameState.metrics.successfulAttempts++;
+                gameState.trustScore = Math.min(100, gameState.trustScore + 10);
+                
+                if (lower.includes('match') || lower.includes('tarp') || lower.includes('shelter')) {
+                    gameState.hasMatches = true;
+                    gameState.hasTarp = true;
+                    npcResponse = "Good thinking! Here are two boxes of matches and a waterproof tarp. You can build a safe pine shelter now!";
+                } else if (lower.includes('bridge')) {
+                    npcResponse = "The rope bridge is dangerous in high winds. I recommend staying on this side unless you must hurry!";
+                } else {
+                    npcResponse = "I can help you with supplies! Make sure you stay warm before the rain starts.";
+                }
+                feedbackMsg = `<span class="text-emerald-400 font-bold">✓ Hoàn thành mục tiêu (${score}/100)</span>: Bạn đã sử dụng rất tốt câu yêu cầu và từ vựng sinh tồn!`;
+                playSound('success');
+            } else {
+                score = 45;
+                gameState.metrics.repairsNeeded++;
+                npcResponse = "I didn't quite understand. Could you rephrase your request using 'Can we have...' or 'We need...'?";
+                feedbackMsg = `<span class="text-amber-400 font-bold">⚠ Gợi ý sửa câu</span>: Hãy thử dùng mẫu câu lịch sự như <code class="font-mono">"Can we have [matches/tarp]?"</code>`;
+                playSound('error');
+            }
+
+            addChatMessage('Ranger Gideon', npcResponse, 'npc');
+            showAIFeedbackBadge(feedbackMsg, score);
+            document.getElementById('trust-val-display').innerText = gameState.trustScore + '/100';
+            document.getElementById('passport-trust-val').innerText = gameState.trustScore + ' Điểm';
+
+            if (gameState.currentBeat < 2) {
+                advanceBeat(2);
+            }
+
+            logTelemetry(`[AI_UTTERANCE] Điểm: ${score}, Đạt mục tiêu: ${taskCompleted}`);
+        }
+
+        function addChatMessage(sender, text, type) {
+            const history = document.getElementById('chat-history');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex items-start space-x-2 ${type === 'user' ? 'justify-end' : ''}`;
+
+            msgDiv.innerHTML = `
+                <div class="${type === 'user' ? 'bg-emerald-950/90 border border-emerald-500/50 text-slate-100 chat-bubble-user' : 'bg-slate-800/90 border border-slate-700 text-slate-100 chat-bubble-npc'} text-xs p-3.5 rounded-2xl max-w-[88%] shadow-md">
+                    <p class="font-display font-bold ${type === 'user' ? 'text-teal-300' : 'text-emerald-400'} text-[11px] mb-1">${sender}:</p>
+                    ${text}
+                </div>
+            `;
+
+            history.appendChild(msgDiv);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function showAIFeedbackBadge(htmlContent, score) {
+            const badge = document.getElementById('ai-feedback-badge');
+            badge.classList.remove('hidden');
+            badge.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-medium">${htmlContent}</span>
+                    <span class="font-display font-bold ${score >= 70 ? 'text-emerald-400' : 'text-amber-400'} text-xs bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">${score}/100</span>
+                </div>
+            `;
+        }
+
+        function commitDecision() {
+            playSound('click');
+            const choice = document.querySelector('input[name="decision-choice"]:checked').value;
+            const reason = document.getElementById('decision-reason-text').value.trim();
+
+            if (reason.length < 15) {
+                showToast("Vui lòng viết lý do bằng Tiếng Anh dài ít nhất 15 ký tự!");
+                return;
+            }
+
+            advanceBeat(4);
+
+            if (choice === 'SHELTER') {
+                gameState.passportFlags.push("Tập 1: Dựng trú ẩn cành thông an toàn cùng vật dụng của Ranger Gideon.");
+                gameState.vPoints += 50;
+                document.getElementById('vpoints-display').innerText = gameState.vPoints;
+                
+                showOutcomeModal(
+                    "THẾ GIỚI THAY ĐỔI: TRÚ ẨN AN TOÀN!",
+                    "Cả đội đã dựng thành công lều cành thông nhờ có diêm và bạt chống nước. Mọi người được sưởi ấm an toàn trong suốt trận giông bão. Passport đã lưu lại kết quả!",
+                    "Metaplot Sting: Nora tìm thấy một chiếc la bàn cổ bị găm vào vách đá thông có khắc biểu tượng của Nhà Làm Bản Đồ Zero."
+                );
+            } else {
+                gameState.passportFlags.push("Tập 1: Băng qua cầu dây thừng trong gió lớn. Maya bị rơi mất mảnh bản đồ xuống sông.");
+                
+                showOutcomeModal(
+                    "THẾ GIỚI THAY ĐỔI: VƯỢT CẦU NGUY HIỂM!",
+                    "Cả đội vội vã băng qua cây cầu dây thừng đu đưa. Mọi người sang được căn nhà gỗ bên kia sông, nhưng Maya đã bị đánh rơi mất mảnh bản đồ xuống dòng sông xiết!",
+                    "Metaplot Sting: Trên bàn căn nhà gỗ có một bức thư gửi 'The 47 Club' có chữ ký của Zero."
+                );
+            }
+
+            renderPassportFlags();
+            logTelemetry(`[DECISION_COMMIT] Lựa chọn: ${choice}, Lý do: ${reason}`);
+        }
+
+        function showOutcomeModal(title, bodyText, stingText) {
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in";
+            modal.innerHTML = `
+                <div class="bg-slate-900 border-2 border-emerald-400 rounded-3xl w-full max-w-lg p-6 shadow-2xl space-y-4 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-3xl border-2 border-emerald-400 shadow-md">
+                        🏆
+                    </div>
+                    <h2 class="font-display font-bold text-lg text-emerald-300">${title}</h2>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${bodyText}</p>
+                    
+                    <div class="p-3.5 bg-slate-950 rounded-2xl border border-amber-500/30 text-xs text-amber-300 italic font-medium">
+                        <i class="fa-solid fa-key mr-1"></i> ${stingText}
+                    </div>
+
+                    <button onclick="this.parentElement.parentElement.remove()" class="game-btn w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-display font-bold rounded-2xl text-xs transition">
+                        Chuyển Sang Chuẩn Bị Tập 2
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function switchDockTab(tabKey) {
+            playSound('click');
+            ['dialogue', 'evidence', 'decision'].forEach(k => {
+                const btn = document.getElementById(`dock-tab-${k}`);
+                const content = document.getElementById(`dock-content-${k}`);
+                if (k === tabKey) {
+                    btn.className = "px-4 py-2.5 rounded-t-2xl bg-emerald-950 border-t-2 border-x-2 border-emerald-500/50 text-emerald-300 flex items-center gap-2 transition";
+                    content.classList.remove('hidden');
+                    content.classList.add('flex');
+                } else {
+                    btn.className = "px-4 py-2.5 rounded-t-2xl bg-slate-900/80 text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+                    content.classList.add('hidden');
+                    content.classList.remove('flex');
+                }
+            });
+        }
+
+        function advanceBeat(stepIdx) {
+            gameState.currentBeat = stepIdx;
+            document.querySelectorAll('.beat-step').forEach((el, idx) => {
+                if (idx === stepIdx) {
+                    el.className = "beat-step px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-display font-bold flex items-center gap-1.5 shadow-md transition-all";
+                } else if (idx < stepIdx) {
+                    el.className = "beat-step px-3 py-1 rounded-xl bg-emerald-950 text-emerald-300 border border-emerald-700/60 font-semibold flex items-center gap-1.5 transition-all";
+                } else {
+                    el.className = "beat-step px-3 py-1 rounded-xl bg-slate-800/90 text-slate-400 font-semibold flex items-center gap-1.5 transition-all border border-slate-700/50";
+                }
+            });
+        }
+
+        function togglePassportModal() {
+            playSound('click');
+            const el = document.getElementById('passport-modal');
+            el.classList.toggle('hidden');
+        }
+
+        function toggleAnalyticsModal() {
+            playSound('click');
+            const el = document.getElementById('analytics-modal');
+            el.classList.toggle('hidden');
+        }
+
+        function renderPassportFlags() {
+            const list = document.getElementById('passport-flags-list');
+            list.innerHTML = gameState.passportFlags.map(flag => `
+                <li class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                    <span><i class="fa-solid fa-bookmark text-emerald-400 mr-2"></i>${flag}</span>
+                    <span class="text-[10px] text-slate-400 font-semibold">Đã lưu</span>
+                </li>
+            `).join('');
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-5 right-5 bg-slate-900 border-2 border-emerald-400 text-emerald-300 font-display font-bold text-xs px-4 py-3 rounded-2xl shadow-2xl z-50 animate-bounce flex items-center gap-2";
+            toast.innerHTML = `<span>💡</span> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        function logTelemetry(eventStr) {
+            const logEl = document.getElementById('telemetry-log');
+            const div = document.createElement('div');
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${eventStr}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        window.onload = function() {
+            selectRole('ALEX');
+            requestAnimationFrame(drawScene);
+            logTelemetry("[ENGINE_READY] Đã khởi tạo engine thế giới chơi.");
+        };
+    </script>
+</body>
+</html>

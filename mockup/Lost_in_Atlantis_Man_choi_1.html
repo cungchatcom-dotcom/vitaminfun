@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LOST IN ATLANTIS — Bảng điều khiển Màn 1 (Mockup Design Standard)</title>
+  
+  <!-- Google Fonts: Baloo 2, Be Vietnam Pro, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    /* ==========================================================================
+       DESIGN SYSTEM & COLOR TOKENS (According to Mockup Designs.md)
+       Theme: Ancient Atlantis Orichalcum & Deep Ocean Slate Stone + Organic VitaminFun
+       ========================================================================== */
+    :root {
+      /* Ancient Slate & Orichalcum Colors */
+      --color-slate-dark: #0c1722;
+      --color-slate-board: #112230;
+      --color-slate-surface: #182d40;
+      --color-slate-hover: #223c54;
+      --color-orichalcum: #d4af37;       /* Gold Orichalcum */
+      --color-orichalcum-glow: rgba(212, 175, 55, 0.45);
+      --color-biolum-blue: #00f0ff;       /* Bioluminescent Cyan */
+      --color-coral-red: #ff3b30;         /* Coral Warning Red */
+      --color-sea-green: #2dd4bf;
+
+      /* Organic VitaminFun Accents */
+      --color-parchment: #f5ead8;
+      --color-parchment-surface: #ebddc5;
+      --color-parchment-text: #201e1d;
+
+      /* Characters Signatures */
+      --char-leo: #3b82f6;      /* The Guardian - Blue */
+      --char-maya: #a855f7;     /* The Scholar - Purple */
+      --char-sam: #f59e0b;      /* The Fixer - Amber */
+      --char-jade: #10b981;     /* The Wraith - Emerald Green */
+
+      /* Fonts */
+      --font-heading: "Baloo 2", system-ui, sans-serif;
+      --font-body: "Be Vietnam Pro", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", monospace;
+
+      /* Radii & Shadows */
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --radius-full: 999px;
+
+      --border-orichalcum: 1.5px solid rgba(212, 175, 55, 0.55);
+      --shadow-board: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    body {
+      background: #080e14;
+      color: #e2e8f0;
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      line-height: 1.45;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Master Frame: 100% viewport container styled as Atlantis Tactical HUD */
+    #master-viewport-frame {
+      width: 100vw;
+      height: 100vh;
+      max-width: 1920px;
+      max-height: 1080px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--color-slate-dark);
+      border: 4px solid var(--color-slate-surface);
+      overflow: hidden;
+    }
+
+    /* ==========================================================================
+       1. TOP STATUS BAR (Thanh trạng thái phía trên)
+       ========================================================================== */
+    .top-status-bar {
+      height: 52px;
+      background: linear-gradient(180deg, #162838 0%, #0d1a26 100%);
+      border-bottom: 2px solid var(--color-orichalcum);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      position: relative;
+      z-index: 30;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chapter-badge-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      color: var(--color-orichalcum);
+      font-family: var(--font-heading);
+      font-size: 14.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chapter-badge-chip:hover {
+      background: rgba(212, 175, 55, 0.15);
+      border-color: var(--color-orichalcum);
+    }
+
+    .top-bar-metrics {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .metric-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(12, 23, 34, 0.7);
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .metric-item.energy-bar-box {
+      min-width: 170px;
+    }
+
+    .energy-progress-track {
+      width: 60px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .energy-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f59e0b, #eab308);
+      width: 85%;
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    .metric-value-gold {
+      color: var(--color-orichalcum);
+      font-family: var(--font-heading);
+      font-size: 15px;
+    }
+
+    .metric-timer {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #38bdf8;
+      font-size: 14px;
+    }
+
+    .metric-timer.danger {
+      color: var(--color-coral-red);
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .btn-top-util {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-top-util:hover {
+      background: var(--color-orichalcum);
+      color: #000;
+    }
+
+    /* ==========================================================================
+       2. KHUNG NHÌN 2.5D ISOMETRIC & BẢNG NHIỆM VỤ (Viewport & Mission Tracker)
+       ========================================================================== */
+    .center-interactive-viewport {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at 50% 40%, #152636 0%, #08111a 80%);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Canvas Rain & Sea Spray */
+    #rain-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* 2.5D Isometric Ship Deck Visual Representation */
+    .isometric-deck-scene {
+      position: absolute;
+      width: 860px;
+      height: 480px;
+      transform: rotateX(55deg) rotateZ(-30deg);
+      background: linear-gradient(135deg, #1c3247 0%, #122130 100%);
+      border: 6px solid #2d4c6b;
+      border-radius: 40px;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 240, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.4s ease;
+    }
+
+    /* Grid lines for tactical RTS feel */
+    .isometric-grid-lines {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(212, 175, 55, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(212, 175, 55, 0.12) 1px, transparent 1px);
+      background-size: 60px 60px;
+      border-radius: 34px;
+    }
+
+    /* 4 POI Beacons / Interactive Ship Objects */
+    .poi-hotspot {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transform: translate(-50%, -50%) rotateZ(30deg) rotateX(-55deg);
+      z-index: 10;
+      transition: transform 0.2s, filter 0.2s;
+    }
+
+    .poi-hotspot:hover {
+      transform: translate(-50%, -55%) rotateZ(30deg) rotateX(-55deg) scale(1.1);
+      filter: drop-shadow(0 0 12px var(--color-biolum-blue));
+    }
+
+    .poi-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(17, 34, 48, 0.9);
+      border: 2px solid var(--color-orichalcum);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--color-orichalcum);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    }
+
+    .poi-halo-ring {
+      position: absolute;
+      width: 60px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--color-biolum-blue);
+      bottom: -10px;
+      animation: pulseHalo 2s infinite;
+    }
+
+    @keyframes pulseHalo {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 0.3; }
+    }
+
+    .poi-label {
+      margin-top: 4px;
+      background: rgba(12, 23, 34, 0.9);
+      border: 1px solid var(--color-orichalcum);
+      color: #fff;
+      font-family: var(--font-heading);
+      font-size: 11.5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* 4 Heroes on Deck with Colored Halos */
+    .hero-token-entity {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translate(-50%, -50%) rotateZ(30deg) rotateX(-55deg);
+      z-index: 12;
+      cursor: pointer;
+    }
+
+    .hero-token-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .hero-ground-halo {
+      position: absolute;
+      width: 48px;
+      height: 18px;
+      border-radius: 50%;
+      bottom: -8px;
+      border: 2px solid currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    /* BẢNG THEO DÕI NHIỆM VỤ (Floating Mission Tracker - Top Right) */
+    .mission-tracker-panel {
+      position: absolute;
+      top: 16px;
+      right: 18px;
+      width: 280px;
+      background: rgba(17, 34, 48, 0.92);
+      border: 1.5px solid var(--color-orichalcum);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-board);
+      backdrop-filter: blur(10px);
+      padding: 12px 14px;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .mission-tracker-panel.minimized {
+      transform: translateX(230px);
+      opacity: 0.6;
+    }
+
+    .mission-tracker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+      padding-bottom: 6px;
+    }
+
+    .mission-tracker-title {
+      font-family: var(--font-heading);
+      color: var(--color-orichalcum);
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mission-task-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mission-task-row:hover {
+      background: rgba(212, 175, 55, 0.12);
+    }
+
+    .mission-task-row.done {
+      opacity: 0.6;
+    }
+
+    .mission-checkbox {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--color-sea-green);
+      flex: none;
+    }
+
+    .mission-task-row.done .mission-checkbox {
+      border-color: var(--color-sea-green);
+      background: rgba(45, 212, 191, 0.15);
+    }
+
+    .mission-task-text {
+      font-size: 12px;
+      font-weight: 500;
+      color: #e2e8f0;
+      flex: 1;
+    }
+
+    .mission-task-row.done .mission-task-text {
+      text-decoration: line-through;
+    }
+
+    .map-shard-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px dashed rgba(212, 175, 55, 0.5);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      color: var(--color-orichalcum);
+      font-weight: 700;
+    }
+
+    /* ==========================================================================
+       3. BOTTOM DASHBOARD (3 Khối chuẩn AOE theo đúng Mockup Designs.md)
+       ========================================================================== */
+    .bottom-dashboard-aoe {
+      height: 220px;
+      background: linear-gradient(180deg, #132433 0%, #0b151f 100%);
+      border-top: 3px solid var(--color-orichalcum);
+      box-shadow: 0 -6px 25px rgba(0, 0, 0, 0.7);
+      display: grid;
+      grid-template-columns: 240px 1fr 340px;
+      gap: 12px;
+      padding: 12px 16px;
+      position: relative;
+      z-index: 30;
+    }
+
+    /* KHỐI 1: KHUNG TƯƠNG TÁC NPC (Bên trái) */
+    .dashboard-npc-block {
+      background: var(--color-slate-board);
+      border: var(--border-orichalcum);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .npc-portrait-container {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .npc-portrait-art {
+      width: 65px;
+      height: 65px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--color-orichalcum);
+      background: linear-gradient(180deg, #d97706, #78350f);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .npc-meta-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .npc-name-tag {
+      font-family: var(--font-heading);
+      color: var(--color-orichalcum);
+      font-size: 13.5px;
+      line-height: 1.1;
+    }
+
+    .npc-attitude-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 999px;
+      margin-top: 4px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .npc-attitude-fill {
+      width: 75%;
+      height: 100%;
+      background: var(--color-sea-green);
+    }
+
+    .npc-speech-preview {
+      background: rgba(0, 0, 0, 0.3);
+      border-left: 2px solid var(--color-orichalcum);
+      padding: 4px 8px;
+      font-size: 11.5px;
+      color: #cbd5e1;
+      font-style: italic;
+      line-height: 1.35;
+      flex: 1;
+    }
+
+    .npc-quick-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-npc-sub {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      color: #cbd5e1;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 3px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-npc-sub:hover {
+      background: var(--color-orichalcum);
+      color: #000;
+    }
+
+    /* KHỐI 2: ENGLISH CONSOLE (Trung tâm) */
+    .dashboard-console-block {
+      background: var(--color-slate-board);
+      border: var(--border-orichalcum);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .console-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .console-title-label {
+      font-family: var(--font-heading);
+      color: var(--color-orichalcum);
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .grammar-hint-badge {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid var(--color-biolum-blue);
+      color: var(--color-biolum-blue);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+    }
+
+    .npc-active-quote-banner {
+      font-family: var(--font-heading);
+      font-size: 16.5px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.35);
+      border-left: 3px solid var(--color-biolum-blue);
+      padding: 6px 12px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+    }
+
+    .console-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .voice-control-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-console-act {
+      height: 34px;
+      padding: 0 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-orichalcum);
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--color-orichalcum);
+      font-family: var(--font-heading);
+      font-size: 12.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-console-act:hover {
+      background: var(--color-orichalcum);
+      color: #000;
+    }
+
+    .btn-console-act.recording {
+      background: var(--color-coral-red);
+      border-color: #ef4444;
+      color: #fff;
+      animation: pulseRecord 1s infinite alternate;
+    }
+
+    @keyframes pulseRecord {
+      0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6); }
+      100% { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
+    }
+
+    .console-text-input-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-sm);
+      padding: 0 10px;
+      height: 34px;
+      transition: border-color 0.2s;
+    }
+
+    .console-text-input-box:focus-within {
+      border-color: var(--color-biolum-blue);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    }
+
+    .console-prompt-prefix {
+      color: var(--color-biolum-blue);
+      font-family: var(--font-mono);
+      font-weight: 700;
+      margin-right: 6px;
+      font-size: 13px;
+    }
+
+    .console-input-field {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    .chip-suggestions-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .chip-suggestion-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-full);
+      padding: 2px 10px;
+      color: #94a3b8;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .chip-suggestion-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--color-biolum-blue);
+      color: #fff;
+    }
+
+    /* KHỐI 3: ACTION GRID (Bên phải - Q, W, E, R) */
+    .dashboard-action-block {
+      background: var(--color-slate-board);
+      border: var(--border-orichalcum);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .action-header-title {
+      font-family: var(--font-heading);
+      color: var(--color-orichalcum);
+      font-size: 12.5px;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .action-skills-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .action-skill-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .action-skill-btn:hover {
+      background: rgba(212, 175, 55, 0.18);
+      border-color: var(--color-orichalcum);
+      transform: translateY(-1px);
+    }
+
+    .skill-hotkey-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: var(--color-orichalcum);
+      color: #000;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .skill-meta-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .skill-name-text {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .skill-char-name {
+      font-size: 9.5px;
+      color: var(--color-orichalcum);
+      font-weight: 600;
+    }
+
+    /* Modal Screens (Victory / Chapter Selector) */
+    .modal-backdrop-layer {
+      position: absolute;
+      inset: 0;
+      background: rgba(4, 9, 14, 0.82);
+      backdrop-filter: blur(10px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-backdrop-layer.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-atlantis-card {
+      width: 580px;
+      background: var(--color-slate-board);
+      border: 2px solid var(--color-orichalcum);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="master-viewport-frame">
+
+  <!-- ========================================================================
+       1. THANH TRẠNG THÁI PHÍA TRÊN (Top Status Bar)
+       ======================================================================== -->
+  <header class="top-status-bar">
+    <div class="top-bar-left">
+      <!-- Chapter & Stage Name -->
+      <div class="chapter-badge-chip" onclick="openChapterDrawer()" title="Bấm để mở danh sách 30 Màn chơi">
+        <i class="fa-solid fa-compass"></i>
+        <span>Chapter 1 - Stage 1: Cơn bão bất ngờ (The Unexpected Storm)</span>
+        <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i>
+      </div>
+    </div>
+
+    <!-- 4 Core Metrics -->
+    <div class="top-bar-metrics">
+      <!-- ⏳ Timer -->
+      <div class="metric-item" title="Thời gian đếm ngược màn chơi">
+        <i class="fa-regular fa-clock" style="color: #38bdf8;"></i>
+        <span class="metric-timer" id="timer-display">04:35</span>
+      </div>
+
+      <!-- ⚡ Team Energy -->
+      <div class="metric-item energy-bar-box" title="Năng lượng dùng chung cả đội (Dùng hết mà chưa thu thập đủ vật phẩm = Thua)">
+        <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i>
+        <span style="font-size: 11px; opacity: 0.7;">Energy:</span>
+        <span class="metric-value-gold" id="energy-val-text">85/100</span>
+        <div class="energy-progress-track">
+          <div class="energy-progress-fill" id="energy-progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- 🏆 Skill Pts (Điểm chiến lực / kỹ năng) -->
+      <div class="metric-item" title="Điểm kỹ năng / chiến lực tích lũy để mở khóa các màn tiếp theo">
+        <i class="fa-solid fa-trophy" style="color: var(--color-orichalcum);"></i>
+        <span style="font-size: 11px; opacity: 0.7;">Skill Pts:</span>
+        <span class="metric-value-gold" id="skill-pts-text">450</span>
+      </div>
+
+      <!-- Sound Toggle -->
+      <button class="btn-top-util" id="btn-sound-switch" onclick="toggleAudio()" title="Bật/Tắt Âm thanh">
+        <i class="fa-solid fa-volume-high"></i>
+      </button>
+
+      <!-- Rule Guide Help -->
+      <button class="btn-top-util" onclick="openGuideModal()" title="Hướng dẫn quy tắc">
+        <i class="fa-solid fa-circle-question"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       2. KHUNG NHÌN 2.5D ISOMETRIC & BẢNG NHIỆM VỤ (Viewport & Mission Tracker)
+       ======================================================================== -->
+  <main class="center-interactive-viewport" id="viewport-container">
+    <!-- Atmospheric Rain Canvas -->
+    <canvas id="rain-canvas"></canvas>
+
+    <!-- 2.5D Isometric Ship Deck Scene (Góc 45 độ chuẩn RTS) -->
+    <div class="isometric-deck-scene">
+      <div class="isometric-grid-lines"></div>
+
+      <!-- POI 1: Cần tời buồm (Winch) -->
+      <div class="poi-hotspot" style="left: 28%; top: 35%;" onclick="interactPOI(1)" title="Cần tời buồm (Sail Winch)">
+        <div class="poi-icon-box"><i class="fa-solid fa-dharmachakra"></i></div>
+        <div class="poi-halo-ring"></div>
+        <div class="poi-label">1. Cần tời buồm</div>
+      </div>
+
+      <!-- POI 2: Vết nứt thân tàu (Hull Crack) -->
+      <div class="poi-hotspot" style="left: 68%; top: 40%;" onclick="interactPOI(2)" title="Vết nứt thân tàu (Hull Crack)">
+        <div class="poi-icon-box" style="border-color: #ef4444; color: #ef4444;"><i class="fa-solid fa-hammer"></i></div>
+        <div class="poi-halo-ring" style="border-color: #ef4444;"></div>
+        <div class="poi-label">2. Gia cố thân tàu</div>
+      </div>
+
+      <!-- POI 3: Đài phao cứu sinh (Radar / Lifebuoy) -->
+      <div class="poi-hotspot" style="left: 45%; top: 70%;" onclick="interactPOI(3)" title="Đài phao cứu sinh (Port side lifebuoy)">
+        <div class="poi-icon-box"><i class="fa-solid fa-life-ring"></i></div>
+        <div class="poi-halo-ring"></div>
+        <div class="poi-label">3. Phao cứu sinh</div>
+      </div>
+
+      <!-- POI 4: Hòm cứu hộ cổ (Ancient Map Shard Crate) -->
+      <div class="poi-hotspot" style="left: 80%; top: 65%;" onclick="interactPOI(4)" title="Hòm cứu hộ Mảnh bản đồ 1">
+        <div class="poi-icon-box" style="border-color: #a855f7; color: #a855f7;"><i class="fa-solid fa-gem"></i></div>
+        <div class="poi-halo-ring" style="border-color: #a855f7;"></div>
+        <div class="poi-label">4. Hòm Mảnh bản đồ 1</div>
+      </div>
+
+      <!-- 4 Heroes on Deck (Leo, Maya, Sam, Jade) -->
+      <div class="hero-token-entity" style="left: 38%; top: 48%; color: var(--char-leo);" onclick="selectHero('leo')">
+        <div class="hero-token-avatar" style="background: var(--char-leo);"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="hero-ground-halo"></div>
+      </div>
+
+      <div class="hero-token-entity" style="left: 55%; top: 42%; color: var(--char-maya);" onclick="selectHero('maya')">
+        <div class="hero-token-avatar" style="background: var(--char-maya);"><i class="fa-solid fa-scroll"></i></div>
+        <div class="hero-ground-halo"></div>
+      </div>
+
+      <div class="hero-token-entity" style="left: 32%; top: 42%; color: var(--char-sam);" onclick="selectHero('sam')">
+        <div class="hero-token-avatar" style="background: var(--char-sam);"><i class="fa-solid fa-wrench"></i></div>
+        <div class="hero-ground-halo"></div>
+      </div>
+
+      <div class="hero-token-entity" style="left: 48%; top: 62%; color: var(--char-jade);" onclick="selectHero('jade')">
+        <div class="hero-token-avatar" style="background: var(--char-jade);"><i class="fa-solid fa-wind"></i></div>
+        <div class="hero-ground-halo"></div>
+      </div>
+    </div>
+
+    <!-- BẢNG THEO DÕI NHIỆM VỤ (Floating Mission Tracker - Top Right) -->
+    <aside class="mission-tracker-panel" id="mission-tracker-box">
+      <div class="mission-tracker-header">
+        <span class="mission-tracker-title"><i class="fa-solid fa-list-check"></i> [MISSION TRACKER]</span>
+        <button class="btn-top-util" style="width:22px; height:22px; font-size:10px;" onclick="toggleMissionTracker()" title="Thu gọn / Mở rộng">
+          <i class="fa-solid fa-chevron-right" id="tracker-chevron"></i>
+        </button>
+      </div>
+
+      <!-- 4 Sequential Tasks -->
+      <div class="mission-task-row" id="task-row-1" onclick="interactPOI(1)">
+        <div class="mission-checkbox" id="check-box-1"><i class="fa-solid fa-check" style="display:none;"></i></div>
+        <span class="mission-task-text">1. Hạ buồm đón gió</span>
+      </div>
+
+      <div class="mission-task-row" id="task-row-2" onclick="interactPOI(2)">
+        <div class="mission-checkbox" id="check-box-2"><i class="fa-solid fa-check" style="display:none;"></i></div>
+        <span class="mission-task-text">2. Gia cố thân tàu nứt</span>
+      </div>
+
+      <div class="mission-task-row" id="task-row-3" onclick="interactPOI(3)">
+        <div class="mission-checkbox" id="check-box-3"><i class="fa-solid fa-check" style="display:none;"></i></div>
+        <span class="mission-task-text">3. Định vị phao cứu sinh</span>
+      </div>
+
+      <div class="mission-task-row" id="task-row-4" onclick="interactPOI(4)">
+        <div class="mission-checkbox" id="check-box-4"><i class="fa-solid fa-check" style="display:none;"></i></div>
+        <span class="mission-task-text">4. Mảnh bản đồ 1</span>
+      </div>
+
+      <!-- Map Shards Progress -->
+      <div class="map-shard-pill">
+        <span>🗺️ Map Shards:</span>
+        <span id="map-shard-counter">0 / 30 Mảnh</span>
+      </div>
+      <div style="font-size: 10px; opacity: 0.5; text-align: right;">(Nhấn <strong>Tab</strong> để ẩn/hiện)</div>
+    </aside>
+  </main>
+
+  <!-- ========================================================================
+       3. BOTTOM DASHBOARD (3 Khối chuẩn AOE theo đúng Mockup Designs.md)
+       ======================================================================== -->
+  <footer class="bottom-dashboard-aoe">
+    
+    <!-- KHỐI 1: KHUNG TƯƠNG TÁC NPC (Bên trái) -->
+    <section class="dashboard-npc-block">
+      <div class="npc-portrait-container">
+        <div class="npc-portrait-art" title="Thuyền trưởng John (NPC)">
+          <i class="fa-solid fa-user-tie" style="font-size: 32px; color: #fff;"></i>
+        </div>
+        <div class="npc-meta-block">
+          <div class="npc-name-tag">Captain John</div>
+          <div style="font-size: 10.5px; opacity: 0.65;">Thuyền trưởng hoa tiêu</div>
+          <div class="npc-attitude-track" title="Mức độ kiên nhẫn của NPC">
+            <div class="npc-attitude-fill" id="npc-patience-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="npc-speech-preview" id="npc-short-speech">
+        "Hold fast, crew! Lower the sails before the gale capsizes our vessel!"
+      </div>
+
+      <div class="npc-quick-actions">
+        <button class="btn-npc-sub" onclick="actionListenVoice()"><i class="fa-solid fa-volume-high"></i> Nghe (-3⚡)</button>
+        <button class="btn-npc-sub" onclick="actionTranslate()"><i class="fa-solid fa-language"></i> Dịch (-5⚡)</button>
+      </div>
+    </section>
+
+    <!-- KHỐI 2: ENGLISH CONSOLE - HỘI THOẠI & TASK (Chính giữa) -->
+    <section class="dashboard-console-block">
+      <div class="console-header-row">
+        <span class="console-title-label"><i class="fa-solid fa-terminal"></i> ENGLISH CONSOLE (HỘI THOẠI & TASK)</span>
+        <span class="grammar-hint-badge">Gợi ý: Easy • Imperatives / Present Simple</span>
+      </div>
+
+      <!-- Active NPC Dialogue Line -->
+      <div class="npc-active-quote-banner" id="npc-full-dialogue">
+        NPC: "Hold fast! Lower the sails immediately to survive the storm!"
+      </div>
+
+      <!-- Interactive Input & Voice Control Row -->
+      <div class="console-input-row">
+        <div class="voice-control-group">
+          <button class="btn-console-act" onclick="actionListenVoice()" title="Nghe phát âm chuẩn (1.0x / 0.8x)">
+            <i class="fa-solid fa-volume-high"></i> <span>Listen</span>
+          </button>
+          <button class="btn-console-act" id="btn-hold-speak" onmousedown="startVoiceRecord()" onmouseup="stopVoiceRecord()" title="Giữ để nói (Hold to Speak hoặc giữ Spacebar)">
+            <i class="fa-solid fa-microphone"></i> <span>Hold to Speak</span>
+          </button>
+        </div>
+
+        <!-- Text Input Command -->
+        <div class="console-text-input-box">
+          <span class="console-prompt-prefix">&gt;</span>
+          <input type="text" id="console-cmd-input" class="console-input-field" placeholder="Input command (e.g., lower the sails, hammer, ATLANTIS)..." onkeydown="handleInputKey(event)">
+          <button class="btn-top-util" style="width:24px; height:24px; font-size:10px; background:var(--color-orichalcum); color:#000;" onclick="submitConsoleCommand()">
+            <i class="fa-solid fa-arrow-turn-down"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Auto-complete Quick Chips -->
+      <div class="chip-suggestions-row">
+        <span style="font-size: 10px; font-weight: 700; color: var(--color-orichalcum);">GỢI Ý LỆNH:</span>
+        <button class="chip-suggestion-btn" onclick="applySuggestion('lower the sails')">"lower the sails"</button>
+        <button class="chip-suggestion-btn" onclick="applySuggestion('reinforce with hammer')">"reinforce with hammer"</button>
+        <button class="chip-suggestion-btn" onclick="applySuggestion('port side lifebuoy')">"port side lifebuoy"</button>
+        <button class="chip-suggestion-btn" onclick="applySuggestion('ATLANTIS')">"ATLANTIS"</button>
+      </div>
+    </section>
+
+    <!-- KHỐI 3: ACTION GRID - KỸ NĂNG 4 PHÍM TẮT Q, W, E, R (Bên phải) -->
+    <section class="dashboard-action-block">
+      <div class="action-header-title">
+        <span><i class="fa-solid fa-bolt-lightning"></i> ACTION SKILLS</span>
+        <span style="font-size: 10px; opacity: 0.6;">(Phím tắt Q / W / E / R)</span>
+      </div>
+
+      <div class="action-skills-grid">
+        <!-- [Q] Leo -->
+        <button class="action-skill-btn" onclick="triggerHeroSkill('Q', 'leo')">
+          <span class="skill-hotkey-badge">Q</span>
+          <div class="skill-meta-info">
+            <span class="skill-name-text">Khiên chắn / Gia cố</span>
+            <span class="skill-char-name">Leo (The Guardian)</span>
+          </div>
+        </button>
+
+        <!-- [W] Maya -->
+        <button class="action-skill-btn" onclick="triggerHeroSkill('W', 'maya')">
+          <span class="skill-hotkey-badge" style="background:#a855f7; color:#fff;">W</span>
+          <div class="skill-meta-info">
+            <span class="skill-name-text">Giải mã cổ ngữ</span>
+            <span class="skill-char-name">Maya (The Scholar)</span>
+          </div>
+        </button>
+
+        <!-- [E] Sam -->
+        <button class="action-skill-btn" onclick="triggerHeroSkill('E', 'sam')">
+          <span class="skill-hotkey-badge" style="background:#f59e0b; color:#000;">E</span>
+          <div class="skill-meta-info">
+            <span class="skill-name-text">Sửa chữa tời buồm</span>
+            <span class="skill-char-name">Sam (The Fixer)</span>
+          </div>
+        </button>
+
+        <!-- [R] Jade -->
+        <button class="action-skill-btn" onclick="triggerHeroSkill('R', 'jade')">
+          <span class="skill-hotkey-badge" style="background:#10b981; color:#000;">R</span>
+          <div class="skill-meta-info">
+            <span class="skill-name-text">Bắn móc / Thám thính</span>
+            <span class="skill-char-name">Jade (The Wraith)</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+  </footer>
+
+</div>
+
+<!-- ==========================================================================
+     MODAL: VICTORY & SUMMARY (QUA MÀN & ĐIỂM CHIẾN LỰC)
+     ========================================================================== -->
+<div class="modal-backdrop-layer" id="victory-modal">
+  <div class="modal-atlantis-card">
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="width:80px; height:80px; border-radius:50%; background:rgba(45,212,191,0.2); border:3px solid var(--color-sea-green); display:flex; align-items:center; justify-content:center; font-family:var(--font-heading); font-size:32px; color:var(--color-sea-green);">
+        S
+      </div>
+      <div>
+        <div style="font-size:11px; font-weight:700; color:var(--color-orichalcum); letter-spacing:0.08em;">VICTORY • STAGE 1 CLEARED</div>
+        <h2 style="font-family:var(--font-heading); font-size:24px; color:#fff; margin:2px 0;">Thu thập thành công Mảnh bản đồ 1!</h2>
+        <div style="font-size:12.5px; opacity:0.8;">Cả đội đã an toàn sống sót qua cơn bão dữ và phát hiện lối vào Atlantis.</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:8px;">
+      <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:10px; opacity:0.6;">ĐỘ KHÓ</div>
+        <div style="font-family:var(--font-heading); font-size:16px; color:var(--color-orichalcum);">Easy (x1.0)</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:10px; opacity:0.6;">NĂNG LƯỢNG CÒN</div>
+        <div style="font-family:var(--font-heading); font-size:16px; color:#38bdf8;">65 / 100⚡</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:10px; opacity:0.6;">ĐIỂM CHIẾN LỰC</div>
+        <div style="font-family:var(--font-heading); font-size:16px; color:var(--color-sea-green);">+850 PTS</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn-console-act" onclick="location.reload()" style="flex:1; justify-content:center;">
+        <i class="fa-solid fa-rotate-left"></i> Chơi lại
+      </button>
+      <button class="btn-console-act" onclick="alert('Chuyển tới Chapter 1 - Stage 2: Hang bong bóng...')" style="flex:1.4; justify-content:center; background:var(--color-orichalcum); color:#000;">
+        <span>Vào Màn 2 (Hang bong bóng)</span> <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     JAVASCRIPT: ENGINE & SOUND & INTERACTION LOGIC
+     ========================================================================== -->
+<script>
+  /* --------------------------------------------------------------------------
+     STATE & DATA
+     -------------------------------------------------------------------------- */
+  const gameState = {
+    energy: 85,
+    maxEnergy: 100,
+    skillPts: 450,
+    shards: 0,
+    timerSeconds: 275, // 04:35
+    soundOn: true,
+    isRecording: false,
+    selectedHero: 'leo',
+    tasks: {
+      1: { id: 1, title: 'Hạ buồm đón gió', key: 'lower the sails', done: false },
+      2: { id: 2, title: 'Gia cố thân tàu nứt', key: 'hammer', done: false },
+      3: { id: 3, title: 'Định vị phao cứu sinh', key: 'port side', done: false },
+      4: { id: 4, title: 'Mảnh bản đồ 1', key: 'ATLANTIS', done: false }
+    }
+  };
+
+  /* --------------------------------------------------------------------------
+     AUDIO SFX (Web Audio API)
+     -------------------------------------------------------------------------- */
+  let audioCtx = null;
+  function getAudioContext() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playTone(freq, type = 'sine', duration = 0.15, gain = 0.15) {
+    if (!gameState.soundOn) return;
+    try {
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      g.gain.setValueAtTime(gain, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch(e) {}
+  }
+
+  function playSuccessChime() {
+    playTone(523.25, 'triangle', 0.12, 0.2);
+    setTimeout(() => playTone(659.25, 'triangle', 0.15, 0.2), 100);
+    setTimeout(() => playTone(783.99, 'triangle', 0.25, 0.25), 200);
+  }
+
+  function toggleAudio() {
+    gameState.soundOn = !gameState.soundOn;
+    const btn = document.getElementById('btn-sound-switch');
+    if (gameState.soundOn) {
+      btn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+      playTone(440, 'sine', 0.1);
+    } else {
+      btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     TIMER COUNTDOWN
+     -------------------------------------------------------------------------- */
+  setInterval(() => {
+    if (gameState.timerSeconds > 0) {
+      gameState.timerSeconds--;
+      const m = Math.floor(gameState.timerSeconds / 60).toString().padStart(2, '0');
+      const s = (gameState.timerSeconds % 60).toString().padStart(2, '0');
+      const timerEl = document.getElementById('timer-display');
+      timerEl.innerText = `${m}:${s}`;
+      if (gameState.timerSeconds < 60) {
+        timerEl.classList.add('danger');
+      }
+    }
+  }, 1000);
+
+  /* --------------------------------------------------------------------------
+     ENERGY PENALTY & MANAGEMENT
+     -------------------------------------------------------------------------- */
+  function deductEnergy(amount) {
+    gameState.energy = Math.max(0, gameState.energy - amount);
+    document.getElementById('energy-val-text').innerText = `${gameState.energy}/100`;
+    document.getElementById('energy-progress-fill').style.width = `${gameState.energy}%`;
+
+    if (gameState.energy <= 0) {
+      playTone(150, 'sawtooth', 0.4);
+      alert('⚠️ CẢNH BÁO: Cạn kiệt năng lượng toàn đội (0/100⚡)! Toàn đội không thể tiếp tục.');
+      location.reload();
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     INTERACTION: POI & TASKS
+     -------------------------------------------------------------------------- */
+  function interactPOI(taskId) {
+    const task = gameState.tasks[taskId];
+    if (task.done) {
+      alert(`Mục tiêu [${task.title}] đã hoàn thành!`);
+      return;
+    }
+
+    if (taskId === 1) {
+      applySuggestion('lower the sails');
+    } else if (taskId === 2) {
+      applySuggestion('hammer');
+    } else if (taskId === 3) {
+      applySuggestion('port side');
+    } else if (taskId === 4) {
+      applySuggestion('ATLANTIS');
+    }
+  }
+
+  function completeTask(taskId) {
+    const task = gameState.tasks[taskId];
+    if (task.done) return;
+    task.done = true;
+
+    // Check UI
+    document.getElementById(`check-box-${taskId}`).querySelector('i').style.display = 'inline-block';
+    document.getElementById(`task-row-${taskId}`).classList.add('done');
+
+    gameState.skillPts += 150;
+    document.getElementById('skill-pts-text').innerText = gameState.skillPts;
+    playSuccessChime();
+
+    // Check All 4 Tasks
+    const allDone = Object.values(gameState.tasks).every(t => t.done);
+    if (allDone) {
+      gameState.shards = 1;
+      document.getElementById('map-shard-counter').innerText = '1 / 30 Mảnh';
+      setTimeout(() => {
+        document.getElementById('victory-modal').classList.add('active');
+        playSuccessChime();
+      }, 700);
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     ENGLISH CONSOLE ACTIONS
+     -------------------------------------------------------------------------- */
+  function actionListenVoice() {
+    deductEnergy(3);
+    const text = document.getElementById('npc-full-dialogue').innerText.replace('NPC: ', '');
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    }
+    playTone(500, 'sine', 0.1);
+  }
+
+  function actionTranslate() {
+    deductEnergy(5);
+    alert('Bản dịch tiếng Việt: "Giữ chặt dây buồm! Hãy hạ buồm ngay lập tức để sống sót qua cơn bão dữ!" (-5⚡)');
+  }
+
+  function startVoiceRecord() {
+    gameState.isRecording = true;
+    document.getElementById('btn-hold-speak').classList.add('recording');
+    playTone(600, 'sine', 0.1);
+  }
+
+  function stopVoiceRecord() {
+    if (!gameState.isRecording) return;
+    gameState.isRecording = false;
+    document.getElementById('btn-hold-speak').classList.remove('recording');
+    deductEnergy(10);
+    playTone(700, 'sine', 0.15);
+
+    // Auto complete Task 1 via voice simulation
+    completeTask(1);
+    document.getElementById('npc-full-dialogue').innerText = 'NPC: "Great job! The sails are lowered safely!"';
+  }
+
+  function applySuggestion(cmd) {
+    document.getElementById('console-cmd-input').value = cmd;
+    document.getElementById('console-cmd-input').focus();
+  }
+
+  function handleInputKey(e) {
+    if (e.key === 'Enter') {
+      submitConsoleCommand();
+    }
+  }
+
+  function submitConsoleCommand() {
+    const input = document.getElementById('console-cmd-input');
+    const val = input.value.trim().toLowerCase();
+    if (!val) return;
+
+    deductEnergy(5);
+
+    if (val.includes('lower') || val.includes('sail')) {
+      completeTask(1);
+      document.getElementById('npc-full-dialogue').innerText = 'NPC: "Sails lowered! Now fix the hull crack!"';
+    } else if (val.includes('hammer') || val.includes('reinforce') || val.includes('plank')) {
+      completeTask(2);
+      document.getElementById('npc-full-dialogue').innerText = 'NPC: "Hull reinforced! Locate the port side lifebuoy!"';
+    } else if (val.includes('port') || val.includes('lifebuoy')) {
+      completeTask(3);
+      document.getElementById('npc-full-dialogue').innerText = 'NPC: "Lifebuoy spotted! Enter password to open emergency crate!"';
+    } else if (val.includes('atlantis')) {
+      completeTask(4);
+      document.getElementById('npc-full-dialogue').innerText = 'NPC: "Password accepted! Map Shard 1 retrieved!"';
+    } else {
+      playTone(200, 'sawtooth', 0.2);
+      alert(`Khẩu lệnh "${val}" chưa chính xác! Hãy xem gợi ý lệnh bên dưới.`);
+    }
+
+    input.value = '';
+  }
+
+  /* --------------------------------------------------------------------------
+     HERO & SKILLS (Q, W, E, R)
+     -------------------------------------------------------------------------- */
+  function selectHero(heroKey) {
+    gameState.selectedHero = heroKey;
+    playTone(500, 'sine', 0.08);
+  }
+
+  function triggerHeroSkill(key, heroKey) {
+    deductEnergy(5);
+    playTone(650, 'triangle', 0.15);
+
+    if (key === 'Q') {
+      completeTask(2);
+      alert('[Q] Leo giương khiên & gia cố thân tàu!');
+    } else if (key === 'W') {
+      completeTask(4);
+      alert('[W] Maya giải mã cổ ngữ trên hòm Mảnh bản đồ 1!');
+    } else if (key === 'E') {
+      completeTask(1);
+      alert('[E] Sam dùng cờ lê & bánh răng gạt cần tời hạ buồm!');
+    } else if (key === 'R') {
+      completeTask(3);
+      alert('[R] Jade bắn móc neo định vị phao cứu sinh mạn trái!');
+    }
+  }
+
+  /* Keyboard Hotkeys (Tab, Space, Q, W, E, R) */
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      toggleMissionTracker();
+    } else if (e.code === 'Space') {
+      e.preventDefault();
+      startVoiceRecord();
+    } else if (e.key.toLowerCase() === 'q') {
+      triggerHeroSkill('Q', 'leo');
+    } else if (e.key.toLowerCase() === 'w') {
+      triggerHeroSkill('W', 'maya');
+    } else if (e.key.toLowerCase() === 'e') {
+      triggerHeroSkill('E', 'sam');
+    } else if (e.key.toLowerCase() === 'r') {
+      triggerHeroSkill('R', 'jade');
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' && gameState.isRecording) {
+      stopVoiceRecord();
+    }
+  });
+
+  function toggleMissionTracker() {
+    const panel = document.getElementById('mission-tracker-box');
+    const chevron = document.getElementById('tracker-chevron');
+    panel.classList.toggle('minimized');
+    if (panel.classList.contains('minimized')) {
+      chevron.className = 'fa-solid fa-chevron-left';
+    } else {
+      chevron.className = 'fa-solid fa-chevron-right';
+    }
+  }
+
+  function openChapterDrawer() {
+    alert('Hệ thống Màn chơi: Chapter 1 - Stage 1 (Cơn bão bất ngờ). Thu thập đủ 30 Mảnh bản đồ để mở Cổng Không Gian!');
+  }
+
+  function openGuideModal() {
+    alert('HƯỚNG DẪN:\n• Sử dụng tiếng Anh để tương tác với NPC.\n• Dùng phím tắt Q, W, E, R để kích hoạt kỹ năng.\n• Giữ Spacebar hoặc click "Hold to Speak" để luyện nói.\n• Nhấn Tab để ẩn/hiện bảng nhiệm vụ.');
+  }
+
+  /* --------------------------------------------------------------------------
+     RAIN CANVAS ENGINE
+     -------------------------------------------------------------------------- */
+  const canvas = document.getElementById('rain-canvas');
+  const ctx = canvas.getContext('2d');
+  let raindrops = [];
+
+  function initRain() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+    raindrops = [];
+    for (let i = 0; i < 80; i++) {
+      raindrops.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        len: Math.random() * 22 + 10,
+        speed: Math.random() * 12 + 14
+      });
+    }
+  }
+
+  function drawRain() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.22)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    for (let d of raindrops) {
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - d.len * 0.25, d.y + d.len);
+      d.y += d.speed;
+      d.x -= d.speed * 0.25;
+      if (d.y > canvas.height) {
+        d.y = -d.len;
+        d.x = Math.random() * (canvas.width + 100);
+      }
+    }
+    ctx.stroke();
+    requestAnimationFrame(drawRain);
+  }
+
+  window.addEventListener('resize', initRain);
+  initRain();
+  drawRain();
+</script>
+
+</body>
+</html>

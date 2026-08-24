@@ -1,0 +1,64 @@
+{
+  "id": "stage_01",
+  "chapter": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Cơn bão bất ngờ",
+  "story": "Nhóm bạn điều khiển thuyền vượt qua giông bão, tàu bị lật và rơi vào lối vào thế giới Atlantis.",
+  "timeLimitSeconds": 300,
+  "initialEnergy": 100,
+  "requiredSkillPts": 0,
+  "grammarHint": "Imperatives & Present Simple (Khẩu lệnh & Thì hiện tại đơn)",
+  "activeHero": {
+    "id": "leo",
+    "name": "Leo Harrison",
+    "role": "The Guardian",
+    "portrait": "assets/portraits/leo.jpg"
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hạ buồm đón gió: Nghe Thuyền trưởng hô hiệu lệnh và Nói/Gõ khẩu lệnh xác nhận.",
+      "npc": "Captain Golem",
+      "npcDialogue": "Storm incoming! Lower the sails immediately!",
+      "targetPhrase": "Lower the sails immediately",
+      "targetKeywords": ["lower the sails", "lower sails", "lower the sails immediately"],
+      "hint": "Cấu trúc mệnh lệnh: Lower the sails...",
+      "completed": false
+    },
+    {
+      "id": 2,
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Gia cố thân tàu nứt: Đọc hướng dẫn và Viết tên công cụ cần NPC thợ máy chuyền cho.",
+      "npc": "Sam (The Fixer)",
+      "npcDialogue": "The hull is cracking! Tell me which tool to use: [wrench / hammer / welding torch]!",
+      "targetPhrase": "Use the wrench",
+      "targetKeywords": ["wrench", "use wrench", "use the wrench"],
+      "hint": "Gõ tên công cụ: wrench",
+      "completed": false
+    },
+    {
+      "id": 3,
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Định vị phao cứu sinh: Nghe radar và Nói/Gõ mô tả vị trí phát sáng của đèn khẩn cấp.",
+      "npc": "Maya (The Scholar)",
+      "npcDialogue": "Radar ping detected! Which side is the beacon on? Left or right?",
+      "targetPhrase": "The beacon is on the left side",
+      "targetKeywords": ["left", "left side", "port side", "on the left"],
+      "hint": "Trả lời vị trí: left side / port side",
+      "completed": false
+    },
+    {
+      "id": 4,
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Thu thập Mảnh bản đồ 1: Đọc gợi ý trên khóa hòm cứu nạn và Viết từ khóa giải mã.",
+      "npc": "Ancient Chest Spirit",
+      "npcDialogue": "Speak the sacred ancient metal of Atlantis to unlock this chest: O_I_H_L_U_?",
+      "targetPhrase": "Orichalcum",
+      "targetKeywords": ["orichalcum"],
+      "hint": "Kim loại thần thoại Atlantis: orichalcum",
+      "reward": "map_shard_01",
+      "completed": false
+    }
+  ]
+}

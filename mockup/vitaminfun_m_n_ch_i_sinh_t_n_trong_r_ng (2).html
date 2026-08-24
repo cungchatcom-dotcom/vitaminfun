@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VITAMINFUN - Episode 1: Truy Tìm Vật Dụng Sinh Tồn</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for Web Audio Synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts for Gamified Aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        forest: {
+                            50: '#f2fbf7',
+                            100: '#e1f7ed',
+                            400: '#34d399',
+                            600: '#059669',
+                            800: '#065f46',
+                            900: '#064e3b',
+                            950: '#022c22',
+                        },
+                        game: {
+                            bg: '#0a1120',
+                            card: '#1e293b',
+                            accent: '#10b981',
+                            amber: '#fbbf24',
+                            rose: '#f43f5e',
+                            sky: '#38bdf8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(52, 211, 153, 0.5);
+            border-radius: 99px;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.88);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(52, 211, 153, 0.3);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+        }
+        .game-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 0 0 rgba(0,0,0,0.3);
+        }
+        .game-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 0 rgba(0,0,0,0.3);
+        }
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes wave {
+            0% { height: 6px; }
+            100% { height: 24px; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen overflow-x-hidden flex flex-col select-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+
+    <header class="h-16 bg-slate-900/90 border-b border-emerald-500/30 px-4 md:px-6 flex items-center justify-between z-30 sticky top-0 backdrop-blur-xl">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-300 flex items-center justify-center font-display font-black text-slate-950 text-2xl shadow-lg shadow-emerald-500/30 transform hover:rotate-6 transition">
+                🌿
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-display text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-300">VITAMINFUN</span>
+                    <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">EPISODE 1</span>
+                </div>
+                <p class="text-[11px] text-slate-300 flex items-center gap-1.5 font-semibold">
+                    <span>Truy Tìm Vật Dụng Sinh Tồn</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Currencies & Action Buttons -->
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <!-- Energy Xu Balance -->
+            <div class="flex items-center space-x-1.5 bg-slate-800/90 border border-amber-500/50 px-3.5 py-1.5 rounded-2xl text-xs shadow-inner" title="Xu Năng Lượng (Tiêu hao khi nghe lại hoặc dùng gợi ý dịch)">
+                <span class="text-amber-400 text-base animate-bounce">⚡</span>
+                <span class="font-display font-bold text-amber-300 text-sm" id="energy-xu-display">100</span>
+                <span class="text-slate-400 text-[10px] font-bold">Xu</span>
+            </div>
+
+            <!-- V-Points -->
+            <div class="flex items-center space-x-1.5 bg-slate-800/90 border border-emerald-500/50 px-3 py-1.5 rounded-2xl text-xs shadow-inner" title="Điểm V-Points (Thưởng đổi quà)">
+                <span class="text-emerald-400 text-base">⭐</span>
+                <span class="font-display font-bold text-emerald-300 text-sm" id="vpoints-display">120</span>
+            </div>
+
+            <!-- Passport Button -->
+            <button onclick="togglePassportModal()" class="game-btn flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-2xl text-xs transition">
+                <i class="fa-solid fa-book-bookmark text-slate-950"></i>
+                <span class="hidden sm:inline font-display">Passport</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 border-b border-emerald-500/30 px-4 py-2.5 flex items-center justify-between shadow-lg">
+        <div class="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2">
+            <!-- Inventory Header -->
+            <div class="flex items-center space-x-2">
+                <span class="text-amber-400 font-display font-bold text-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-briefcase"></i> TÚI ĐỒ SINH TỒN:
+                </span>
+                <span class="text-xs text-slate-300 font-medium">(Gom đủ 3 món để kích hoạt Dựng Lều)</span>
+            </div>
+
+            <!-- Inventory Items Display Slots -->
+            <div class="flex items-center space-x-3">
+                <!-- Slot 1: Tarp -->
+                <div id="slot-tarp" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl bg-slate-950 border-2 border-slate-700 text-slate-500 transition-all shadow-inner">
+                    <span class="text-base" id="icon-tarp">⛺</span>
+                    <span class="font-display font-bold text-xs" id="text-tarp">Bạt Chống Nước</span>
+                </div>
+
+                <!-- Slot 2: Matches -->
+                <div id="slot-matches" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl bg-slate-950 border-2 border-slate-700 text-slate-500 transition-all shadow-inner">
+                    <span class="text-base" id="icon-matches">🔥</span>
+                    <span class="font-display font-bold text-xs" id="text-matches">Diêm Sinh Tồn</span>
+                </div>
+
+                <!-- Slot 3: Rope -->
+                <div id="slot-rope" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl bg-slate-950 border-2 border-slate-700 text-slate-500 transition-all shadow-inner">
+                    <span class="text-base" id="icon-rope">🪢</span>
+                    <span class="font-display font-bold text-xs" id="text-rope">Cuộn Dây Thừng</span>
+                </div>
+
+                <!-- Build Shelter Trigger Button -->
+                <button id="btn-build-shelter" onclick="tryBuildShelter()" disabled class="game-btn px-4 py-1.5 rounded-2xl bg-slate-800 text-slate-500 font-display font-bold text-xs cursor-not-allowed border border-slate-700 transition">
+                    ⛺ DỰNG TRÚ ẨN (0/3)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 max-w-7xl mx-auto w-full">
+
+        <!-- LEFT COLUMN: Map & Interactive World Scene (6 cols) -->
+        <section class="lg:col-span-6 flex flex-col space-y-4">
+            <!-- Canvas Container -->
+            <div class="relative w-full aspect-[16/10] bg-slate-900 rounded-3xl overflow-hidden border-2 border-emerald-500/40 shadow-2xl group ring-4 ring-emerald-500/10">
+                <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+                <!-- Weather Status Widget -->
+                <div class="absolute top-3 left-3 glass-panel px-3.5 py-2 rounded-2xl flex items-center space-x-2.5 text-xs shadow-lg">
+                    <span class="text-xl animate-bounce">🌧️</span>
+                    <div>
+                        <div class="text-[10px] text-slate-300 font-semibold uppercase tracking-wider">Cảnh báo thời tiết</div>
+                        <span class="text-amber-300 font-display font-bold text-xs">Cơn giông đến trong 30 phút!</span>
+                    </div>
+                </div>
+
+                <!-- Audio Toggle Control -->
+                <div class="absolute top-3 right-3 pointer-events-auto">
+                    <button onclick="toggleAudioMute()" class="glass-panel px-3 py-1.5 rounded-2xl text-xs text-emerald-300 font-semibold flex items-center gap-1.5 shadow-lg hover:bg-slate-800 transition">
+                        <i id="audio-toggle-icon" class="fa-solid fa-volume-high text-amber-400"></i>
+                        <span id="audio-toggle-text">Âm thanh: Bật</span>
+                    </button>
+                </div>
+
+                <!-- Map Hotspots Legend Hint -->
+                <div class="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-center">
+                    <span class="bg-slate-950/90 backdrop-blur text-emerald-300 text-xs px-4 py-1.5 rounded-full border border-emerald-500/40 shadow-lg font-medium flex items-center gap-2">
+                        <span class="text-amber-400 animate-spin">📍</span> Chạm vào các Trạm NPC trên bản đồ để đối thoại lấy đồ
+                    </span>
+                </div>
+            </div>
+
+            <!-- Role Selector Tabs (The 47 Club) -->
+            <div class="glass-panel p-3.5 rounded-3xl flex flex-col space-y-2">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-xs font-display font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-users text-amber-400"></i> Nhân Vật Đồng Hành:
+                    </span>
+                    <span class="text-[10px] text-amber-300 font-medium">Chọn bạn đồng hành giao tiếp</span>
+                </div>
+                
+                <div class="grid grid-cols-4 gap-2">
+                    <button id="role-btn-ALEX" onclick="selectRole('ALEX')" class="role-btn p-2 rounded-2xl border-2 border-emerald-400 bg-emerald-950/70 text-center transition">
+                        <div class="text-lg">🧩</div>
+                        <div class="text-[11px] font-display font-bold text-slate-100">Alex</div>
+                    </button>
+                    <button id="role-btn-MAYA" onclick="selectRole('MAYA')" class="role-btn p-2 rounded-2xl border-2 border-slate-800 bg-slate-900/60 opacity-70 text-center transition">
+                        <div class="text-lg">🤝</div>
+                        <div class="text-[11px] font-display font-bold text-slate-100">Maya</div>
+                    </button>
+                    <button id="role-btn-LEO" onclick="selectRole('LEO')" class="role-btn p-2 rounded-2xl border-2 border-slate-800 bg-slate-900/60 opacity-70 text-center transition">
+                        <div class="text-lg">🛠️</div>
+                        <div class="text-[11px] font-display font-bold text-slate-100">Leo</div>
+                    </button>
+                    <button id="role-btn-NORA" onclick="selectRole('NORA')" class="role-btn p-2 rounded-2xl border-2 border-slate-800 bg-slate-900/60 opacity-70 text-center transition">
+                        <div class="text-lg">📜</div>
+                        <div class="text-[11px] font-display font-bold text-slate-100">Nora</div>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: NPC Interaction & Audio Speech Station (6 cols) -->
+        <section class="lg:col-span-6 flex flex-col space-y-4">
+            
+            <div class="glass-panel p-5 rounded-3xl flex-1 flex flex-col justify-between min-h-[480px]">
+                
+                <!-- Active Station / NPC Info Header -->
+                <div>
+                    <div class="flex items-center space-x-3 pb-3 border-b border-slate-800">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 border-2 border-emerald-400 flex items-center justify-center text-3xl shadow-md shrink-0" id="npc-avatar">
+                            🧔
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-display font-bold text-slate-100 text-base" id="npc-name">Ranger Gideon (Trạm 1)</h3>
+                                <span id="npc-item-badge" class="text-[11px] bg-amber-950 text-amber-300 px-3 py-1 rounded-full border border-amber-500/40 font-bold">
+                                    Vật phẩm: ⛺ Bạt Chống Nước
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-medium truncate mt-0.5" id="npc-location">Vị trí: Trạm Quan Sát Ngọn Cây</p>
+                        </div>
+                    </div>
+
+                    <!-- Audio Playing Wave Indicator -->
+                    <div id="audio-wave-banner" class="my-3 p-3 bg-slate-950/90 border border-emerald-500/40 rounded-2xl flex items-center justify-between shadow-inner">
+                        <div class="flex items-center space-x-3">
+                            <span id="audio-status-icon" class="text-emerald-400 text-xl animate-pulse">🔊</span>
+                            <div>
+                                <div class="text-[11px] font-display font-bold text-emerald-300" id="audio-status-text">NPC đang nói Tiếng Anh...</div>
+                                <div class="text-[10px] text-slate-400">Hãy chú ý lắng nghe để hiểu yêu cầu!</div>
+                            </div>
+                        </div>
+
+                        <!-- Animated Wave Bars -->
+                        <div id="wave-bars" class="flex items-center space-x-1 h-6">
+                            <div class="w-1 bg-emerald-400 rounded-full wave-bar" style="animation-delay: 0.1s"></div>
+                            <div class="w-1 bg-teal-400 rounded-full wave-bar" style="animation-delay: 0.3s"></div>
+                            <div class="w-1 bg-cyan-400 rounded-full wave-bar" style="animation-delay: 0.2s"></div>
+                            <div class="w-1 bg-emerald-400 rounded-full wave-bar" style="animation-delay: 0.4s"></div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Replay & Hint Action Controls -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 my-2">
+                        <!-- Button 1: Replay Audio (Max 3 times, costs Xu after 1st) -->
+                        <button id="btn-replay-audio" onclick="handleReplayAudio()" class="game-btn py-2 px-3 rounded-2xl bg-emerald-950 border border-emerald-500/60 text-emerald-300 font-display font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-900 transition">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            <span id="replay-btn-text">Nghe lại (-5⚡)</span>
+                            <span id="listen-count-badge" class="bg-emerald-900 text-emerald-200 px-1.5 py-0.2 rounded-full text-[10px]">1/3</span>
+                        </button>
+
+                        <!-- Button 2: Show English Text (Unlocked after 3 listens or on request) -->
+                        <button id="btn-show-text" onclick="handleShowEnglishText()" disabled class="game-btn py-2 px-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-500 font-display font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-not-allowed">
+                            <i class="fa-solid fa-eye"></i>
+                            <span>Xem Text Tiếng Anh</span>
+                        </button>
+
+                        <!-- Button 3: Translate to Vietnamese (Costs 10 Xu) -->
+                        <button id="btn-translate-vi" onclick="handleTranslateVietnamese()" disabled class="game-btn py-2 px-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-500 font-display font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-not-allowed">
+                            <i class="fa-solid fa-language"></i>
+                            <span>Dịch Tiếng Việt (-10⚡)</span>
+                        </button>
+                    </div>
+
+                    <!-- Speech Display Box (Text Hidden Initially) -->
+                    <div class="p-4 bg-slate-950/90 border border-slate-800 rounded-2xl my-3 min-h-[90px] flex flex-col justify-center relative shadow-inner">
+                        <div id="speech-text-en" class="font-display font-medium text-slate-400 text-sm italic">
+                            🔒 <span class="text-slate-400">Văn bản Tiếng Anh đang ẩn. Hãy dùng đôi tai để lắng nghe NPC nói!</span>
+                        </div>
+                        <div id="speech-text-vi" class="font-sans text-amber-300/90 text-xs mt-2 pt-2 border-t border-slate-800 hidden font-medium">
+                            <!-- Vietnamese translation populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Response Input & Quick Speech Prompts -->
+                <div class="space-y-3 pt-2 border-t border-slate-800">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-amber-400 font-display font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-comment-dots"></i> Nói/Gõ Tiếng Anh để xin vật phẩm:
+                        </span>
+                        <span class="text-slate-400">Ví dụ câu: <code class="text-emerald-300 font-mono">"Can we have..."</code></span>
+                    </div>
+
+                    <!-- Quick Prompt Buttons for Instant Interaction -->
+                    <div class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
+                        <span class="text-slate-400 text-[10px] font-bold shrink-0">Mẫu câu nhanh:</span>
+                        <button id="prompt-btn-1" onclick="useQuickPrompt(1)" class="bg-slate-800 hover:bg-emerald-950 border border-slate-700 hover:border-emerald-500 text-emerald-300 px-3 py-1 rounded-xl whitespace-nowrap transition font-medium">
+                            "Can we have a tarp, please?"
+                        </button>
+                        <button id="prompt-btn-2" onclick="useQuickPrompt(2)" class="bg-slate-800 hover:bg-emerald-950 border border-slate-700 hover:border-emerald-500 text-emerald-300 px-3 py-1 rounded-xl whitespace-nowrap transition font-medium">
+                            "We need matches for fire!"
+                        </button>
+                    </div>
+
+                    <!-- Text & Speech Input Controls -->
+                    <div class="flex items-center space-x-2">
+                        <!-- Mic Button -->
+                        <button id="mic-btn" onclick="toggleVoiceInput()" class="game-btn w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-bold flex items-center justify-center transition shadow-lg shrink-0" title="Bấm để nói bằng giọng nói">
+                            <i id="mic-icon" class="fa-solid fa-microphone text-base"></i>
+                        </button>
+
+                        <!-- Text Input -->
+                        <input id="user-english-input" type="text" placeholder="Nhập câu Tiếng Anh yêu cầu vật phẩm..." class="flex-1 bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-2xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none transition shadow-inner font-medium">
+
+                        <!-- Submit Button -->
+                        <button onclick="submitUserResponse()" class="game-btn px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-display font-bold text-xs flex items-center justify-center space-x-1.5 transition shadow-lg shrink-0">
+                            <span>Gửi</span>
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-slate-400 px-1">
+                        <span id="stt-status">Mic Sẵn Sàng (Trình duyệt Chrome/Edge)</span>
+                        <span class="text-emerald-400">Nhận vật phẩm ngay khi nói đúng!</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+    </main>
+
+    <!-- PASSPORT MODAL -->
+    <div id="passport-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-emerald-500/50 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📘</span>
+                    <h2 class="font-display font-bold text-slate-100 text-base">Sổ Passport Sinh Tồn</h2>
+                </div>
+                <button onclick="togglePassportModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                    <div>
+                        <div class="text-slate-400 text-[10px] font-bold">TỔ ĐỘI</div>
+                        <div class="font-display font-bold text-emerald-300">The 47 Club</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-[10px] font-bold">TRẠM ĐÃ QUA</div>
+                        <div id="passport-completed-count" class="font-display font-bold text-amber-400">0 / 3 Trạm</div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="text-slate-300 font-bold">Lịch Sử Nhận Đồ:</div>
+                    <div id="passport-items-history" class="space-y-1.5">
+                        <div class="text-slate-500 italic">Chưa thu thập vật phẩm nào...</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="togglePassportModal()" class="game-btn w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-display font-bold rounded-2xl text-xs transition">Đóng Sổ Passport</button>
+        </div>
+    </div>
+
+    <!-- VICTORY CELEBRATION MODAL -->
+    <div id="victory-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-slate-900 border-2 border-emerald-400 rounded-3xl w-full max-w-lg p-6 shadow-2xl space-y-4 text-center">
+            <div class="w-20 h-20 rounded-3xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-4xl border-2 border-emerald-400 shadow-xl animate-bounce">
+                ⛺
+            </div>
+            <h2 class="font-display font-bold text-2xl text-emerald-300">VƯỢT ẢI THÀNH CÔNG!</h2>
+            <p class="text-xs text-slate-200 leading-relaxed font-medium">
+                Cả đội đã thu thập đủ 3 vật phẩm sinh tồn và dựng thành công Lều Chống Mưa trước khi cơn giông tới!
+            </p>
+            
+            <div class="p-4 bg-slate-950 rounded-2xl border border-amber-500/40 text-xs space-y-2">
+                <div class="text-amber-300 font-display font-bold text-sm">🎉 THƯỞNG VƯỢT MÀN</div>
+                <div class="flex justify-center space-x-6 text-sm font-display font-bold">
+                    <span class="text-emerald-400">+100 V-Points ⭐</span>
+                    <span class="text-amber-300">+50 Xu ⚡</span>
+                </div>
+            </div>
+
+            <button onclick="resetGame()" class="game-btn w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-display font-bold rounded-2xl text-xs transition">
+                Chơi Lại Màn Chơi
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Global Game State & NPC Station Data
+        const gameState = {
+            energyXu: 100,
+            vPoints: 120,
+            activeStationId: 'station1',
+            inventory: {
+                tarp: false,
+                matches: false,
+                rope: false
+            },
+            audioMuted: false
+        };
+
+        // Data for the 3 NPC Stations
+        const stationsData = {
+            'station1': {
+                id: 'station1',
+                name: 'Ranger Gideon (Trạm 1)',
+                avatar: '🧔',
+                location: 'Trạm Quan Sát Ngọn Cây',
+                itemName: '⛺ Bạt Chống Nước',
+                itemKey: 'tarp',
+                audioText: "Can we have a tarp, please?",
+                fullSentence: "Hello! The storm is coming. Can we have a tarp, please?",
+                viTranslation: "Xin chào! Cơn giông đang tới. Cho chúng cháu xin một tấm bạt chống nước được không ạ?",
+                prompt1: "Can we have a tarp, please?",
+                prompt2: "Give us a tarp, Ranger Gideon!",
+                keywords: ['tarp', 'can', 'have', 'please', 'give'],
+                listenCount: 0,
+                textUnlocked: false,
+                viUnlocked: false,
+                itemObtained: false
+            },
+            'station2': {
+                id: 'station2',
+                name: 'Thám Hiểm Leo (Trạm 2)',
+                avatar: '🛠️',
+                location: 'Hốc Đá Dry Cave',
+                itemName: '🔥 Diêm Sinh Tồn',
+                itemKey: 'matches',
+                audioText: "We need matches for fire!",
+                fullSentence: "It is very cold here! We need matches for fire!",
+                viTranslation: "Ở đây rất lạnh! Chúng mình cần diêm để đốt lửa sưởi ấm!",
+                prompt1: "We need matches for fire!",
+                prompt2: "Can you give us matches?",
+                keywords: ['matches', 'fire', 'need', 'can', 'give'],
+                listenCount: 0,
+                textUnlocked: false,
+                viUnlocked: false,
+                itemObtained: false
+            },
+            'station3': {
+                id: 'station3',
+                name: 'Bác Lái Đò (Trạm 3)',
+                avatar: '🎣',
+                location: 'Bến Sông Whisper',
+                itemName: '🪢 Cuộn Dây Thừng',
+                itemKey: 'rope',
+                audioText: "Is the rope strong enough?",
+                fullSentence: "The wind is blowing hard! Is the rope strong enough?",
+                viTranslation: "Gió đang thổi rất mạnh! Cuộn dây thừng này có đủ chắc chắn không ạ?",
+                prompt1: "Is the rope strong enough?",
+                prompt2: "We need a strong rope, please!",
+                keywords: ['rope', 'strong', 'need', 'have', 'give'],
+                listenCount: 0,
+                textUnlocked: false,
+                viUnlocked: false,
+                itemObtained: false
+            }
+        };
+
+        // Web Audio Synthesis (TTS) Setup
+        const synthSpeech = window.speechSynthesis;
+
+        function speakEnglishText(text, onEndCallback) {
+            if (gameState.audioMuted || !synthSpeech) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
+
+            synthSpeech.cancel(); // Stop current speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.88; // Slightly slower speed for young learners
+
+            const waveBanner = document.getElementById('audio-wave-banner');
+            const waveStatus = document.getElementById('audio-status-text');
+            const waveBars = document.getElementById('wave-bars');
+
+            if (waveBanner) {
+                waveStatus.innerText = 'NPC đang nói Tiếng Anh...';
+                waveBars.classList.remove('hidden');
+            }
+
+            utterance.onend = function() {
+                if (waveStatus) waveStatus.innerText = 'Đã phát xong âm thanh.';
+                if (waveBars) waveBars.classList.add('hidden');
+                if (onEndCallback) onEndCallback();
+            };
+
+            utterance.onerror = function() {
+                if (waveStatus) waveStatus.innerText = 'Không thể phát âm thanh.';
+                if (waveBars) waveBars.classList.add('hidden');
+                if (onEndCallback) onEndCallback();
+            };
+
+            synthSpeech.speak(utterance);
+        }
+
+        function selectStation(stationId) {
+            playSound('click');
+            gameState.activeStationId = stationId;
+            const data = stationsData[stationId];
+
+            // Update NPC Info Panel
+            document.getElementById('npc-avatar').innerText = data.avatar;
+            document.getElementById('npc-name').innerText = data.name;
+            document.getElementById('npc-location').innerText = 'Vị trí: ' + data.location;
+            document.getElementById('npc-item-badge').innerText = 'Vật phẩm: ' + data.itemName;
+
+            // Update Prompts
+            document.getElementById('prompt-btn-1').innerText = `"${data.prompt1}"`;
+            document.getElementById('prompt-btn-2').innerText = `"${data.prompt2}"`;
+
+            // Auto Play NPC Audio on encounter if count == 0
+            if (data.listenCount === 0) {
+                data.listenCount = 1;
+                speakEnglishText(data.fullSentence);
+            } else {
+                // Speak without increasing count automatically
+                speakEnglishText(data.fullSentence);
+            }
+
+            updateUIForActiveStation();
+        }
+
+        function handleReplayAudio() {
+            playSound('click');
+            const data = stationsData[gameState.activeStationId];
+
+            if (data.listenCount >= 3) {
+                // Max limit reached -> Unlock English text directly
+                data.textUnlocked = true;
+                showToast("Bạn đã nghe 3 lần! Đã mở khóa Văn bản Tiếng Anh.");
+                updateUIForActiveStation();
+                return;
+            }
+
+            // Deduct 5 Xu for replaying
+            if (gameState.energyXu < 5) {
+                showToast("Bạn không đủ Xu để nghe lại! Hãy dùng gợi ý văn bản.");
+                return;
+            }
+
+            gameState.energyXu -= 5;
+            data.listenCount++;
+            document.getElementById('energy-xu-display').innerText = gameState.energyXu;
+
+            if (data.listenCount >= 3) {
+                data.textUnlocked = true; // Auto unlock text on 3rd listen
+            }
+
+            speakEnglishText(data.fullSentence);
+            updateUIForActiveStation();
+        }
+
+        function handleShowEnglishText() {
+            playSound('click');
+            const data = stationsData[gameState.activeStationId];
+
+            if (!data.textUnlocked) {
+                data.textUnlocked = true;
+                showToast("Đã hiện Văn bản Tiếng Anh!");
+                updateUIForActiveStation();
+            }
+        }
+
+        function handleTranslateVietnamese() {
+            playSound('click');
+            const data = stationsData[gameState.activeStationId];
+
+            if (gameState.energyXu < 10) {
+                showToast("Bạn không đủ 10 Xu để dịch Tiếng Việt!");
+                return;
+            }
+
+            if (!data.viUnlocked) {
+                gameState.energyXu -= 10;
+                document.getElementById('energy-xu-display').innerText = gameState.energyXu;
+                data.viUnlocked = true;
+                showToast("Đã dịch sang Tiếng Việt (-10 Xu)!");
+                updateUIForActiveStation();
+            }
+        }
+
+        function updateUIForActiveStation() {
+            const data = stationsData[gameState.activeStationId];
+
+            // Update Listen Count Badge
+            document.getElementById('listen-count-badge').innerText = `${data.listenCount}/3`;
+
+            // Update Replay Button Text
+            const replayBtnText = document.getElementById('replay-btn-text');
+            if (data.listenCount >= 3) {
+                replayBtnText.innerText = 'Đã nghe tối đa (3/3)';
+            } else {
+                replayBtnText.innerText = 'Nghe lại (-5⚡)';
+            }
+
+            // Update English Text Display Box
+            const textEnEl = document.getElementById('speech-text-en');
+            if (data.textUnlocked) {
+                textEnEl.innerHTML = `<span class="text-emerald-300 font-bold">${data.name}:</span> "${data.fullSentence}"`;
+            } else {
+                textEnEl.innerHTML = `🔒 <span class="text-slate-400">Văn bản Tiếng Anh đang ẩn. Hãy nghe NPC nói (${data.listenCount}/3 lần)!</span>`;
+            }
+
+            // Update Vietnamese Display
+            const textViEl = document.getElementById('speech-text-vi');
+            if (data.viUnlocked) {
+                textViEl.classList.remove('hidden');
+                textViEl.innerHTML = `<i class="fa-solid fa-globe mr-1 text-amber-400"></i> <strong>Dịch:</strong> "${data.viTranslation}"`;
+            } else {
+                textViEl.classList.add('hidden');
+            }
+
+            // Button 2 Enable/Disable Logic (Show English Text)
+            const btnShowText = document.getElementById('btn-show-text');
+            if (data.listenCount >= 3 || data.textUnlocked) {
+                btnShowText.disabled = false;
+                btnShowText.className = "game-btn py-2 px-3 rounded-2xl bg-amber-950 border border-amber-500/60 text-amber-300 font-display font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-900 transition";
+            } else {
+                btnShowText.disabled = true;
+                btnShowText.className = "game-btn py-2 px-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-500 font-display font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-not-allowed";
+            }
+
+            // Button 3 Enable/Disable Logic (Translate Vietnamese)
+            const btnTranslateVi = document.getElementById('btn-translate-vi');
+            if (data.textUnlocked && !data.viUnlocked) {
+                btnTranslateVi.disabled = false;
+                btnTranslateVi.className = "game-btn py-2 px-3 rounded-2xl bg-teal-950 border border-teal-500/60 text-teal-300 font-display font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-teal-900 transition";
+            } else if (data.viUnlocked) {
+                btnTranslateVi.disabled = true;
+                btnTranslateVi.className = "game-btn py-2 px-3 rounded-2xl bg-slate-900 border border-slate-700 text-teal-400 font-display font-bold text-xs flex items-center justify-center gap-1.5 transition";
+            } else {
+                btnTranslateVi.disabled = true;
+                btnTranslateVi.className = "game-btn py-2 px-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-500 font-display font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-not-allowed";
+            }
+        }
+
+        function useQuickPrompt(promptIndex) {
+            playSound('click');
+            const data = stationsData[gameState.activeStationId];
+            const inputEl = document.getElementById('user-english-input');
+            inputEl.value = promptIndex === 1 ? data.prompt1 : data.prompt2;
+        }
+
+        function submitUserResponse() {
+            playSound('click');
+            const inputEl = document.getElementById('user-english-input');
+            const text = inputEl.value.trim().toLowerCase();
+            const data = stationsData[gameState.activeStationId];
+
+            if (!text) {
+                showToast("Vui lòng nhập hoặc chọn câu Tiếng Anh!");
+                return;
+            }
+
+            // Check if keywords are matched
+            const matched = data.keywords.some(kw => text.includes(kw));
+
+            if (matched) {
+                playSound('success');
+                data.itemObtained = true;
+                gameState.inventory[data.itemKey] = true;
+
+                updateInventoryDisplay();
+                showToast(`🎉 CHÚC MỪNG! Bạn đã nhận được ${data.itemName}!`);
+                
+                // NPC Affirmation Audio
+                speakEnglishText(`Great job! Here is your ${data.itemKey}. Stay safe!`);
+                inputEl.value = '';
+            } else {
+                playSound('error');
+                showToast("NPC chưa hiểu ý bạn. Hãy kiểm tra lại từ vựng vật phẩm!");
+                speakEnglishText("I didn't catch that. Please ask again using the keywords!");
+            }
+        }
+
+        function updateInventoryDisplay() {
+            let totalItems = 0;
+
+            if (gameState.inventory.tarp) {
+                totalItems++;
+                document.getElementById('slot-tarp').className = "flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl bg-emerald-950 border-2 border-emerald-400 text-emerald-300 shadow-md animate-bounce";
+            }
+            if (gameState.inventory.matches) {
+                totalItems++;
+                document.getElementById('slot-matches').className = "flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl bg-emerald-950 border-2 border-emerald-400 text-emerald-300 shadow-md animate-bounce";
+            }
+            if (gameState.inventory.rope) {
+                totalItems++;
+                document.getElementById('slot-rope').className = "flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl bg-emerald-950 border-2 border-emerald-400 text-emerald-300 shadow-md animate-bounce";
+            }
+
+            const btnBuild = document.getElementById('btn-build-shelter');
+            btnBuild.innerText = `⛺ DỰNG TRÚ ẨN (${totalItems}/3)`;
+
+            if (totalItems === 3) {
+                btnBuild.disabled = false;
+                btnBuild.className = "game-btn px-4 py-1.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-display font-bold text-xs border border-amber-300 shadow-lg animate-pulse transition";
+            }
+
+            document.getElementById('passport-completed-count').innerText = `${totalItems} / 3 Trạm`;
+            renderPassportHistory();
+        }
+
+        function tryBuildShelter() {
+            playSound('success');
+            document.getElementById('victory-modal').classList.remove('hidden');
+        }
+
+        function renderPassportHistory() {
+            const container = document.getElementById('passport-items-history');
+            const items = [];
+            if (gameState.inventory.tarp) items.push('⛺ Bạt Chống Nước (Ranger Gideon)');
+            if (gameState.inventory.matches) items.push('🔥 Diêm Sinh Tồn (Leo)');
+            if (gameState.inventory.rope) items.push('🪢 Cuộn Dây Thừng (Bác Lái Đò)');
+
+            if (items.length === 0) {
+                container.innerHTML = `<div class="text-slate-500 italic">Chưa thu thập vật phẩm nào...</div>`;
+            } else {
+                container.innerHTML = items.map(it => `
+                    <div class="p-2 bg-slate-950 rounded-xl border border-slate-800 text-emerald-300 font-semibold text-[11px] flex items-center justify-between">
+                        <span>${it}</span>
+                        <span class="text-amber-400 text-[10px]">Đã nhận ✓</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const mapHotspots = [
+            { id: 'station1', x: 0.25, y: 0.45, radius: 30, label: 'Trạm 1: Ranger Gideon', icon: '🧔' },
+            { id: 'station2', x: 0.50, y: 0.65, radius: 30, label: 'Trạm 2: Explorer Leo', icon: '🛠️' },
+            { id: 'station3', x: 0.78, y: 0.42, radius: 30, label: 'Trạm 3: Fisherman', icon: '🎣' }
+        ];
+
+        function drawMapScene() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Background Forest Sunset
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, '#0c2e28');
+            grad.addColorStop(1, '#061a16');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            // River
+            ctx.fillStyle = '#0891b2';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.65, h);
+            ctx.bezierCurveTo(w * 0.70, h * 0.5, w * 0.85, h * 0.3, w * 0.8, 0);
+            ctx.lineTo(w, 0);
+            ctx.lineTo(w, h);
+            ctx.fill();
+
+            // Trees
+            ctx.fillStyle = '#065f46';
+            for (let i = -10; i < w + 20; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, h - 30);
+                ctx.lineTo(i + 25, h - 110);
+                ctx.lineTo(i + 50, h - 30);
+                ctx.fill();
+            }
+
+            // Draw Hotspots
+            mapHotspots.forEach(hs => {
+                const hx = hs.x * w;
+                const hy = hs.y * h;
+                const isActive = gameState.activeStationId === hs.id;
+                const isObtained = stationsData[hs.id].itemObtained;
+
+                // Pulsing outer ring
+                ctx.fillStyle = isActive ? 'rgba(251, 191, 36, 0.35)' : 'rgba(52, 211, 153, 0.2)';
+                ctx.beginPath();
+                ctx.arc(hx, hy, hs.radius + 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Circle body
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = isObtained ? '#34d399' : isActive ? '#fbbf24' : '#38bdf8';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(hx, hy, hs.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Icon Emoji
+                ctx.font = '22px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(isObtained ? '✓' : hs.icon, hx, hy);
+
+                // Label
+                ctx.font = 'bold 11px "Fredoka", sans-serif';
+                ctx.fillStyle = isObtained ? '#34d399' : isActive ? '#fbbf24' : '#f1f5f9';
+                ctx.fillText(hs.label, hx, hy + hs.radius + 15);
+            });
+
+            requestAnimationFrame(drawMapScene);
+        }
+
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) / canvas.width;
+            const clickY = (e.clientY - rect.top) / canvas.height;
+
+            mapHotspots.forEach(hs => {
+                const dist = Math.hypot(clickX - hs.x, clickY - hs.y);
+                if (dist < 0.08) {
+                    selectStation(hs.id);
+                }
+            });
+        });
+
+        let synthSound = null;
+        function initSound() {
+            if (!synthSound) {
+                try {
+                    Tone.start();
+                    synthSound = new Tone.Synth().toDestination();
+                } catch (e) {}
+            }
+        }
+
+        function playSound(type) {
+            initSound();
+            if (!synthSound) return;
+            try {
+                if (type === 'click') synthSound.triggerAttackRelease("C5", "16n");
+                if (type === 'success') synthSound.triggerAttackRelease("G5", "8n");
+                if (type === 'error') synthSound.triggerAttackRelease("D3", "8n");
+            } catch(e) {}
+        }
+
+        function toggleAudioMute() {
+            gameState.audioMuted = !gameState.audioMuted;
+            document.getElementById('audio-toggle-text').innerText = gameState.audioMuted ? 'Âm thanh: Tắt' : 'Âm thanh: Bật';
+            document.getElementById('audio-toggle-icon').className = gameState.audioMuted ? 'fa-solid fa-volume-xmark text-slate-400' : 'fa-solid fa-volume-high text-amber-400';
+        }
+
+        function toggleVoiceInput() {
+            playSound('click');
+            showToast("Đang kích hoạt Micro... Vui lòng nói câu Tiếng Anh!");
+        }
+
+        function selectRole(roleKey) {
+            playSound('click');
+            document.querySelectorAll('.role-btn').forEach(b => {
+                b.classList.remove('border-emerald-400', 'bg-emerald-950/70');
+                b.classList.add('border-slate-800', 'bg-slate-900/60', 'opacity-70');
+            });
+            const active = document.getElementById(`role-btn-${roleKey}`);
+            if (active) {
+                active.classList.remove('border-slate-800', 'bg-slate-900/60', 'opacity-70');
+                active.classList.add('border-emerald-400', 'bg-emerald-950/70');
+            }
+        }
+
+        function togglePassportModal() {
+            playSound('click');
+            document.getElementById('passport-modal').classList.toggle('hidden');
+        }
+
+        function resetGame() {
+            window.location.reload();
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-5 right-5 bg-slate-900 border-2 border-emerald-400 text-emerald-300 font-display font-bold text-xs px-4 py-3 rounded-2xl shadow-2xl z-50 flex items-center gap-2 animate-bounce";
+            toast.innerHTML = `<span>💡</span> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2800);
+        }
+
+        window.onload = function() {
+            requestAnimationFrame(drawMapScene);
+            selectStation('station1');
+        };
+    </script>
+</body>
+</html>

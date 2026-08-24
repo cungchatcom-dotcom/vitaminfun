@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VitaminFun — Chapter 1: The Unexpected Storm (2.5D Interactive Game UI)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       RESET & ROOT VARIABLES
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    :root {
+      --gold-primary: #f5c042;
+      --gold-bright: #ffe885;
+      --gold-dark: #8c6418;
+      --gold-gradient: linear-gradient(180deg, #ffe885 0%, #f5c042 50%, #9a6d1c 100%);
+      --frame-bg-dark: #121820;
+      --frame-bg-mid: #1c2430;
+      --frame-border: #445468;
+      --frame-border-light: #708aa8;
+      --stone-plate: linear-gradient(180deg, #2a3442 0%, #171e27 100%);
+      
+      --char-leo: #29b6f6;
+      --char-maya: #ba68c8;
+      --char-sam: #ffd54f;
+      --char-jade: #66bb6a;
+
+      --font-title: 'Cinzel', serif;
+      --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #05080c;
+      font-family: var(--font-ui);
+      color: #e2e8f0;
+    }
+
+    /* Game Container - Responsive 16:9 or Full Viewport */
+    #game-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #0f1a26 0%, #030609 100%);
+    }
+
+    #game-screen {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 1920px;
+      max-height: 1080px;
+      aspect-ratio: 16 / 9;
+      background-color: #0b1118;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), 0 0 15px rgba(245, 192, 66, 0.2);
+    }
+
+    /* ==========================================================================
+       TOP STATUS BAR HUD
+       ========================================================================== */
+    .top-status-bar {
+      height: 60px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: linear-gradient(180deg, rgba(16, 24, 34, 0.98) 0%, rgba(24, 34, 48, 0.95) 85%, rgba(14, 20, 28, 0.98) 100%);
+      border-bottom: 2px solid #54687f;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.8);
+    }
+
+    .top-status-bar::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold-dark) 20%, var(--gold-bright) 50%, var(--gold-dark) 80%, transparent 100%);
+    }
+
+    .chapter-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(90deg, #1b2636, #243449);
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: 1px solid #4a617d;
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+    }
+
+    .chapter-badge .stage-icon {
+      font-size: 16px;
+      color: var(--gold-bright);
+    }
+
+    .chapter-badge .stage-text {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      background: var(--gold-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .top-metrics-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .metric-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(12, 18, 26, 0.85);
+      border: 1px solid #3d4f65;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .metric-pill .icon {
+      font-size: 15px;
+    }
+
+    .metric-pill.timer .value {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: #ffe082;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .energy-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .energy-bar-track {
+      width: 120px;
+      height: 7px;
+      background: #111922;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #334455;
+    }
+
+    .energy-bar-fill {
+      width: 85%;
+      height: 100%;
+      background: linear-gradient(90deg, #ff9800, #ffeb3b, #fff176);
+      box-shadow: 0 0 8px #ffb300;
+      transition: width 0.4s ease;
+    }
+
+    .btn-icon-hud {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #2e3d50 0%, #1b2533 100%);
+      border: 1px solid #5a7392;
+      color: var(--gold-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-icon-hud:hover {
+      transform: scale(1.1);
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 10px var(--gold-primary);
+    }
+
+    /* ==========================================================================
+       VIEWPORT & 2.5D WORLD CANVAS (CENTER SCENE)
+       ========================================================================== */
+    .viewport-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+      cursor: crosshair;
+    }
+
+    .ship-world-layer {
+      position: absolute;
+      inset: -5%;
+      width: 110%;
+      height: 110%;
+      background-image: url('./Màn chơi 1 - bg.jpg'), url('./Màn chơi 1.jpg');
+      background-size: cover;
+      background-position: center;
+      transition: transform 0.15s ease-out;
+      transform-origin: center center;
+      animation: shipRocking 6s ease-in-out infinite alternate;
+    }
+
+    @keyframes shipRocking {
+      0% { transform: rotate(-0.6deg) translateY(-6px) scale(1.02); }
+      50% { transform: rotate(0.4deg) translateY(3px) scale(1.02); }
+      100% { transform: rotate(0.8deg) translateY(-4px) scale(1.02); }
+    }
+
+    #weather-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .lightning-flash {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 75% 20%, rgba(200, 240, 255, 0.85) 0%, rgba(130, 200, 255, 0.3) 50%, transparent 80%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 3;
+      mix-blend-mode: screen;
+      transition: opacity 0.05s ease-out;
+    }
+
+    .lightning-flash.active {
+      opacity: 1;
+      animation: lightningStrobe 0.6s ease-out forwards;
+    }
+
+    @keyframes lightningStrobe {
+      0% { opacity: 0.9; }
+      15% { opacity: 0.1; }
+      30% { opacity: 1; }
+      50% { opacity: 0.2; }
+      70% { opacity: 0.7; }
+      100% { opacity: 0; }
+    }
+
+    /* 2.5D INTERACTIVE HOTSPOTS ON SHIP DECK */
+    .world-hotspots {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: auto;
+    }
+
+    .character-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .character-node:hover {
+      transform: translate(-50%, -55%) scale(1.08);
+    }
+
+    .character-node .char-tag {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 1px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 10px currentColor;
+      background: rgba(10, 16, 26, 0.88);
+      border: 1px solid currentColor;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+      white-space: nowrap;
+    }
+
+    .character-node .selection-ring {
+      width: 100px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid currentColor;
+      box-shadow: 0 0 18px currentColor, inset 0 0 12px currentColor;
+      animation: ringPulse 2.4s ease-in-out infinite;
+      background: radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+    }
+
+    .character-node.selected .selection-ring {
+      border-width: 4px;
+      box-shadow: 0 0 25px currentColor, 0 0 8px #fff, inset 0 0 18px currentColor;
+      animation: ringPulseFast 1.2s ease-in-out infinite;
+    }
+
+    @keyframes ringPulse {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+
+    @keyframes ringPulseFast {
+      0%, 100% { opacity: 0.9; transform: scale(1.02); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    .char-leo { left: 38%; top: 48%; color: var(--char-leo); }
+    .char-maya { left: 46%; top: 40%; color: var(--char-maya); }
+    .char-sam { left: 55%; top: 44%; color: var(--char-sam); }
+    .char-jade { left: 63%; top: 48%; color: var(--char-jade); }
+
+    /* Interactive Object POIs */
+    .poi-marker {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      z-index: 6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .poi-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(18, 25, 36, 0.92);
+      border: 2px solid var(--gold-primary);
+      color: var(--gold-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 0 15px rgba(245, 192, 66, 0.6), inset 0 0 8px rgba(245, 192, 66, 0.4);
+      animation: poiBounce 2s ease-in-out infinite;
+      transition: all 0.2s;
+    }
+
+    .poi-marker:hover .poi-icon {
+      transform: scale(1.2);
+      border-color: #fff;
+      box-shadow: 0 0 25px #ffe885;
+    }
+
+    .poi-label {
+      margin-top: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(8, 12, 18, 0.9);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--gold-dark);
+      color: #fff;
+      white-space: nowrap;
+      text-shadow: 0 1px 2px #000;
+    }
+
+    .poi-marker:hover .poi-label {
+      border-color: var(--gold-bright);
+      color: var(--gold-bright);
+    }
+
+    @keyframes poiBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .poi-winch { left: 61%; top: 31%; }
+    .poi-leak { left: 34%; top: 53%; }
+    .poi-chest { left: 52%; top: 33%; }
+    .poi-mapshard { left: 44%; top: 60%; }
+
+    /* Floating Toast FX */
+    .floating-text {
+      position: absolute;
+      font-family: var(--font-title);
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--gold-bright);
+      text-shadow: 0 0 10px #f5c042, 0 2px 4px #000;
+      pointer-events: none;
+      animation: floatUpFade 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      z-index: 30;
+    }
+
+    @keyframes floatUpFade {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+      20% { opacity: 1; transform: translate(-50%, -18px) scale(1.1); }
+      80% { opacity: 1; transform: translate(-50%, -50px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -75px) scale(0.9); }
+    }
+
+    /* LEFT PARTY STATS HUD */
+    .party-panel-left {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .party-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(90deg, rgba(14, 22, 32, 0.95) 0%, rgba(24, 36, 50, 0.85) 100%);
+      border: 1px solid #3e526a;
+      border-left: 4px solid var(--card-accent, #29b6f6);
+      border-radius: 6px;
+      padding: 5px 12px 5px 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      min-width: 190px;
+    }
+
+    .party-card:hover {
+      transform: translateX(6px);
+      border-color: #6482a5;
+    }
+
+    .party-card.active {
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 14px rgba(245, 192, 66, 0.4);
+      transform: translateX(8px);
+    }
+
+    .avatar-wrapper {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid var(--card-accent, #29b6f6);
+      overflow: hidden;
+      background: #111822;
+      flex-shrink: 0;
+    }
+
+    .avatar-wrapper svg { width: 100%; height: 100%; }
+
+    .party-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .party-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .party-name {
+      font-family: var(--font-title);
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .party-lvl {
+      font-size: 9px;
+      font-weight: 700;
+      color: #94a3b8;
+      background: rgba(0,0,0,0.4);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .party-bar-track {
+      width: 100%;
+      height: 5px;
+      background: #0f1722;
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid #2d3b4e;
+    }
+
+    .party-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--card-accent, #29b6f6);
+      box-shadow: 0 0 6px var(--card-accent, #29b6f6);
+    }
+
+    /* RIGHT MISSION TRACKER */
+    .mission-tracker-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 290px;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(18, 26, 36, 0.96) 0%, rgba(12, 18, 25, 0.94) 100%);
+      border: 2px solid #5a728f;
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+      pointer-events: auto;
+    }
+
+    .mission-title {
+      font-family: var(--font-title);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #3c4f66;
+      padding-bottom: 6px;
+    }
+
+    .quest-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      list-style: none;
+    }
+
+    .quest-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 11px;
+      line-height: 1.35;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 5px;
+      transition: background 0.2s;
+    }
+
+    .quest-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .quest-checkbox {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1.5px solid var(--gold-dark);
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      color: var(--gold-bright);
+      font-size: 10px;
+    }
+
+    .quest-item.completed .quest-checkbox {
+      background: #2e7d32;
+      border-color: #4caf50;
+      color: #fff;
+    }
+
+    .quest-item.completed .quest-text {
+      text-decoration: line-through;
+      color: #78909c;
+    }
+
+    .quest-item .quest-en {
+      display: block;
+      font-size: 10px;
+      color: var(--gold-primary);
+      font-weight: 500;
+    }
+
+    /* ==========================================================================
+       BOTTOM RTS / ATLANTIS DASHBOARD
+       ========================================================================== */
+    .bottom-dashboard {
+      height: 210px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 220px 1fr 320px;
+      gap: 12px;
+      padding: 10px 16px;
+      background: linear-gradient(180deg, #18222f 0%, #101722 50%, #090e15 100%);
+      border-top: 3px solid #576f8c;
+      box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.9);
+    }
+
+    .bottom-dashboard::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold-dark) 20%, var(--gold-bright) 50%, var(--gold-dark) 80%, transparent 100%);
+    }
+
+    /* MINI-MAP */
+    .minimap-block {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: #0d131c;
+      border: 2px solid #485c75;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .minimap-canvas-wrap {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at 35% 65%, #183144 0%, #0c1a27 60%, #060e17 100%);
+      overflow: hidden;
+    }
+
+    .minimap-radar {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        radial-gradient(rgba(41, 182, 246, 0.15) 1px, transparent 1px),
+        linear-gradient(to right, rgba(41, 182, 246, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(41, 182, 246, 0.08) 1px, transparent 1px);
+      background-size: 18px 18px, 18px 18px, 18px 18px;
+    }
+
+    .minimap-ship-marker {
+      position: absolute;
+      left: 35%;
+      top: 65%;
+      width: 28px;
+      height: 18px;
+      border: 1.5px solid #ffe082;
+      background: rgba(255, 224, 130, 0.25);
+      border-radius: 3px;
+      transform: translate(-50%, -50%) rotate(25deg);
+      box-shadow: 0 0 8px #ffe082;
+    }
+
+    .minimap-ship-marker::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-bottom: 5px solid #ff5252;
+    }
+
+    .minimap-side-actions {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 2;
+    }
+
+    .minimap-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: rgba(20, 30, 42, 0.9);
+      border: 1px solid #4a6280;
+      color: var(--gold-bright);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* NPC & ENGLISH CONSOLE */
+    .console-center-block {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      gap: 12px;
+      background: #111a26;
+      border: 2px solid #4c627d;
+      border-radius: 6px;
+      padding: 8px 12px;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.7);
+    }
+
+    .npc-portrait-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #1b2636 0%, #101824 100%);
+      border: 1.5px solid #3c4f68;
+      border-radius: 6px;
+      padding: 6px;
+    }
+
+    .npc-badge-title {
+      font-family: var(--font-title);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .npc-portrait-frame {
+      width: 76px;
+      height: 76px;
+      border-radius: 6px;
+      border: 2px solid var(--gold-primary);
+      overflow: hidden;
+      background: #090e15;
+      box-shadow: 0 0 12px rgba(245, 192, 66, 0.4);
+    }
+
+    .npc-portrait-frame svg { width: 100%; height: 100%; }
+
+    .npc-name-tag {
+      font-family: var(--font-title);
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .npc-role-tag {
+      font-size: 9px;
+      color: #8fa3bf;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+    }
+
+    .dialogue-main-wrap {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .console-header-label {
+      font-family: var(--font-title);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2d3e52;
+      padding-bottom: 3px;
+    }
+
+    .dialogue-bubble-box {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: rgba(8, 14, 22, 0.85);
+      border: 1px solid #334963;
+      border-radius: 6px;
+      padding: 6px 10px;
+      flex: 1;
+    }
+
+    .dialogue-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .btn-audio-action {
+      width: 32px;
+      height: 32px;
+      border-radius: 5px;
+      background: linear-gradient(180deg, #2b3e55 0%, #172433 100%);
+      border: 1.5px solid var(--gold-primary);
+      color: var(--gold-bright);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-audio-action:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 10px var(--gold-primary);
+    }
+
+    .btn-audio-action.recording {
+      background: #c62828;
+      border-color: #ff5252;
+      animation: micPulse 1s infinite alternate;
+    }
+
+    @keyframes micPulse {
+      0% { box-shadow: 0 0 4px #ff1744; }
+      100% { box-shadow: 0 0 16px #ff1744; }
+    }
+
+    .speech-content-text {
+      flex: 1;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #e2e8f0;
+    }
+
+    .speech-content-text .speaker-title {
+      font-weight: 700;
+      color: var(--gold-bright);
+    }
+
+    .grammar-tip-panel {
+      font-size: 10px;
+      color: #94a3b8;
+      background: rgba(0,0,0,0.3);
+      padding: 3px 6px;
+      border-radius: 3px;
+      border-left: 2px solid var(--gold-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .command-input-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #080e16;
+      border: 1.5px solid #4a6382;
+      border-radius: 5px;
+      padding: 3px 8px;
+    }
+
+    .command-prompt-symbol {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--gold-bright);
+      font-weight: 700;
+    }
+
+    .command-input-field {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: #fff;
+    }
+
+    .btn-submit-cmd {
+      background: linear-gradient(180deg, #2e7d32, #1b5e20);
+      border: 1px solid #4caf50;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    /* ACTION SKILLS GRID */
+    .skills-action-block {
+      background: #111a26;
+      border: 2px solid #4c627d;
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .skills-header-label {
+      font-family: var(--font-title);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      text-align: center;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #2d3e52;
+      padding-bottom: 3px;
+      margin-bottom: 4px;
+    }
+
+    .skills-grid-layout {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 5px;
+      flex: 1;
+    }
+
+    .skill-slot {
+      position: relative;
+      background: linear-gradient(180deg, #1f2c3d 0%, #121a24 100%);
+      border: 1.5px solid #3c4f68;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .skill-slot:hover {
+      border-color: var(--gold-bright);
+      transform: translateY(-2px);
+      box-shadow: 0 3px 10px rgba(245, 192, 66, 0.3);
+    }
+
+    .skill-key-badge {
+      position: absolute;
+      top: 1px;
+      left: 3px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      background: rgba(0,0,0,0.6);
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+
+    .skill-icon-wrap {
+      font-size: 16px;
+      margin-top: 3px;
+    }
+
+    .skill-name-tag {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-top: 1px;
+    }
+
+    /* Modal */
+    .game-modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 8, 14, 0.85);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .game-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .game-modal-card {
+      width: 480px;
+      background: linear-gradient(180deg, #1c2738 0%, #101824 100%);
+      border: 2px solid var(--gold-primary);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 10px 35px rgba(0,0,0,0.9), 0 0 20px rgba(245, 192, 66, 0.3);
+      position: relative;
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: transparent;
+      border: none;
+      color: #8fa3bf;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal-header-title {
+      font-family: var(--font-title);
+      font-size: 16px;
+      color: var(--gold-bright);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .modal-body {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+
+    .modal-action-row {
+      margin-top: 16px;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-wrapper">
+    <div id="game-screen">
+
+      <!-- TOP STATUS BAR (HUD) -->
+      <header class="top-status-bar">
+        <div class="chapter-badge">
+          <span class="stage-icon">⚓</span>
+          <span class="stage-text">Chapter 1 — Stage 1: The Unexpected Storm</span>
+        </div>
+
+        <div class="top-metrics-group">
+          <div class="metric-pill timer" title="Thời gian màn chơi">
+            <span class="icon">⏳</span>
+            <span class="value" id="timer-display">04:35</span>
+          </div>
+
+          <div class="metric-pill" title="Năng lượng giao tiếp toàn đội">
+            <span class="icon">⚡</span>
+            <div class="energy-bar-wrap">
+              <span style="font-size: 10px; color: #94a3b8;">Team Energy: <b id="energy-val" style="color: #ffeb3b;">85/100</b></span>
+              <div class="energy-bar-track">
+                <div class="energy-bar-fill" id="energy-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-pill" title="Mảnh bản đồ đã thu thập">
+            <span class="icon">🗺️</span>
+            <span>Knowledge Shards: <b id="shards-val" style="color: var(--gold-bright);">12/30</b></span>
+          </div>
+
+          <div class="metric-pill" title="Điểm học tập / Kỹ năng">
+            <span class="icon">🏆</span>
+            <span>Study Pts: <b id="points-val" style="color: #69f0ae;">450</b></span>
+          </div>
+
+          <button class="btn-icon-hud" id="btn-settings" title="Cài đặt & Âm thanh">⚙️</button>
+        </div>
+      </header>
+
+      <!-- 2.5D ISOMETRIC SHIP VIEWPORT -->
+      <main class="viewport-container" id="viewport">
+        <!-- Parallax Background Ship Deck -->
+        <div class="ship-world-layer" id="ship-world"></div>
+
+        <!-- Rain FX Canvas -->
+        <canvas id="weather-canvas"></canvas>
+
+        <!-- Lightning FX -->
+        <div class="lightning-flash" id="lightning-fx"></div>
+
+        <!-- 2.5D Interactive Character Decals -->
+        <div class="world-hotspots">
+          <div class="character-node char-leo selected" id="node-leo" onclick="selectCharacter('leo')">
+            <span class="char-tag">LEO</span>
+            <div class="selection-ring"></div>
+          </div>
+
+          <div class="character-node char-maya" id="node-maya" onclick="selectCharacter('maya')">
+            <span class="char-tag">MAYA</span>
+            <div class="selection-ring"></div>
+          </div>
+
+          <div class="character-node char-sam" id="node-sam" onclick="selectCharacter('sam')">
+            <span class="char-tag">SAM</span>
+            <div class="selection-ring"></div>
+          </div>
+
+          <div class="character-node char-jade" id="node-jade" onclick="selectCharacter('jade')">
+            <span class="char-tag">JADE</span>
+            <div class="selection-ring"></div>
+          </div>
+
+          <!-- POI Markers on Deck -->
+          <div class="poi-marker poi-winch" onclick="triggerQuestInteract(1, 'Lower the sails!', 'Cần tời buồm')">
+            <div class="poi-icon">⛵</div>
+            <div class="poi-label">Cần tời buồm</div>
+          </div>
+
+          <div class="poi-marker poi-leak" onclick="triggerQuestInteract(2, 'Reinforce the hull!', 'Vết rò rỉ thân tàu')">
+            <div class="poi-icon">🪵</div>
+            <div class="poi-label">Gia cố vỏ tàu</div>
+          </div>
+
+          <div class="poi-marker poi-chest" onclick="triggerQuestInteract(3, 'Locate the lifebuoy!', 'Hòm cứu hộ')">
+            <div class="poi-icon">🛟</div>
+            <div class="poi-label">Phao cứu sinh</div>
+          </div>
+
+          <div class="poi-marker poi-mapshard" onclick="triggerQuestInteract(4, 'Collect Map Shard 1!', 'Mảnh bản đồ cổ')">
+            <div class="poi-icon">📜</div>
+            <div class="poi-label">Mảnh Bản Đồ 1</div>
+          </div>
+        </div>
+
+        <!-- LEFT PARTY STATS -->
+        <aside class="party-panel-left">
+          <div class="party-card active" id="card-leo" style="--card-accent: var(--char-leo);" onclick="selectCharacter('leo')">
+            <div class="avatar-wrapper">
+              <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#1b2a3a"/><circle cx="50" cy="40" r="20" fill="#29b6f6"/><path d="M25 85 C25 65 75 65 75 85" fill="#29b6f6"/><text x="50" y="46" font-size="18" font-family="sans-serif" font-weight="bold" fill="#fff" text-anchor="middle">L</text></svg>
+            </div>
+            <div class="party-info">
+              <div class="party-header-row">
+                <span class="party-name">LEO</span>
+                <span class="party-lvl">Lv.6</span>
+              </div>
+              <div class="party-bar-track"><div class="party-bar-fill" style="width: 82%;"></div></div>
+            </div>
+          </div>
+
+          <div class="party-card" id="card-maya" style="--card-accent: var(--char-maya);" onclick="selectCharacter('maya')">
+            <div class="avatar-wrapper">
+              <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#2a1b3a"/><circle cx="50" cy="40" r="20" fill="#ba68c8"/><path d="M25 85 C25 65 75 65 75 85" fill="#ba68c8"/><text x="50" y="46" font-size="18" font-family="sans-serif" font-weight="bold" fill="#fff" text-anchor="middle">M</text></svg>
+            </div>
+            <div class="party-info">
+              <div class="party-header-row">
+                <span class="party-name">MAYA</span>
+                <span class="party-lvl">Lv.8</span>
+              </div>
+              <div class="party-bar-track"><div class="party-bar-fill" style="width: 95%;"></div></div>
+            </div>
+          </div>
+
+          <div class="party-card" id="card-sam" style="--card-accent: var(--char-sam);" onclick="selectCharacter('sam')">
+            <div class="avatar-wrapper">
+              <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#3a301b"/><circle cx="50" cy="40" r="20" fill="#ffd54f"/><path d="M25 85 C25 65 75 65 75 85" fill="#ffd54f"/><text x="50" y="46" font-size="18" font-family="sans-serif" font-weight="bold" fill="#000" text-anchor="middle">S</text></svg>
+            </div>
+            <div class="party-info">
+              <div class="party-header-row">
+                <span class="party-name">SAM</span>
+                <span class="party-lvl">Lv.2</span>
+              </div>
+              <div class="party-bar-track"><div class="party-bar-fill" style="width: 48%;"></div></div>
+            </div>
+          </div>
+
+          <div class="party-card" id="card-jade" style="--card-accent: var(--char-jade);" onclick="selectCharacter('jade')">
+            <div class="avatar-wrapper">
+              <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#1b3a22"/><circle cx="50" cy="40" r="20" fill="#66bb6a"/><path d="M25 85 C25 65 75 65 75 85" fill="#66bb6a"/><text x="50" y="46" font-size="18" font-family="sans-serif" font-weight="bold" fill="#fff" text-anchor="middle">J</text></svg>
+            </div>
+            <div class="party-info">
+              <div class="party-header-row">
+                <span class="party-name">JADE</span>
+                <span class="party-lvl">Lv.9</span>
+              </div>
+              <div class="party-bar-track"><div class="party-bar-fill" style="width: 90%;"></div></div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- RIGHT MISSION TRACKER -->
+        <aside class="mission-tracker-panel">
+          <div class="mission-title">
+            <span>Màn 1: Nhiệm vụ Học tập</span>
+            <span style="font-size: 10px; color: #4caf50;">ACTIVE</span>
+          </div>
+
+          <ul class="quest-list">
+            <li class="quest-item completed" id="quest-1" onclick="toggleQuest(1)">
+              <div class="quest-checkbox">✓</div>
+              <div class="quest-text">
+                <b>1. Hạ buồm đón gió</b>
+                <span class="quest-en">"Lower the sails!"</span>
+              </div>
+            </li>
+
+            <li class="quest-item" id="quest-2" onclick="toggleQuest(2)">
+              <div class="quest-checkbox"></div>
+              <div class="quest-text">
+                <b>2. Gia cố thân tàu nứt</b>
+                <span class="quest-en">"Reinforce the hull!"</span>
+              </div>
+            </li>
+
+            <li class="quest-item" id="quest-3" onclick="toggleQuest(3)">
+              <div class="quest-checkbox"></div>
+              <div class="quest-text">
+                <b>3. Định vị phao cứu sinh</b>
+                <span class="quest-en">"Locate the lifebuoy!"</span>
+              </div>
+            </li>
+
+            <li class="quest-item" id="quest-4" onclick="toggleQuest(4)">
+              <div class="quest-checkbox"></div>
+              <div class="quest-text">
+                <b>4. Thu thập Mảnh bản đồ 1</b>
+                <span class="quest-en">"Collect Map Shard 1!"</span>
+              </div>
+            </li>
+          </ul>
+        </aside>
+
+      </main>
+
+      <!-- BOTTOM RTS / ATLANTIS DASHBOARD -->
+      <footer class="bottom-dashboard">
+        
+        <!-- LEFT: MINI-MAP -->
+        <div class="minimap-block">
+          <div class="minimap-canvas-wrap">
+            <div class="minimap-radar"></div>
+            <div class="minimap-ship-marker" title="Tàu VitaminFun"></div>
+            
+            <div class="minimap-side-actions">
+              <button class="minimap-btn" title="Cảnh báo bão" onclick="playBeep(440)">🔔</button>
+              <button class="minimap-btn" title="Đội hình 4 người" onclick="playBeep(520)">👥</button>
+              <button class="minimap-btn" title="Bảng xếp hạng" onclick="playBeep(660)">🏆</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTER: NPC PORTRAIT & ENGLISH DIALOGUE CONSOLE -->
+        <div class="console-center-block">
+          <div class="npc-portrait-section">
+            <div class="npc-badge-title">NPC GUIDE</div>
+            <div class="npc-portrait-frame">
+              <svg viewBox="0 0 120 120">
+                <rect width="120" height="120" fill="#14202e"/>
+                <path d="M20 115 C20 70 100 70 100 115" fill="#1e3a5f"/>
+                <circle cx="60" cy="52" r="26" fill="#f0c294"/>
+                <path d="M25 40 Q60 10 95 40 L100 48 Q60 30 20 48 Z" fill="#0d1b2a"/>
+                <path d="M45 32 L60 22 L75 32 Z" fill="#f5c042"/>
+                <path d="M40 58 Q60 92 80 58 Q60 72 40 58 Z" fill="#e0e0e0"/>
+                <circle cx="50" cy="48" r="4" fill="#111"/>
+                <circle cx="70" cy="48" r="3" fill="#111"/>
+                <line x1="42" y1="42" x2="58" y2="54" stroke="#111" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="npc-name-tag">Captain Hector</div>
+            <div class="npc-role-tag">Dẫn dắt bạn qua thử thách</div>
+          </div>
+
+          <div class="dialogue-main-wrap">
+            <div class="console-header-label">
+              <span>English Learning Hub: Listening & Speaking Practice</span>
+              <span style="color: #64b5f6; font-size: 10px;">CEFR: A2 - B1 Foundation</span>
+            </div>
+
+            <div class="dialogue-bubble-box">
+              <div class="dialogue-controls">
+                <button class="btn-audio-action" id="btn-tts" title="Nghe phát âm chuẩn của Thuyền trưởng" onclick="speakCurrentDialogue()">🔊</button>
+                <button class="btn-audio-action" id="btn-stt" title="Nhấn để luyện nói khẩu lệnh (Hold Spacebar)" onclick="toggleVoiceInput()">🎤</button>
+              </div>
+
+              <div class="speech-content-text">
+                <p><span class="speaker-title">Captain Hector:</span> <span id="dialogue-text">"Need help here, the storm is intense! Hold fast and lower the sails!"</span></p>
+                
+                <div class="grammar-tip-panel" style="margin-top: 4px;">
+                  <span><b>Grammar Guide:</b> Imperatives (<i>Verb nguyên mẫu đứng đầu câu</i>)</span>
+                  <span style="color: var(--gold-bright);">Exp: +50 Pts</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="command-input-bar">
+              <span class="command-prompt-symbol">&gt;</span>
+              <input type="text" id="command-input" class="command-input-field" placeholder="[Luyện gõ lệnh tiếng Anh: lower the sails, reinforce hull, connect wire...]" autocomplete="off">
+              <button class="btn-submit-cmd" onclick="submitCommand()">Gửi Lệnh</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: ACTION SKILLS GRID -->
+        <div class="skills-action-block">
+          <div class="skills-header-label">Hành động Giao tiếp [Skills]</div>
+          
+          <div class="skills-grid-layout">
+            <div class="skill-slot" onclick="triggerSkill('Q', 'Shield Defense', 'Leo dựng khiên chắn bão!')">
+              <span class="skill-key-badge">[Q]</span>
+              <div class="skill-icon-wrap" style="color: #29b6f6;">🛡️</div>
+              <span class="skill-name-tag">Shield</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('W', 'Voice Callout', 'Maya hô khẩu lệnh!')">
+              <span class="skill-key-badge">[W]</span>
+              <div class="skill-icon-wrap" style="color: #ba68c8;">🎙️</div>
+              <span class="skill-name-tag">Speak</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('E', 'Fix Tool', 'Sam gia cố thân tàu!')">
+              <span class="skill-key-badge">[E]</span>
+              <div class="skill-icon-wrap" style="color: #ffd54f;">🔧</div>
+              <span class="skill-name-tag">Fix Tool</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('R', 'Map Radar', 'Jade định vị đường bão!')">
+              <span class="skill-key-badge">[R]</span>
+              <div class="skill-icon-wrap" style="color: #66bb6a;">🗺️</div>
+              <span class="skill-name-tag">Radar</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('A', 'Reinforce', 'Đóng cọc gia cố tàu!')">
+              <span class="skill-key-badge">[A]</span>
+              <div class="skill-icon-wrap" style="color: #ff9800;">🔨</div>
+              <span class="skill-name-tag">Hammer</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('S', 'Decipher', 'Giải mã mật mã rương cứu hộ!')">
+              <span class="skill-key-badge">[S]</span>
+              <div class="skill-icon-wrap" style="color: #e040fb;">📜</div>
+              <span class="skill-name-tag">Decipher</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('D', 'Inspect', 'Kiểm tra vết nứt buồng lái!')">
+              <span class="skill-key-badge">[D]</span>
+              <div class="skill-icon-wrap" style="color: #00e5ff;">🔍</div>
+              <span class="skill-name-tag">Inspect</span>
+            </div>
+
+            <div class="skill-slot" onclick="triggerSkill('F', 'Boost', 'Đồng thanh hô khẩu lệnh tăng tốc!')">
+              <span class="skill-key-badge">[F]</span>
+              <div class="skill-icon-wrap" style="color: #76ff03;">⚡</div>
+              <span class="skill-name-tag">Boost</span>
+            </div>
+          </div>
+        </div>
+
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- MODAL: PRACTICE & CEFR FEEDBACK -->
+  <div class="game-modal-overlay" id="practice-modal">
+    <div class="game-modal-card">
+      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+      <h3 class="modal-header-title" id="modal-title">⚔️ Thử thách Tiếng Anh</h3>
+      <div class="modal-body" id="modal-body">Nội dung thử thách...</div>
+      <div class="modal-action-row">
+        <button class="btn-submit-cmd" style="padding: 6px 20px;" onclick="closeModal()">Xác Nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT GAME ENGINE -->
+  <script>
+    const gameState = {
+      activeCharacter: 'leo',
+      timeSeconds: 275, // 04:35
+      teamEnergy: 85,
+      mapShards: 12,
+      studyPts: 450,
+      quests: {
+        1: true,
+        2: false,
+        3: false,
+        4: false
+      },
+      isRecording: false
+    };
+
+    // AUDIO SYSTEM
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playBeep(freq = 520, duration = 0.12, type = 'sine') {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playVictoryChime() {
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, index) => {
+        setTimeout(() => playBeep(freq, 0.22, 'triangle'), index * 110);
+      });
+    }
+
+    function playThunderSound() {
+      try {
+        initAudio();
+        const bufferSize = audioCtx.sampleRate * 1.5;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(220, audioCtx.currentTime);
+        filter.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 1.4);
+        
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.4);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+      } catch (e) {}
+    }
+
+    // RAIN ENGINE
+    const canvas = document.getElementById('weather-canvas');
+    const ctx = canvas.getContext('2d');
+    let raindrops = [];
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      initRain();
+    }
+
+    function initRain() {
+      raindrops = [];
+      const count = Math.floor(canvas.width / 6);
+      for (let i = 0; i < count; i++) {
+        raindrops.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          length: Math.random() * 22 + 12,
+          speed: Math.random() * 12 + 16,
+          slant: Math.random() * 3 + 5,
+          opacity: Math.random() * 0.35 + 0.15
+        });
+      }
+    }
+
+    function renderRain() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 1.1;
+
+      for (let i = 0; i < raindrops.length; i++) {
+        const drop = raindrops[i];
+        ctx.strokeStyle = `rgba(180, 220, 255, ${drop.opacity})`;
+        ctx.beginPath();
+        ctx.moveTo(drop.x, drop.y);
+        ctx.lineTo(drop.x - drop.slant, drop.y + drop.length);
+        ctx.stroke();
+
+        drop.x -= drop.slant * 0.3;
+        drop.y += drop.speed;
+
+        if (drop.y > canvas.height) {
+          drop.y = -drop.length;
+          drop.x = Math.random() * (canvas.width + 150);
+        }
+      }
+      requestAnimationFrame(renderRain);
+    }
+
+    function triggerLightning() {
+      const flashEl = document.getElementById('lightning-fx');
+      flashEl.classList.add('active');
+      playThunderSound();
+      setTimeout(() => flashEl.classList.remove('active'), 650);
+      setTimeout(triggerLightning, Math.random() * 7000 + 4000);
+    }
+
+    // GAMEPLAY
+    function selectCharacter(charId) {
+      playBeep(600, 0.08);
+      gameState.activeCharacter = charId;
+      
+      document.querySelectorAll('.party-card').forEach(card => card.classList.remove('active'));
+      const activeCard = document.getElementById(`card-${charId}`);
+      if (activeCard) activeCard.classList.add('active');
+
+      document.querySelectorAll('.character-node').forEach(node => node.classList.remove('selected'));
+      const activeNode = document.getElementById(`node-${charId}`);
+      if (activeNode) activeNode.classList.add('selected');
+
+      const charNames = {
+        leo: 'Leo — Chỉ huy & Khiên chắn',
+        maya: 'Maya — Giải mã cổ tự',
+        sam: 'Sam — Kỹ sư cơ khí',
+        jade: 'Jade — Trinh sát định vị'
+      };
+
+      showFloatingText(`Đã chọn: ${charNames[charId]}`, activeNode ? activeNode.offsetLeft : 400, activeNode ? activeNode.offsetTop : 300);
+    }
+
+    function showFloatingText(text, x, y) {
+      const container = document.getElementById('viewport');
+      const floatEl = document.createElement('div');
+      floatEl.className = 'floating-text';
+      floatEl.textContent = text;
+      floatEl.style.left = `${x}px`;
+      floatEl.style.top = `${y}px`;
+      container.appendChild(floatEl);
+      setTimeout(() => floatEl.remove(), 1800);
+    }
+
+    function toggleQuest(id) {
+      gameState.quests[id] = !gameState.quests[id];
+      const itemEl = document.getElementById(`quest-${id}`);
+      const checkbox = itemEl.querySelector('.quest-checkbox');
+
+      if (gameState.quests[id]) {
+        itemEl.classList.add('completed');
+        checkbox.textContent = '✓';
+        playVictoryChime();
+        gameState.studyPts += 50;
+        gameState.mapShards = Math.min(30, gameState.mapShards + 1);
+        updateMetrics();
+        showFloatingText('+50 Pts! Nhiệm vụ hoàn thành!', 800, 160);
+      } else {
+        itemEl.classList.remove('completed');
+        checkbox.textContent = '';
+        playBeep(300, 0.1);
+      }
+    }
+
+    function updateMetrics() {
+      document.getElementById('points-val').textContent = gameState.studyPts;
+      document.getElementById('shards-val').textContent = `${gameState.mapShards}/30`;
+      document.getElementById('energy-val').textContent = `${gameState.teamEnergy}/100`;
+      document.getElementById('energy-fill').style.width = `${gameState.teamEnergy}%`;
+    }
+
+    function triggerQuestInteract(questId, commandText, objName) {
+      playBeep(700, 0.15);
+      const dialogueEl = document.getElementById('dialogue-text');
+      dialogueEl.innerHTML = `Captain Hector: "Mau tương tác với <b>${objName}</b>! Nhập khẩu lệnh: <i>'${commandText}'</i>"`;
+      
+      const cmdInput = document.getElementById('command-input');
+      cmdInput.value = commandText;
+      cmdInput.focus();
+
+      showFloatingText(`Mục tiêu: ${commandText}`, 500, 250);
+    }
+
+    function triggerSkill(key, skillName, desc) {
+      playBeep(880, 0.12, 'square');
+      showFloatingText(`[${key}] ${skillName}!`, 500, 300);
+      
+      const dialogueEl = document.getElementById('dialogue-text');
+      dialogueEl.innerHTML = `Hành động: <b>${skillName}</b> — ${desc}`;
+
+      if (gameState.teamEnergy > 5) {
+        gameState.teamEnergy -= 2;
+        gameState.studyPts += 10;
+        updateMetrics();
+      }
+    }
+
+    function speakCurrentDialogue() {
+      playBeep(580, 0.1);
+      const textToSpeak = "Need help here, the storm is intense! Hold fast and lower the sails!";
+      
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+        showFloatingText('🔊 Listening Practice...', 500, 350);
+      } else {
+        alert('Trình duyệt chưa hỗ trợ TTS');
+      }
+    }
+
+    function toggleVoiceInput() {
+      const btnStt = document.getElementById('btn-stt');
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        if (!gameState.isRecording) {
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'en-US';
+          recognition.interimResults = false;
+
+          recognition.onstart = function() {
+            gameState.isRecording = true;
+            btnStt.classList.add('recording');
+            showFloatingText('🎤 Đang nghe khẩu lệnh...', 500, 350);
+          };
+
+          recognition.onresult = function(event) {
+            const spokenText = event.results[0][0].transcript;
+            document.getElementById('command-input').value = spokenText;
+            evaluateCommand(spokenText);
+          };
+
+          recognition.onerror = function() { fallbackMicSimulation(); };
+          recognition.onend = function() {
+            gameState.isRecording = false;
+            btnStt.classList.remove('recording');
+          };
+          recognition.start();
+        }
+      } else {
+        fallbackMicSimulation();
+      }
+    }
+
+    function fallbackMicSimulation() {
+      const btnStt = document.getElementById('btn-stt');
+      btnStt.classList.add('recording');
+      showFloatingText('🎤 [Mic]: Đang nhận diện...', 500, 350);
+
+      setTimeout(() => {
+        btnStt.classList.remove('recording');
+        const simulatedVoice = "Lower the sails!";
+        document.getElementById('command-input').value = simulatedVoice;
+        evaluateCommand(simulatedVoice);
+      }, 1200);
+    }
+
+    function submitCommand() {
+      const input = document.getElementById('command-input');
+      const text = input.value.trim();
+      if (text) evaluateCommand(text);
+    }
+
+    function evaluateCommand(cmd) {
+      playBeep(750, 0.1);
+      const lower = cmd.toLowerCase();
+
+      if (lower.includes('lower') || lower.includes('sail')) {
+        toggleQuest(1);
+        openModal('🎉 Phát âm & Lệnh Chính Xác: "Lower the sails!"', `
+          <p><b>Đánh giá CEFR:</b> Phát âm đạt 96/100 (Chuẩn A2 - B1).</p>
+          <p><b>Kỹ năng:</b> Imperatives (Câu mệnh lệnh sinh tồn).</p>
+          <p><b>Kết quả:</b> Cánh buồm đã được hạ an toàn!</p>
+          <p style="color: #69f0ae; margin-top: 8px;">+100 Study Pts & +1 Knowledge Shard!</p>
+        `);
+      } else if (lower.includes('reinforce') || lower.includes('hull')) {
+        toggleQuest(2);
+        openModal('🛡️ Gia Cố Thân Tàu Thành Công!', `
+          <p><b>Khẩu lệnh:</b> "${cmd}"</p>
+          <p>Sam và Leo đã chặn kín vết nứt rò rỉ nước!</p>
+        `);
+      } else if (lower.includes('lifebuoy') || lower.includes('locate')) {
+        toggleQuest(3);
+        openModal('🛟 Định Vị Phao Cứu Sinh Hoàn Tất!', `
+          <p>Jade đã định vị toàn bộ trang bị an toàn khẩn cấp.</p>
+        `);
+      } else if (lower.includes('shard') || lower.includes('map')) {
+        toggleQuest(4);
+        openModal('🗺️ Thu Thập Mảnh Bản Đồ 1 Thành Công!', `
+          <p>Mảnh bản đồ cổ dẫn lối đến Atlantis đã được cất giữ an toàn!</p>
+        `);
+      } else {
+        openModal('⚠️ Lệnh Chưa Khớp Mục Tiêu', `
+          <p>Bạn đã nói / nhập: "<i>${cmd}</i>"</p>
+          <p>Hãy thử một trong các khẩu lệnh sau:</p>
+          <ul style="margin-left: 20px; margin-top: 6px;">
+            <li><code>Lower the sails!</code> (Hạ buồm)</li>
+            <li><code>Reinforce the hull!</code> (Gia cố vỏ tàu)</li>
+            <li><code>Locate the lifebuoy!</code> (Tìm phao)</li>
+          </ul>
+        `);
+      }
+    }
+
+    function openModal(title, content) {
+      document.getElementById('modal-title').innerHTML = title;
+      document.getElementById('modal-body').innerHTML = content;
+      document.getElementById('practice-modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('practice-modal').classList.remove('active');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement === document.getElementById('command-input')) {
+        if (e.key === 'Enter') submitCommand();
+        return;
+      }
+
+      const key = e.key.toUpperCase();
+      if (key === 'Q') triggerSkill('Q', 'Shield Defense', 'Leo dựng khiên chắn bão!');
+      if (key === 'W') triggerSkill('W', 'Voice Callout', 'Maya hô khẩu lệnh!');
+      if (key === 'E') triggerSkill('E', 'Fix Tool', 'Sam sửa chữa các khớp buồm!');
+      if (key === 'R') triggerSkill('R', 'Map Radar', 'Jade định vị đường bão!');
+      if (key === 'A') triggerSkill('A', 'Hammer Reinforce', 'Đóng cọc gia cố tàu!');
+      if (key === 'S') triggerSkill('S', 'Decipher Scroll', 'Giải mã ký tự cổ!');
+      if (key === 'D') triggerSkill('D', 'Inspect Clue', 'Kiểm tra trang thiết bị!');
+      if (key === 'F') triggerSkill('F', 'Team Boost', 'Đồng thanh tăng tốc!');
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleVoiceInput();
+      }
+    });
+
+    setInterval(() => {
+      if (gameState.timeSeconds > 0) {
+        gameState.timeSeconds--;
+        const mins = String(Math.floor(gameState.timeSeconds / 60)).padStart(2, '0');
+        const secs = String(gameState.timeSeconds % 60).padStart(2, '0');
+        document.getElementById('timer-display').textContent = `${mins}:${secs}`;
+      }
+    }, 1000);
+
+    window.addEventListener('load', () => {
+      resizeCanvas();
+      renderRain();
+      setTimeout(triggerLightning, 3000);
+      selectCharacter('leo');
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+  </script>
+</body>
+</html>
