@@ -74,9 +74,12 @@ export class GameState {
     this.speechEngine = engine;
   }
 
-  async loadStage(stageFile = './data/stages/stage_01.json') {
+  async loadStage(stageFile = './data/stages/world_01/stage_01.json') {
     try {
-      const response = await fetch(stageFile);
+      let response = await fetch(stageFile);
+      if (!response.ok && stageFile.includes('/world_01/')) {
+        response = await fetch(stageFile.replace('/world_01/', '/'));
+      }
       this.stageData = await response.json();
       this.timeRemaining = this.stageData.timeLimitSeconds || 300;
       this.currentTaskIndex = 0;

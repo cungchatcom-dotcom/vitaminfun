@@ -429,13 +429,13 @@ btnStartStage?.addEventListener('click', () => {
   if (selectedStageData.id === 1) {
     // Vào chơi trực tiếp Màn 1
     switchScreen('stage-gameplay-screen');
-    gameState.loadStage('./data/stages/stage_01.json');
+    gameState.loadStage('./data/stages/world_01/stage_01.json');
   } else {
     // Demo chuyển màn
     const modeName = gameState.selectedMode === 'multi' ? 'Chơi Đội 4 Người (Ghép Bot tự động)' : 'Chơi Đơn';
     alert(`🚀 Đang khởi tạo Màn ${selectedStageData.id}: "${selectedStageData.title}"\n• Chế độ: ${modeName}\n• NPC Cố vấn: ${selectedStageData.advisor.name}\n\n(Hệ thống đang mở màn chơi 1 làm sân khấu chính, bạn có thể trải nghiệm toàn bộ cơ chế voice/chat tại Màn 1!)`);
     switchScreen('stage-gameplay-screen');
-    gameState.loadStage('./data/stages/stage_01.json');
+    gameState.loadStage('./data/stages/world_01/stage_01.json');
   }
 });
 

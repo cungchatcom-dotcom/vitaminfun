@@ -1,0 +1,76 @@
+{
+  "id": "world_03",
+  "code": "vietnam_backpacking",
+  "name": "Xuyên Việt: Một chuyến phượt bụi",
+  "status": "coming_soon",
+  "order": 3,
+  "unlockPrice": {
+    "currency": "Xu",
+    "amount": 100
+  },
+
+  "learning": {
+    "type": "knowledge_skills",
+    "targetLanguage": "English",
+    "systemLanguage": "vi",
+    "skills": ["Kỹ năng sinh tồn & Phượt bụi", "Văn hóa & Địa lý Việt Nam", "Giao tiếp du lịch quốc tế", "Ẩm thực 3 miền"],
+    "targetAge": "16-25",
+    "difficultyLevels": {
+      "Easy": "Giao tiếp cơ bản và hỏi đường phượt thủ",
+      "Medium": "Kỹ năng sửa xe máy, sơ cứu và đặt dịch vụ",
+      "Hard": "Thương thuyết, ứng phó sự cố bão lũ và thám hiểm hang động"
+    }
+  },
+
+  "story": "Một chuyến phượt xe máy từ Bắc chí Nam cùng hội bạn thân. Vượt qua 30 cung đường thử thách từ Hà Giang đến Cà Mau để sưu tập các Mảnh Huy hiệu Hành trình.",
+
+  "pointSystem": {
+    "expPoint": {
+      "id": "travel_exp",
+      "name": "Điểm trải nghiệm",
+      "icon": "🛵",
+      "description": "Điểm kinh nghiệm tích lũy cá nhân qua mỗi cung đường phượt."
+    },
+    "energyPoint": {
+      "id": "energy",
+      "name": "Điểm thể lực",
+      "icon": "⛽",
+      "description": "Năng lượng và xăng xe cấp cho mỗi chặng đường phượt."
+    },
+    "expFormulaConstants": {
+      "taskBaseScore": 50,
+      "maxTimeBonus": 50,
+      "maxEnergyBonus": 50,
+      "difficultyMultipliers": {
+        "Easy": 1.0,
+        "Medium": 2.0,
+        "Hard": 3.0
+      }
+    }
+  },
+
+  "mainCollectible": {
+    "id": "travel_badge_piece",
+    "name": "Mảnh huy hiệu Xuyên Việt",
+    "totalRequired": 30,
+    "description": "Thu thập đủ 30 mảnh huy hiệu từ 30 tỉnh thành để nhận Kỷ niệm chương Phượt thủ Xuyên Việt."
+  },
+
+  "endGate": {
+    "id": "cape_ca_mau_landmark",
+    "name": "Cột mốc Mũi Cà Mau (Cực Nam Tổ Quốc)",
+    "unlockCondition": "collectAllShards",
+    "successMessage": "Chúc mừng! Bạn đã hoàn thành xuất sắc hành trình xuyên Việt 2000km!",
+    "failMessage": "Chưa đủ 30 mảnh huy hiệu các tỉnh thành trên cung đường!"
+  },
+
+  "totalChapters": 5,
+  "totalStages": 30,
+  "chapters": [],
+  "characters": [],
+  "theme": {
+    "setting": "Cung đường phượt Việt Nam, thiên nhiên hùng vĩ 3 miền",
+    "bgm": "./assets/audio/world_03_theme.mp3",
+    "colorPalette": ["#e67e22", "#2980b9", "#2c3e50"]
+  }
+}

@@ -1,0 +1,90 @@
+## Prompt
+
+Use the provided reference image as the **exact character reference**.
+
+Transform the static character into a **9-frame sequential animation sprite sheet** showing one continuous, smooth movement.
+
+### Animation requirements
+
+* Create **exactly 9 sequential frames** arranged in a **3×3 grid**.
+* The 9 frames must depict **one continuous action/movement**, progressing naturally from frame 1 → frame 9.
+* Keep the **same movement direction throughout all 9 frames**.
+* Keep the **same camera angle and camera orientation** throughout all frames.
+* Keep the **same character scale and proportions** throughout all frames.
+* The character must remain **fixed at the center of each grid cell**.
+* The character's overall position must NOT shift from cell to cell.
+* Maintain consistent framing, perspective, camera distance, and viewing angle.
+* Preserve the character's exact identity, appearance, clothing, colors, proportions, hairstyle, accessories, and visual style from the reference image.
+* Only the **pose and body movement** should change between frames.
+* Movement should be subtle and fluid, with natural intermediate poses between key poses.
+* Each frame must connect smoothly to the previous and next frame.
+* Avoid sudden jumps, teleportation, deformation, or inconsistent poses.
+* Keep the character fully inside its individual cell.
+* The character should occupy approximately the **same percentage of the cell area** in every frame.
+
+### Grid layout
+
+Create a clean **3×3 sprite sheet**:
+
+Frame 1 | Frame 2 | Frame 3
+Frame 4 | Frame 5 | Frame 6
+Frame 7 | Frame 8 | Frame 9
+
+Each frame must occupy exactly one equal-sized cell.
+
+**Important:** The grid cells must be perfectly aligned and evenly sized. Do not overlap frames.
+
+### Background
+
+* **Transparent background (alpha channel).**
+* No floor.
+* No shadow.
+* No environment.
+* No scenery.
+* No props.
+* No particles.
+* No additional objects.
+* No text.
+* No UI elements.
+* No borders or decorative elements.
+
+### Character consistency
+
+The reference character is the single source of truth.
+
+Do NOT redesign, reinterpret, restyle, or modify the character.
+
+Do NOT change:
+
+* character identity
+* body proportions
+* face
+* hairstyle
+* clothing
+* colors
+* accessories
+* materials
+* camera perspective
+* viewing direction
+* character size
+
+Only animate the character's body pose and movement.
+
+### Critical constraints
+
+**FIXED CHARACTER POSITION:**
+The character must be centered in the exact same location within every grid cell.
+
+**FIXED CAMERA:**
+The camera is completely locked. No zoom, pan, rotation, tilt, perspective change, or camera movement.
+
+**FIXED SCALE:**
+The character has exactly the same scale in every frame.
+
+**FIXED DIRECTION:**
+The character continuously moves in the same direction throughout the entire animation.
+
+**CONTINUOUS MOTION:**
+Frame 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 must form a smooth animation cycle/sequence with consistent motion spacing.
+
+Generate the final result as **one single 3×3 sprite sheet image containing exactly 9 frames**.

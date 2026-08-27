@@ -1,0 +1,76 @@
+{
+  "id": "world_02",
+  "code": "maya_civilization",
+  "name": "MAYA: Trở về nền văn minh cổ đại",
+  "status": "coming_soon",
+  "order": 2,
+  "unlockPrice": {
+    "currency": "Xu",
+    "amount": 100
+  },
+
+  "learning": {
+    "type": "knowledge_skills",
+    "targetLanguage": "English",
+    "systemLanguage": "vi",
+    "skills": ["Khảo cổ học", "Thiên văn học", "Toán học Maya", "Sinh tồn trong rừng rậm"],
+    "targetAge": "16-25",
+    "difficultyLevels": {
+      "Easy": "Cơ bản về thiên văn và hệ đếm Maya",
+      "Medium": "Giải mã lịch Maya và kiến trúc đền đài",
+      "Hard": "Mật mã thiên văn nâng cao và văn tự khắc đá"
+    }
+  },
+
+  "story": "Chuyến thám hiểm vào rừng rậm Trung Mỹ đưa nhóm bạn vượt thời gian về vương quốc Maya thời kỳ hoàng kim. Giải mã bí mật của các Kim tự tháp Mặt Trời để tìm đường về.",
+
+  "pointSystem": {
+    "expPoint": {
+      "id": "exp_points",
+      "name": "Điểm tri thức",
+      "icon": "☀️",
+      "description": "Điểm kinh nghiệm tích lũy cá nhân qua các thử thách giải mã Maya."
+    },
+    "energyPoint": {
+      "id": "energy",
+      "name": "Điểm thể lực",
+      "icon": "🌿",
+      "description": "Điểm năng lượng hỗ trợ cá nhân khi thám hiểm rừng rậm."
+    },
+    "expFormulaConstants": {
+      "taskBaseScore": 50,
+      "maxTimeBonus": 50,
+      "maxEnergyBonus": 50,
+      "difficultyMultipliers": {
+        "Easy": 1.0,
+        "Medium": 2.0,
+        "Hard": 3.0
+      }
+    }
+  },
+
+  "mainCollectible": {
+    "id": "mural_piece",
+    "name": "Mảnh bích họa Mặt Trời",
+    "totalRequired": 30,
+    "description": "Thu thập đủ 30 mảnh bích họa để ghép thành Đĩa lịch Thiên văn Maya hoàn chỉnh."
+  },
+
+  "endGate": {
+    "id": "sun_pyramid_portal",
+    "name": "Kim tự tháp Mặt Trời",
+    "unlockCondition": "collectAllShards",
+    "successMessage": "Kích hoạt đĩa lịch thiên văn thành công! Ánh sáng mặt trời mở cánh cổng hồi quy.",
+    "failMessage": "Chưa đủ 30 mảnh bích họa để kích hoạt đỉnh Kim tự tháp!"
+  },
+
+  "totalChapters": 5,
+  "totalStages": 30,
+  "chapters": [],
+  "characters": [],
+  "theme": {
+    "setting": "Rừng rậm nhiệt đới, tàn tích đền thờ Maya cổ đại",
+    "bgm": "./assets/audio/world_02_theme.mp3",
+    "colorPalette": ["#27ae60", "#d4af37", "#1a2517"]
+  }
+}
