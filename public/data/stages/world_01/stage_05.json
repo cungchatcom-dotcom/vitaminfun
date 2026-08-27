@@ -1,0 +1,395 @@
+{
+  "id": "stage_05",
+  "worldId": "world_01",
+  "stageNumber": 5,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Quái thú canh cửa",
+  "story": "Né tránh một con lươn điện khổng lồ đang ngủ say để lẻn qua hang tối. Hãy gặp Giáo sư Thatch để học sơ đồ rễ điện sinh học và giai điệu ru ngủ quái thú.",
+  "difficulty": "Easy",
+  "grammarHint": "Adverbs of Manner & Quiet Imperatives (Trạng từ chỉ cách thức & Khẩu lệnh thì thầm)",
+  "minCombatPower": 800,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 5,
+  "scene": {
+    "background": "./assets/backgrounds/stage_05_sleeping_leviathan.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -770,
+        "y": 370
+      },
+      {
+        "x": -430,
+        "y": 510
+      },
+      {
+        "x": 690,
+        "y": 470
+      },
+      {
+        "x": 820,
+        "y": 220
+      },
+      {
+        "x": 620,
+        "y": -230
+      },
+      {
+        "x": 390,
+        "y": -450
+      },
+      {
+        "x": -270,
+        "y": -460
+      },
+      {
+        "x": -610,
+        "y": -220
+      },
+      {
+        "x": -800,
+        "y": 70
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -105,
+        "y": 105
+      }
+    },
+    "advisorSpawn": {
+      "x": 470,
+      "y": -345
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -265,
+        "y": 42
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 108,
+        "y": 155
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -32,
+        "y": -128
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "Đoạn Đường Lẻn Qua",
+        "icon": "👣",
+        "color": "#7f8c8d",
+        "x": 235,
+        "y": -175,
+        "role": "Hành lang rải đá dăm nhạy cảm âm thanh",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Rễ Điện Sinh Học",
+        "icon": "⚡",
+        "color": "#f1c40f",
+        "x": -435,
+        "y": 255,
+        "role": "Mạng lưới dây thần kinh phóng điện",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Đèn Mồi Phát Quang",
+        "icon": "💡",
+        "color": "#e67e22",
+        "x": 455,
+        "y": 195,
+        "role": "Thiết bị tạo ảo ảnh mồi nhử",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Bệ Ru Cổ Ngữ",
+        "icon": "🪕",
+        "color": "#9b59b6",
+        "x": -295,
+        "y": -235,
+        "role": "Bệ đá ru ngủ chứa Mảnh bản đồ 5",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "thatch",
+    "name": "Professor Thatch (Nhà sinh vật học biển)",
+    "role": "NPC Cố vấn trưởng Màn 5",
+    "portrait": "./assets/portraits/thatch.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_05_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "title": "1. Chào hỏi & Thắt chặt kỷ luật di chuyển lén lút (Stealth Briefing)",
+        "npcPrompt": "Shh! Speak in whispers! The electric Leviathan stirs in its sleep! Are you prepared to move quietly?",
+        "vietnameseTranslation": "Suỵt! Hãy nói thì thầm! Con lươn điện khổng lồ đang cựa mình trong giấc ngủ! Các bạn đã sẵn sàng di chuyển lén lút chưa?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Greetings Professor Thatch! We understand and will advance quietly without making a sound.",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "HELLO PROFESSOR! WE HAVE LOUD MEGAPHONES!",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Let us poke the beast with a stick!",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "greetings professor thatch",
+          "thatch",
+          "advance quietly",
+          "quietly",
+          "without making a sound",
+          "whisper"
+        ],
+        "targetPhrase": "Greetings Professor Thatch! We understand and will advance quietly without making a sound."
+      },
+      {
+        "step": 2,
+        "title": "2. Xin sơ đồ rễ điện & Bài ca ru ngủ (Biological Keys Request)",
+        "npcPrompt": "Splendid discipline! What biological knowledge do you need to bypass its electrical barrier?",
+        "vietnameseTranslation": "Kỷ luật tuyệt vời! Các bạn cần kiến thức sinh học nào để vượt qua rào cản điện áp của nó?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please share your research on which neural roots to cut and the ancient lullaby phrases!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Give us an electric guitar to wake it up.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "We want to catch it in a small fishnet.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "neural roots",
+          "lullaby phrases",
+          "lullaby",
+          "roots",
+          "research"
+        ],
+        "targetPhrase": "Please share your research on which neural roots to cut and the ancient lullaby phrases!"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 SỔ TAY SINH HỌC CỦA GS. THATCH",
+      "summary": "1. Lẻn qua: Thì thầm 'Freeze and stay silent' | 2. Rễ điện: Gõ 'Cut the blue neural root' | 3. Đèn mồi: Hô 'Flash the lure to the right' | 4. Bài ru: 'Sleep peacefully, ancient guardian'!",
+      "items": [
+        {
+          "targetTaskId": 1,
+          "objectName": "Đoạn Đường Lẻn Qua",
+          "clue": "Ra hiệu dừng lại khẩn cấp: 'Freeze and stay silent'."
+        },
+        {
+          "targetTaskId": 2,
+          "objectName": "Rễ Điện Sinh Học",
+          "clue": "Cắt đúng rễ dẫn màu xanh: 'Cut the blue neural root'."
+        },
+        {
+          "targetTaskId": 3,
+          "objectName": "Đèn Mồi Phát Quang",
+          "clue": "Nhấp nháy mồi nhử sang mạn phải: 'Flash the lure to the right'."
+        },
+        {
+          "targetTaskId": 4,
+          "objectName": "Bệ Ru Cổ Ngữ",
+          "clue": "Câu thần chú ru ngủ xoa dịu quái thú: 'Sleep peacefully, ancient guardian'."
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Di chuyển lén lút",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Nói thì thầm khẩu lệnh đứng yên tuyệt đối khi quái thú thở mạnh.",
+      "interactionType": "speak",
+      "npc": "Đoạn Đường Lẻn Qua",
+      "npcDialogue": "Quái thú đang phát ra tiếng thở khò khè, hãy thì thầm khẩu lệnh dừng lại!",
+      "vietnameseHint": "Thì thầm: Freeze and stay silent.",
+      "targetPhrase": "Freeze and stay silent",
+      "targetKeywords": [
+        "freeze",
+        "stay silent",
+        "freeze and stay silent"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Freeze and stay silent immediately!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Stomp your feet and dance!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Shout loudly into the cave!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết GS Thatch: Freeze and stay silent",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 2,
+      "title": "Cắt nguồn tích điện",
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Gõ tên màu rễ thần kinh điện cần cắt để ngắt mạch phóng sét.",
+      "interactionType": "write",
+      "npc": "Rễ Điện Sinh Học",
+      "npcDialogue": "Máy quét hiển thị 3 rễ dẫn điện, hãy chỉ rõ rễ cần cắt!",
+      "vietnameseHint": "Gõ: Cut the blue neural root",
+      "targetPhrase": "Cut the blue neural root",
+      "targetKeywords": [
+        "blue neural root",
+        "blue root",
+        "cut the blue neural root"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Cut the blue neural root carefully",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Cut all red dangerous roots",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Touch the spark with metal wires",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết GS Thatch: Cut the blue neural root",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 3,
+      "title": "Đánh lạc hướng quái thú",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô lệnh kích hoạt đèn mồi nhử phía bên phải để dụ quái thú quay đầu.",
+      "interactionType": "speak",
+      "npc": "Đèn Mồi Phát Quang",
+      "npcDialogue": "Đèn mồi quang học sẵn sàng, cần khẩu lệnh định hướng chùm sáng!",
+      "vietnameseHint": "Hô: Flash the lure to the right.",
+      "targetPhrase": "Flash the lure to the right",
+      "targetKeywords": [
+        "flash",
+        "lure to the right",
+        "flash the lure to the right"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Flash the lure to the right, now!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Throw rocks at the sleeping beast!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Turn off everything and run backward!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết GS Thatch: Flash the lure to the right",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 4,
+      "title": "Thu thập Mảnh bản đồ 5",
+      "skill": "Đọc & Nói (Read & Speak)",
+      "desc": "Đọc câu hát êm dịu xoa dịu quái thú để lấy Mảnh bản đồ 5.",
+      "interactionType": "speak",
+      "npc": "Bệ Ru Cổ Ngữ",
+      "npcDialogue": "Bệ ru cổ rung lên giai điệu thanh khiết, hãy ngân nga câu thần chú ru ngủ!",
+      "vietnameseHint": "Nói nhẹ nhàng: Sleep peacefully, ancient guardian.",
+      "targetPhrase": "Sleep peacefully, ancient guardian",
+      "targetKeywords": [
+        "sleep peacefully",
+        "ancient guardian",
+        "sleep peacefully, ancient guardian"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Sleep peacefully, ancient guardian of the deep.",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Wake up and roar with thunder!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "We are taking your treasure away!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết GS Thatch: Sleep peacefully, ancient guardian",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": "map_shard_05",
+      "completed": false
+    }
+  ]
+}

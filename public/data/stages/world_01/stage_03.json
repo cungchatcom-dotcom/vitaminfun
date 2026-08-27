@@ -1,0 +1,398 @@
+{
+  "id": "stage_03",
+  "worldId": "world_01",
+  "stageNumber": 3,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Ánh sáng kỳ lạ",
+  "story": "Giải mã các khối đá phát quang để mở lối đi sâu vào lòng đất. Hãy gặp Người gác hang Gideon để học quy tắc quang học và cân bằng bệ đá.",
+  "difficulty": "Easy",
+  "grammarHint": "Colors, Prepositions & Imperatives (Màu sắc, Giới từ chỉ vị trí & Mệnh lệnh)",
+  "minCombatPower": 350,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 3,
+  "scene": {
+    "background": "./assets/backgrounds/stage_03_strange_light.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -800,
+        "y": 380
+      },
+      {
+        "x": -450,
+        "y": 520
+      },
+      {
+        "x": 700,
+        "y": 480
+      },
+      {
+        "x": 820,
+        "y": 220
+      },
+      {
+        "x": 620,
+        "y": -240
+      },
+      {
+        "x": 400,
+        "y": -460
+      },
+      {
+        "x": -280,
+        "y": -470
+      },
+      {
+        "x": -620,
+        "y": -220
+      },
+      {
+        "x": -810,
+        "y": 80
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -100,
+        "y": 100
+      }
+    },
+    "advisorSpawn": {
+      "x": 480,
+      "y": -350
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -260,
+        "y": 40
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 110,
+        "y": 150
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -30,
+        "y": -130
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "4 Tinh Thể Phát Quang",
+        "icon": "💎",
+        "color": "#9b59b6",
+        "x": 250,
+        "y": -190,
+        "role": "Trục đặt 4 viên đá tinh thể màu",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Bệ Đá Pha Màu Quang Học",
+        "icon": "🌈",
+        "color": "#e67e22",
+        "x": -440,
+        "y": 270,
+        "role": "Bệ đá hấp thu quang phổ",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Bệ Trọng Lực Cân Bằng",
+        "icon": "⚖️",
+        "color": "#1abc9c",
+        "x": 470,
+        "y": 210,
+        "role": "Bàn đạp cân bằng áp suất bước chân",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Hốc Đá Trung Tâm",
+        "icon": "🔮",
+        "color": "#f1c40f",
+        "x": -290,
+        "y": -250,
+        "role": "Nơi phong ấn Mảnh bản đồ 3",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "gideon",
+    "name": "Gideon (Người gác hang ngầm)",
+    "role": "NPC Cố vấn trưởng Màn 3",
+    "portrait": "./assets/portraits/gideon.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_03_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "title": "1. Chào hỏi & Bày tỏ thiện chí (Greeting & Good Will)",
+        "npcPrompt": "Halt! Who dares illuminate the ancient cavern of crystals?",
+        "vietnameseTranslation": "Dừng lại! Kẻ nào dám thắp sáng hang động tinh thể cổ xưa này?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Greetings Warden Gideon! We seek the light to journey deeper into Atlantis.",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We came to smash all your crystals into dust!",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "I am lost and I want to go home right now.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "greetings warden gideon",
+          "gideon",
+          "seek the light",
+          "journey deeper",
+          "atlantis"
+        ],
+        "targetPhrase": "Greetings Warden Gideon! We seek the light to journey deeper into Atlantis."
+      },
+      {
+        "step": 2,
+        "title": "2. Xin chỉ dẫn quang học & Mật mã trọng lực (Secret Knowledge)",
+        "npcPrompt": "Your intent is noble. Do you understand how to align the ancient crystal spectrum?",
+        "vietnameseTranslation": "Ý định của các bạn rất cao quý. Các bạn có hiểu cách sắp xếp quang phổ tinh thể cổ không?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please teach us the crystal colors and the gravity sync codes to open the gate!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Color does not matter, let us just kick the stones.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Can you give us a flashlight instead?",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "crystal colors",
+          "gravity sync codes",
+          "open the gate",
+          "crystal",
+          "gravity"
+        ],
+        "targetPhrase": "Please teach us the crystal colors and the gravity sync codes to open the gate!"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 BẢN ĐỒ QUANG HỌC CỦA GIDEON",
+      "summary": "1. Tinh thể: Đặt 'Place the blue crystal north' | 2. Pha màu: Thứ tự 'Red, Green, Blue' | 3. Trọng lực: Hô 'Step on three, two, one!' | 4. Thần chú mở hốc: 'Lumos Atlantis'!",
+      "items": [
+        {
+          "targetTaskId": 1,
+          "objectName": "4 Tinh Thể Phát Quang",
+          "clue": "Đặt tinh thể xanh dương lên hướng bắc: 'Place the blue crystal north'."
+        },
+        {
+          "targetTaskId": 2,
+          "objectName": "Bệ Đá Pha Màu Quang Học",
+          "clue": "Thứ tự phối 3 màu nguyên bản: 'Red, Green, Blue'."
+        },
+        {
+          "targetTaskId": 3,
+          "objectName": "Bệ Trọng Lực Cân Bằng",
+          "clue": "Đồng bộ bước chân: 'Step on three, two, one!'."
+        },
+        {
+          "targetTaskId": 4,
+          "objectName": "Hốc Đá Trung Tâm",
+          "clue": "Thần chú mở khóa hốc đá: 'Lumos Atlantis'."
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Thu thập 4 tinh thể phát quang",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Nói vị trí đặt viên tinh thể xanh dương lên bệ phía bắc.",
+      "interactionType": "speak",
+      "npc": "4 Tinh Thể Phát Quang",
+      "npcDialogue": "Bệ tinh thể phía bắc đang chờ lệnh đặt viên đá màu chuẩn xác!",
+      "vietnameseHint": "Nói câu lệnh đặt viên tinh thể xanh dương phía bắc.",
+      "targetPhrase": "Place the blue crystal north",
+      "targetKeywords": [
+        "place",
+        "blue crystal",
+        "north",
+        "place the blue crystal north"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Place the blue crystal north!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Throw the yellow crystal away!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Hide the stone behind your back!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Gideon: Place the blue crystal north",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 2,
+      "title": "Ghép mã màu quang học",
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Gõ thứ tự 3 màu cơ bản để hòa trộn ánh sáng.",
+      "interactionType": "write",
+      "npc": "Bệ Đá Pha Màu Quang Học",
+      "npcDialogue": "Nhập thứ tự 3 màu sắc quang phổ chính xác để kích hoạt lăng kính!",
+      "vietnameseHint": "Gõ: Red, Green, Blue",
+      "targetPhrase": "Red, Green, Blue",
+      "targetKeywords": [
+        "red",
+        "green",
+        "blue",
+        "red green blue",
+        "red, green, blue"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Red, Green, Blue in proper order",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Black, White, Grey",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Yellow, Pink, Purple",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Gideon: Red, Green, Blue",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 3,
+      "title": "Cân bằng bệ đá trọng lực",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô nhịp đếm đồng bộ để cả đội cùng bước lên bệ đá.",
+      "interactionType": "speak",
+      "npc": "Bệ Trọng Lực Cân Bằng",
+      "npcDialogue": "Cảm biến áp suất yêu cầu cả đội đồng bộ bước chân cùng lúc!",
+      "vietnameseHint": "Hô nhịp đếm: Step on three, two, one!",
+      "targetPhrase": "Step on three, two, one",
+      "targetKeywords": [
+        "step on three",
+        "three two one",
+        "step together",
+        "step on three, two, one"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Step on three, two, one, now!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Run away as fast as you can!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Jump up and down randomly!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Gideon: Step on three, two, one!",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 4,
+      "title": "Thu thập Mảnh bản đồ 3",
+      "skill": "Đọc & Nói (Read & Speak)",
+      "desc": "Đọc câu thần chú quang học cổ đại để mở hốc đá lấy Mảnh bản đồ 3.",
+      "interactionType": "speak",
+      "npc": "Hốc Đá Trung Tâm",
+      "npcDialogue": "Hốc đá phát quang tỏa ra ánh sáng rực rỡ, hãy xướng tên thần chú!",
+      "vietnameseHint": "Nói thần chú: Lumos Atlantis.",
+      "targetPhrase": "Lumos Atlantis",
+      "targetKeywords": [
+        "lumos",
+        "atlantis",
+        "lumos atlantis"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Lumos Atlantis, reveal the truth!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Open Sesame and give me coins!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Close the door forever!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Gideon: Lumos Atlantis",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": "map_shard_03",
+      "completed": false
+    }
+  ]
+}
