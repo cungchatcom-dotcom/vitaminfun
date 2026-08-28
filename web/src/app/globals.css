@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+/* Bảng màu Atlantis — dùng token, không rải mã màu trong component.
+   Đổi tông cả sản phẩm thì sửa ở đây, không phải đi tìm khắp nơi. */
+@theme {
+  --color-abyss-950: #04121f;
+  --color-abyss-900: #0a1f33;
+  --color-abyss-800: #123049;
+  --color-abyss-700: #1b4463;
+
+  --color-lagoon-400: #38bdf8;
+  --color-lagoon-500: #0ea5e9;
+  --color-lagoon-600: #0284c7;
+
+  --color-orichalcum-400: #fbbf24;
+  --color-orichalcum-500: #f59e0b;
+
+  --color-coral-500: #f43f5e;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nhịp thở — dùng cho ảnh vật thể nhiệm vụ VÀ vòng tròn world.
+
+   Cảnh chơi thật dùng tween của Phaser, không dùng CSS — nhưng hai bên lấy
+   chung thông số từ `resolvePulse()` trong `src/game/world.ts`, nên chỉnh trong
+   trình thiết kế thấy sao thì vào chơi thấy vậy.
+
+   `--pulse-max` và `animation-duration` đặt inline theo từng vật thể.
+   `alternate` lo phần thu nhỏ, nên keyframes chỉ cần tả lượt phóng to.
+
+   KHÔNG có `@media (prefers-reduced-motion: reduce)` ở đây — xem ghi chú dài
+   trong `src/game/world.ts`, chỗ `resolvePulse()`. Tóm tắt: nhịp thở là tín
+   hiệu "cái này bấm được", không phải trang trí; tắt nó theo cài đặt máy nghĩa
+   là hai đứa trẻ ngồi cạnh nhau chơi chung một màn mà một đứa thấy gợi ý, đứa
+   kia không. Muốn tắt thì kéo độ phồng về 0 — tắt cho CẢ LỚP, không phải cho
+   riêng một máy. */
+@keyframes pulse-breathe {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(var(--pulse-max, 1));
+  }
+}
+
+.pulse-breathe {
+  animation-name: pulse-breathe;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+/* Ô nhập dùng chung. Gom về một chỗ vì trình soạn câu hỏi có hàng chục ô, và
+   sửa viền ở hai chục nơi là cách chắc chắn để chúng lệch nhau. */
+@layer components {
+  .field-input {
+    @apply w-full rounded-lg border border-abyss-700 bg-abyss-900 px-3 py-2 text-sm text-slate-100 outline-none;
+    @apply placeholder:text-slate-500 focus:border-lagoon-500 disabled:opacity-50;
+  }
+
+  .field-label {
+    @apply mb-1 block text-sm text-slate-300;
+  }
+}
+
+/* Chạy một spritesheet bằng CSS: dịch nền sang trái đúng `frames × bề rộng một
+   khung`, và `steps()` ở chỗ gọi chia quãng đó thành từng khung. Dùng ở màn
+   quản lý nhân vật để xem trước mà không phải nạp Phaser.
+
+   Quãng dịch tính bằng PIXEL, truyền vào qua `--sprite-travel`. KHÔNG dùng
+   phần trăm: `background-position` lấy phần trăm theo công thức
+   `(bề rộng khung − bề rộng ảnh) × tỉ lệ`, nên với một tấm rộng hơn khung thì
+   `-100%` đẩy ảnh sang PHẢI hàng nghìn pixel và khung xem trước trắng trơn.
+   Đúng cái đã xảy ra với tấm 5128px đầu tiên: khung một ảnh tĩnh thì hiện,
+   khung tám ảnh thì trống. */
+@keyframes sprite-play {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: var(--sprite-travel, 0);
+  }
+}

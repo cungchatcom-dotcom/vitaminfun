@@ -17,7 +17,10 @@
 - Chọn kiểu Single hoặc Multi-players:
   - Nếu Single thì không cần chờ room, vào chơi luôn.
   - Nếu Multi thì đợi tối đa 30s để người khác vào.
-- Chọn world → chọn map → chọn chapter/màn → chọn nhân vật → (chờ đủ người chơi: auto chơi hoặc bấm nút Bắt đầu thủ công) → Bắt đầu chơi → Kết thúc màn chơi → Chấm điểm & cộng Điểm chiến lực.
+- **Đăng nhập:** một link duy nhất. Tài khoản **giáo viên** vào giao diện soạn câu hỏi & dựng màn chơi; tài khoản **học sinh** vào giao diện chơi.
+- **Flow điều hướng chính (Meta Navigation):**
+  `Màn hình Thiên hà (Galaxy Map)` → chọn **Hành tinh/World** → `Màn hình Chi tiết World` (mô tả, chương, màn chơi, danh sách phòng đang mở, tiến độ cá nhân) → `Danh sách Màn chơi của World` → `Chi tiết Màn chơi` → **Tạo phòng** hoặc **Tham gia phòng** → `Màn hình Phòng chờ (Room/Lobby)` (mời bạn bè, chọn nhân vật, sẵn sàng) → (chờ đủ người chơi: auto chơi sau 30s hoặc chủ phòng bấm Bắt đầu) → **Bắt đầu chơi** → `Kết thúc màn chơi` → Chấm điểm & cộng Điểm chiến lực → nhận Mảnh bản đồ → quay lại `Chi tiết World`.
+- Chi tiết bố cục từng màn hình xem tại [UI_META_SCREENS.md](./UI_META_SCREENS.md).
 - **End-game Flow (Về đích):** Khi vượt qua hết 30 màn, người chơi đi đến địa điểm Cánh cổng Thời gian và bấm Mở cửa:
   - **Đủ điều kiện:** Nếu người chơi sở hữu đủ 30 mảnh bản đồ khác nhau thì sẽ kích hoạt mở cổng và được trở về nhà (hoàn thành World).
   - **Chưa đủ điều kiện:** Hệ thống sẽ hiển thị cảnh báo và liệt kê danh sách các màn chơi / nhiệm vụ còn thiếu để người chơi quay lại hoàn thành.
@@ -37,6 +40,18 @@
 - **Điều kiện hoàn thành màn chơi & Share Mảnh bản đồ:**
   - Tất cả các thành viên tham gia vào 1 màn chơi phải **hoàn thành ít nhất 1 nhiệm vụ** thì màn chơi mới được tính là hoàn thành.
   - Khi màn chơi hoàn thành, các thành viên mới được share và nhận mảnh bản đồ của màn chơi đó.
+- **Quy tắc Nộp bài & Kết quả cá nhân (Independent Submission):**
+  - **Kết quả của mỗi thành viên là độc lập.** Cả 4 người đều được làm cả 4 nhiệm vụ; ai làm được nhiệm vụ nào thì tính điểm cho người đó.
+  - Làm xong một nhiệm vụ, người chơi bấm **Nộp bài** trên máy mình. Server chấm ngay và ghi nhận tiến độ, cộng điểm chiến lực.
+  - **Trong trận chỉ báo hoàn thành hay chưa.** Đúng thì hiện `MISSION COMPLETE`; sai thì báo chưa hoàn thành kèm nút **Thử lại**. Không hiện điểm số, không hiện đáp án đúng, không hiện giải thích.
+  - **Thử lại có giá và có trần:** mỗi lần sai trừ năng lượng chung của đội, tối đa 3 lượt thử cho một nhiệm vụ, và đúng càng sớm càng được nhiều điểm.
+  - Bài làm không lộ sang máy khác: đồng đội chỉ thấy *ai đã xong nhiệm vụ nào*, không thấy nội dung trả lời.
+  - Trả lời sai trừ vào **quỹ năng lượng chung của đội** — đây là điểm duy nhất bài làm cá nhân ảnh hưởng tới cả nhóm.
+  - **Thua màn vẫn giữ điểm chiến lực cơ bản đã kiếm được**, chỉ mất phần thưởng thời gian/năng lượng và Mảnh bản đồ.
+- **Xem lại bài làm (Review) — chỉ sau khi màn chơi kết thúc:**
+  - Hết màn (thắng hoặc thua), mỗi cá nhân mới xem được **chi tiết chấm điểm của riêng mình**: từng nhiệm vụ được mấy điểm, đã thử mấy lần, đáp án đúng là gì, giải thích vì sao, và nhận được bao nhiêu điểm chiến lực.
+  - **Chỉ xem được bài của chính mình**, không xem được bài của thành viên khác.
+  - Để dành chi tiết đến cuối màn vì hai lý do: giữ nhịp chơi không bị cắt ngang, và không rò đáp án cho người còn lượt thử hoặc cho đồng đội chưa làm nhiệm vụ đó.
 - **Quy tắc Điểm năng lượng (Team-shared):**
   - Cả đội có một quỹ Điểm năng lượng dùng chung trong mỗi màn chơi để hỗ trợ vượt ải.
   - Các hành động tiêu hao năng lượng: thực hiện nhiệm vụ, nghe lại NPC nói, xem dạng text lời NPC nói, dịch text NPC nói...
@@ -50,10 +65,33 @@
   - **Giai đoạn 1 — Tiếp cận & Mở khóa Bí quyết:** Người chơi cần di chuyển đến gặp NPC này trước. Để nhận được lời khuyên/bí quyết/kinh nghiệm/mật khẩu vượt ải, người chơi phải trả lời một chuỗi câu hỏi giao tiếp tiếng Anh (chào hỏi, giới thiệu tên tuổi và kỹ năng của bản thân, trình bày mục đích đến đây xin hỗ trợ). Khi hoàn thành, NPC mới trao bí quyết, sổ tay hướng dẫn hoặc mật khẩu.
   - **Giai đoạn 2 — Vận dụng giải quyết Đối tượng Nhiệm vụ:** Khi bấm vào các đối tượng nhiệm vụ trong màn (Cột buồm, Thân tàu, Đèn phao cứu sinh, Hòm báu...), người chơi phải vận dụng chính các lời khuyên, bí quyết, kinh nghiệm hoặc mật khẩu mà NPC cố vấn đã cung cấp để giải quyết vấn đề.
   - **Hình thức giải quyết đa dạng:** Người chơi có thể trả lời câu hỏi bằng Voice (Nói), gõ Text (Viết), hoặc chọn đáp án trắc nghiệm đúng bằng tiếng Anh để vượt qua nhiệm vụ và thu thập Mảnh bản đồ.
+- **Chơi thử trước khi phát hành (Preview):**
+  - Tài khoản **giáo viên** và **admin** vào được giao diện học sinh để chơi thử, dùng đúng màn hình mà học sinh sẽ chơi.
+  - Chơi thử thấy được cả world/màn còn ở trạng thái nháp, và có thể bỏ qua điều kiện mở khoá để nhảy thẳng tới màn cần kiểm tra.
+  - Lượt chơi thử được đánh dấu riêng, không tính vào báo cáo, và phòng chơi thử không hiện cho học sinh.
 - **Điều kiện Mở Cánh cổng Thời gian (End-game Rule):**
   - Khi chơi hết 30 màn, người chơi tiến đến địa điểm Cánh cổng Thời gian và bấm Mở cửa.
   - Nếu đủ 30 mảnh bản đồ khác nhau → Được mở cổng trở về nhà.
   - Nếu chưa đủ 30 mảnh bản đồ → Báo các nhiệm vụ / màn chơi còn thiếu.
+
+## Cấu trúc Vũ trụ (Universe Structure)
+
+Hệ thống nội dung được tổ chức phân cấp 4 tầng để mở rộng lâu dài:
+
+```
+Vũ trụ (Universe)
+ └── Dải thiên hà (Galaxy)          — nhóm chủ đề / khu vực nội dung
+      └── Hành tinh (Planet = World) — 1 world = 1 seri câu chuyện trọn vẹn
+           └── Chương (Chapter)
+                └── Màn chơi (Stage) — tối thiểu 4 nhiệm vụ / màn
+                     └── Nhiệm vụ (Quest)
+```
+
+- **Vũ trụ (Universe):** Tầng cao nhất, chứa nhiều dải thiên hà. Người chơi có thể sở hữu tiến trình riêng ở từng vũ trụ.
+- **Dải thiên hà (Galaxy):** Mỗi vũ trụ có nhiều dải thiên hà, mỗi dải là một cụm hành tinh cùng chủ đề/độ khó (ví dụ: thiên hà "Văn minh cổ đại" gồm Atlantis, MAYA, Ai Cập...).
+- **Hành tinh (Planet / World):** Mỗi thiên hà có nhiều hành tinh; **mỗi hành tinh là một World** — một seri câu chuyện liên quan tới nhau (ví dụ: World 1 — Lost in Atlantis). Hoàn thành **tất cả** màn chơi mới hoàn thành world.
+- **Màn chơi (Stage):** Mỗi world có nhiều màn chơi (World 1 = 30 màn / 5 chương). Mỗi màn hoàn thành trao **1 Mảnh bản đồ**.
+- **Trạng thái mở khóa:** Hành tinh có thể ở trạng thái `locked` / `unlocked` / `in-progress` / `completed`; **Điểm chiến lực là điểm riêng theo từng world**, dùng để unlock các màn chơi bên trong world đó.
 
 ## World
 
@@ -125,6 +163,35 @@
 - **Hội thoại:** chat nhóm giữa các người chơi và hội thoại với NPC/Bot.
 - **Vật phẩm:** "Mảnh bản đồ".
 - **Khác:** Background, nhạc nền, SFX, icon, color, font, voice...
+
+### Danh mục màn hình (Screen List)
+
+Một website, hai giao diện tùy theo vai trò đăng nhập. Bản đồ route đầy đủ: [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+**Giáo viên** — `/teacher/*`
+
+| # | Màn hình | Mục đích | Bước |
+|---|----------|----------|------|
+| T0 | **Dashboard giáo viên** | Việc cần làm, thống kê, danh sách world | 1 |
+| T1 | **Kho câu hỏi** | Danh sách, tìm kiếm, lọc theo dạng / CEFR / tags | 2 |
+| T2 | **Soạn câu hỏi** | Builder + khung xem trước đúng như học sinh thấy | 2 |
+| T3 | **Gán câu hỏi vào nhiệm vụ của màn** | Sơ đồ màn + bộ chọn câu hỏi. Màn hình cốt lõi của phần giáo viên | 4 |
+
+**Học sinh** — `/play/*`
+
+| # | Màn hình | Mục đích | Bước |
+|---|----------|----------|------|
+| S0 | **Galaxy Map** | Chọn Vũ trụ / Thiên hà / Hành tinh, xem trạng thái khóa & tiến độ | 6 |
+| S1 | **World Detail** | Mô tả world, chương & màn, phòng đang mở, nút Tạo phòng, tiến độ cá nhân, đồng đội | 6 |
+| S2 | **Stage List** | Toàn bộ màn của 1 world theo chương, trạng thái khóa, gợi ý nhảy bậc | 6 |
+| S3 | **Stage Detail** | Cốt truyện, NPC, danh sách nhiệm vụ, yêu cầu điểm chiến lực, phần thưởng | 6 |
+| S4 | **Create Room / Lobby** | Tạo phòng, mời bạn, chọn nhân vật, đếm ngược, nút Bắt đầu | 7 |
+| S5 | **In-Game Stage** | Màn chơi 2.5D isometric + dashboard | 5 (đã có bản prototype) |
+| S6 | **Victory / Defeat** | Bảng điểm, điểm chiến lực, mảnh bản đồ, nút Chơi lại / Về World | 8 |
+| S6b | **Xem lại bài làm** | Chi tiết chấm điểm của riêng mình: từng lần thử, đáp án đúng, giải thích | 8 |
+| S7 | **Cánh cổng Thời gian** | Kiểm tra 30 mảnh, mở cổng hoặc liệt kê nhiệm vụ còn thiếu | 8 |
+
+> Bố cục (wireframe) chi tiết của T0–T3 và S0–S7 xem tại [UI_META_SCREENS.md](./UI_META_SCREENS.md). Bố cục chi tiết trong trận (S5) xem thêm tại [backup/Mockup Designs.md](./backup/Mockup%20Designs.md).
 
 ## Gameplay
 

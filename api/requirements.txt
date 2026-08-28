@@ -1,0 +1,35 @@
+# Vitaminfun API — Python 3.12
+# Ghim theo minor để `pip install` trên server không tự nhảy major.
+
+# --- Web ---
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+python-multipart==0.0.20
+
+# --- Cấu hình ---
+pydantic==2.11.*
+pydantic-settings==2.8.*
+
+# --- Database ---
+sqlalchemy[asyncio]==2.0.*
+asyncpg==0.30.*            # driver async, dùng lúc chạy app
+psycopg[binary]==3.2.*     # driver sync, dùng cho Alembic
+alembic==1.15.*
+uuid-utils==0.10.*         # UUIDv7 cho khoá chính
+
+# --- Bảo mật ---
+pyjwt==2.10.*
+argon2-cffi==23.1.*
+
+# --- Log ---
+structlog==25.*
+
+# --- Ảnh ---
+# Đọc khổ ảnh lúc tải lên, và cắt/đổi cỡ ở phía server khi cần. Không dùng cho
+# việc vẽ: game vẽ bằng Phaser ở trình duyệt.
+Pillow==12.3.*
+
+# --- Test ---
+pytest==8.3.*
+pytest-asyncio==0.25.*
+httpx==0.28.*

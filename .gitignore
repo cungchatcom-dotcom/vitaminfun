@@ -22,3 +22,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# --- Bí mật: KHÔNG BAO GIỜ commit ---
+.env
+.env.local
+.env.*.local
+
+# --- Python / api ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Next.js / web ---
+.next/
+out/
+next-env.d.ts
+
+# --- Media do người dùng upload (nằm ngoài repo, phòng khi trỏ nhầm vào trong) ---
+storage/
