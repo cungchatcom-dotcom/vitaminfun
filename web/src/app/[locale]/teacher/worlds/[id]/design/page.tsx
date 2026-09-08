@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Trình thiết kế phòng chờ của một world — màn hình học sinh thấy khi bấm vào
  * world đó trên bản đồ thiên hà.
  *
- * `(teacher)/layout.tsx` lo khung và việc kiểm vai trò cho mọi màn `/teacher/*`.
+ * `teacher/layout.tsx` lo khung và việc kiểm vai trò cho mọi màn `/teacher/*`.
  */
 export default async function LobbyDesignPage({
   params,

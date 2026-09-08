@@ -440,6 +440,39 @@ Windows coi `GameState.ts` và `gamestate.ts` là một; Ubuntu thì không. Imp
 
 `.gitattributes` ở gốc repo đã ép `eol=lf` cho `*.sh` và `*.py`, nên script checkout ra không dính `bad interpreter: /bin/bash^M`. Đừng gỡ nó.
 
+### 5.3. KHÔNG dùng route group — dấu ngoặc đơn đi vào tên file chunk
+
+`web/src/app/[locale]/` **không có thư mục nào đặt trong ngoặc đơn**, và đừng thêm lại. Đây không phải sở thích về cách sắp xếp; đó là một lỗi đã mất nửa ngày để tìm ra.
+
+Route group `(auth)` của Next không xuất hiện trong URL — nhưng nó **xuất hiện nguyên vẹn trong đường dẫn file chunk**:
+
+```
+/_next/static/chunks/app/%5Blocale%5D/(auth)/login/page-860550ad0659df05.js
+```
+
+Và `next start` **404 khi dấu ngoặc đơn tới nơi ở dạng đã mã hoá**. Đo trên cùng một file, cùng một máy:
+
+| đường dẫn tới Next | `next dev` | `next start` |
+|---|---|---|
+| `…/(auth)/…` | 200 | 200 |
+| `…/%28auth%29/…` | **200** | **404** |
+
+Dấu ngoặc **vuông** thì vô can — `%5Blocale%5D` và `[locale]` prod đều nhận, nên `[locale]` giữ nguyên được.
+
+Hậu quả khi có một proxy mã hoá dấu ngoặc trên đường đi — Cloudflare Tunnel là trường hợp đã gặp thật:
+
+- `pnpm dev` chạy tốt, `pnpm start` hỏng. Đúng cái tổ hợp làm người ta đi tìm nhầm chỗ, vì bản năng đầu tiên là nghi bản build.
+- Trình duyệt báo `ChunkLoadError`, trang hiện `error.tsx` — không có gì trong lỗi nhắc tới dấu ngoặc.
+- `curl` từ chính máy chủ thì **200**, vì curl gửi dấu ngoặc nguyên bản. Nên mọi phép kiểm tại chỗ đều nói "không sao".
+
+### Bỏ route group không mất gì
+
+Route group chỉ có một công dụng: gom **nhiều** thư mục vào chung một `layout.tsx` mà không hiện trong URL. Bốn nhóm cũ của dự án này đều bọc **đúng một** thư mục, và ba trong bốn nhóm còn không có `layout.tsx` nào — tức là chúng không gom cái gì với cái gì.
+
+Chuyển `layout.tsx` xuống thẳng thư mục con là tương đương tuyệt đối. Danh sách route sau khi bỏ **giống hệt** trước, cả 20 đường.
+
+Nếu sau này thật sự cần một layout dùng chung cho nhiều nhánh, hãy đặt layout ở thư mục cha có sẵn, hoặc dựng một component khung và gọi từ từng layout — đừng đổi lấy dấu ngoặc trong tên file chunk.
+
 ---
 
 ## 6. systemd

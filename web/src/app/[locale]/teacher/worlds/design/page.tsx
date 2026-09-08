@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Song song với `/teacher/worlds/[id]/stages/[id]/design`: cùng một ý, một bậc
  * cao hơn trong cây nội dung.
  *
- * Không dựng lại `AuthProvider` / `TopBar` ở đây — `(teacher)/layout.tsx` lo cả
+ * Không dựng lại `AuthProvider` / `TopBar` ở đây — `teacher/layout.tsx` lo cả
  * khung lẫn việc kiểm vai trò cho mọi màn `/teacher/*`.
  */
 export default async function GalaxyDesignPage({

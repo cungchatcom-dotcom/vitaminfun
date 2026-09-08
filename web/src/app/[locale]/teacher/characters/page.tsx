@@ -4,7 +4,7 @@ import { CharacterManager } from '@/components/character/character-manager';
 
 export const dynamic = 'force-dynamic';
 
-/** Quản lý nhân vật người chơi. `(teacher)/layout.tsx` lo khung và phân quyền. */
+/** Quản lý nhân vật người chơi. `teacher/layout.tsx` lo khung và phân quyền. */
 export default async function CharactersPage({
   params,
 }: {

@@ -24,9 +24,14 @@ dist-ssr
 *.sw?
 
 # --- Bí mật: KHÔNG BAO GIỜ commit ---
+# Bắt MỌI biến thể, không chỉ ba cái tên đã nghĩ ra sẵn. `.env` không bắt được
+# `.env_prod` — và đó lại đúng là chỗ mật khẩu database production nằm. Một quy
+# tắc chỉ đúng với những cái tên mình đoán trước được thì không phải quy tắc.
 .env
-.env.local
-.env.*.local
+.env.*
+.env_*
+# Trừ đúng một file: bản mẫu KHÔNG chứa bí mật và phải nằm trong repo.
+!.env.example
 
 # --- Python / api ---
 .venv/
