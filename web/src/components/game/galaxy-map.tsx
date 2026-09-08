@@ -4,7 +4,10 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { EmptyState, PageHeader } from '@/components/ui/primitives';
+import { AmbientPlayer, useAmbientVideoSound } from './ambient-player';
+import { BackgroundLayer } from './background-layer';
+import { MusicControls } from './music-controls';
+import { EmptyState } from '@/components/ui/primitives';
 import { GalaxyFrame } from '@/components/world/galaxy-frame';
 import { WorldOrb } from '@/components/world/world-orb';
 import { DEFAULT_WORLD_SIZE, GALAXY, defaultWorldSpot } from '@/game/world';
@@ -29,6 +32,9 @@ export function GalaxyMap({ galaxy }: { galaxy: PlayGalaxy }) {
   const t = useTranslations('play');
   const locale = useLocale();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Nhạc nền có thể đến TỪ CHÍNH TẤM NỀN, nếu nền là video và giáo viên bật cờ.
+  // `null` = video câm và thẻ `<audio>` bên dưới lo phần nhạc như thường.
+  const videoSound = useAmbientVideoSound(galaxy.audio, galaxy.background_kind, 'galaxy');
 
   if (galaxy.worlds.length === 0) {
     return <EmptyState label={t('noWorlds')} hint={t('noWorldsHint')} />;
@@ -36,21 +42,29 @@ export function GalaxyMap({ galaxy }: { galaxy: PlayGalaxy }) {
 
   const hovered = galaxy.worlds.find((w) => w.id === hoveredId) ?? null;
 
+  /* Rời một world thì CHỈ world đó được xoá, không phải xoá sạch.
+     Đi thẳng từ world này sang world kia, trình duyệt bắn `pointerleave` của
+     cái cũ SAU `pointerenter` của cái mới. Xoá vô điều kiện là cái vừa trỏ tới
+     bị chính cái vừa rời khỏi thổi bay, và hai khung chữ nháy về thiên hà rồi
+     mới đổi — hoặc tệ hơn, nằm luôn ở thiên hà. */
+  const leaveWorld = (id: string) => setHoveredId((cur) => (cur === id ? null : cur));
+
   return (
     <div
       className="relative w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950"
       style={{ aspectRatio: `${GALAXY.width} / ${GALAXY.height}` }}
+      /* Lưới an toàn cho cả tấm bản đồ. Việc xoá chính là của từng world ở
+         `WorldPin`; cái này bắt trường hợp con trỏ phóng ra khỏi bản đồ nhanh
+         đến mức `pointerleave` của world không kịp bắn — chuột rời hẳn cửa sổ
+         chẳng hạn. Không có nó thì hai khung chữ kẹt ở world cuối cùng. */
       onPointerLeave={() => setHoveredId(null)}
     >
-      {galaxy.background_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={galaxy.background_url}
-          alt=""
-          className="pointer-events-none absolute inset-0 size-full object-cover"
-          draggable={false}
-        />
-      )}
+      <BackgroundLayer
+        url={galaxy.background_url}
+        kind={galaxy.background_kind}
+        sound={videoSound}
+        className="pointer-events-none absolute inset-0 size-full object-cover"
+      />
 
       {galaxy.worlds.map((world, index) => (
         <WorldPin
@@ -60,6 +74,7 @@ export function GalaxyMap({ galaxy }: { galaxy: PlayGalaxy }) {
           total={galaxy.worlds.length}
           locale={locale}
           onHover={setHoveredId}
+          onLeave={leaveWorld}
         />
       ))}
 
@@ -96,18 +111,17 @@ export function GalaxyMap({ galaxy }: { galaxy: PlayGalaxy }) {
         {pickText(hovered ? hovered.story_i18n : galaxy.description_i18n, locale)}
       </GalaxyFrame>
 
-      {/* Nhạc nền: KHÔNG tự phát. Trình duyệt chặn âm thanh tự chạy khi người
-          dùng chưa chạm vào trang, nên `autoplay` chỉ đem lại một thẻ audio im
-          lặng và một cảnh báo trong console. Để người chơi tự bấm. */}
-      {galaxy.music_url && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio
-          src={galaxy.music_url}
-          controls
-          loop
-          className="absolute top-3 right-3 h-8 w-44 opacity-70 transition hover:opacity-100"
-        />
-      )}
+      {/* Nhạc nền. Vào nhạc sau cú chạm ĐẦU TIÊN của người chơi — xem
+          `AmbientPlayer`. Trước đây chỗ này là một thẻ `<audio controls>` để
+          người chơi tự bấm: thật thà với luật của trình duyệt, nhưng nghĩa là
+          gần như không ai nghe thấy bản nhạc giáo viên đã mất công chọn. */}
+      <AmbientPlayer
+        surface="galaxy"
+        audio={galaxy.audio}
+        audioUrls={galaxy.audio_urls}
+        backgroundKind={galaxy.background_kind}
+      />
+      <MusicControls className="absolute top-3 right-3 z-20" />
     </div>
   );
 }
@@ -118,12 +132,14 @@ function WorldPin({
   total,
   locale,
   onHover,
+  onLeave,
 }: {
   world: PlayWorld;
   index: number;
   total: number;
   locale: string;
   onHover: (id: string | null) => void;
+  onLeave: (id: string) => void;
 }) {
   const t = useTranslations('play');
 
@@ -195,7 +211,9 @@ function WorldPin({
         className="absolute"
         style={style}
         onPointerEnter={() => onHover(world.id)}
+        onPointerLeave={() => onLeave(world.id)}
         onFocus={() => onHover(world.id)}
+        onBlur={() => onLeave(world.id)}
       >
         <div className="relative w-full" title={t('locked')}>
           {orb}
@@ -206,15 +224,29 @@ function WorldPin({
   }
 
   return (
+    // `hover:z-10` để cái vừa phóng to nằm TRÊN hàng xóm. Các world đều là
+    // `absolute` không đặt z-index nên chúng xếp lớp theo thứ tự trong DOM: thiếu
+    // dòng này thì world vẽ sau sẽ cắt ngang mép world đang phóng to.
     <div
-      className="absolute"
+      className="absolute hover:z-10"
       style={style}
       onPointerEnter={() => onHover(world.id)}
+      onPointerLeave={() => onLeave(world.id)}
       onFocus={() => onHover(world.id)}
+      onBlur={() => onLeave(world.id)}
     >
+      {/* Rê chuột vào thì world PHÓNG TO một chút, không vẽ khung.
+          Cái khung cũ (`hover:ring-2`) là một hình chữ nhật/hình tròn của hệ
+          thống úp lên tấm ảnh người dựng vẽ — nó nói "đây là một ô bấm được"
+          bằng giọng của trình duyệt, giữa một bản đồ không có ô nào khác. Phóng
+          to thì nói đúng điều đó bằng chính tấm ảnh: vật lại gần thì to lên.
+
+          `focus-visible:ring-2` thì GIỮ. Người dùng bàn phím không có con trỏ để
+          nhìn theo, và 5% to hơn là thứ khó thấy khi mắt đang ở chỗ khác — họ
+          cần một đường viền rõ ràng chỉ ra "tiêu điểm đang ở đây". */}
       <Link
         href={localizedPath(`/play/world/${world.id}`, locale)}
-        className={`relative block w-full no-underline ring-lagoon-400 transition hover:ring-2 focus-visible:ring-2 ${
+        className={`relative block w-full no-underline ring-lagoon-400 transition duration-200 hover:scale-105 focus-visible:ring-2 ${
           world.show_ring ? 'rounded-full' : 'rounded-lg'
         }`}
       >
@@ -223,10 +255,4 @@ function WorldPin({
       </Link>
     </div>
   );
-}
-
-/** Tiêu đề trang, tách ra để trang chính giữ được phần khung. */
-export function GalaxyHeader({ name }: { name: string }) {
-  const t = useTranslations('play');
-  return <PageHeader title={t('title')} subtitle={t('welcome', { name })} />;
 }

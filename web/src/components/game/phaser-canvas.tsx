@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react';
 
 import { StageScene, type StageSceneData } from '@/game/scenes/StageScene';
 
+import { useMusicPrefs } from './music-controls';
+
 /**
  * Ranh giới React ↔ Phaser.
  *
@@ -17,12 +19,21 @@ export function PhaserCanvas({
   sceneData,
   typing,
   locked,
+  ducked,
 }: {
   sceneData: StageSceneData;
   /** True khi con trỏ đang ở trong ô nhập — cảnh phải ngừng nhận phím WASD. */
   typing: boolean;
   /** True khi bảng câu hỏi đang mở — cảnh ngừng nhận CẢ chuột lẫn bàn phím. */
   locked: boolean;
+  /**
+   * True khi bảng đang mở CÓ TIẾNG — cảnh hạ mọi tiếng của mình xuống.
+   *
+   * Tách khỏi `locked`, dù hai cờ thường bật cùng lúc: `locked` bật với MỌI
+   * bảng, còn cái này chỉ bật khi có gì để nghe. Gộp làm một thì mở một câu
+   * trắc nghiệm chữ cũng làm nhạc nền tụt xuống mà không ai hiểu vì sao.
+   */
+  ducked: boolean;
 }) {
   const holder = useRef<HTMLDivElement>(null);
   const game = useRef<Phaser.Game | null>(null);
@@ -33,11 +44,18 @@ export function PhaserCanvas({
   const latest = useRef(sceneData);
   latest.current = sceneData;
 
-  // Hai cờ này cũng giữ trong ref: Phaser nạp bất đồng bộ, nên chúng có thể đổi
+  // Ba cờ này cũng giữ trong ref: Phaser nạp bất đồng bộ, nên chúng có thể đổi
   // TRƯỚC khi cảnh tồn tại. Chỉ đặt trong `useEffect` thì lần đổi đầu tiên rơi
   // vào khoảng trống đó và mất hẳn.
-  const flags = useRef({ typing, locked });
-  flags.current = { typing, locked };
+  const flags = useRef({ typing, locked, ducked });
+  flags.current = { typing, locked, ducked };
+
+  // Tuỳ chọn nhạc của người chơi, dùng chung với bản đồ thiên hà và phòng chờ:
+  // tắt ở đó thì vào đây vẫn tắt. Cũng giữ trong ref, cùng lý do với hai cờ
+  // trên — nó có thể đổi trước khi cảnh kịp tồn tại.
+  const [music] = useMusicPrefs();
+  const musicRef = useRef(music);
+  musicRef.current = music;
 
   useEffect(() => {
     if (!holder.current || game.current) return;
@@ -75,6 +93,8 @@ export function PhaserCanvas({
             // Bắt kịp trạng thái hiện tại: nó có thể đã đổi lúc Phaser còn nạp.
             ready.setTypingGuard(flags.current.typing);
             ready.setInputLocked(flags.current.locked);
+            ready.setMusicDucked(flags.current.ducked);
+            ready.setMusicPrefs(musicRef.current);
           },
         },
       });
@@ -102,6 +122,16 @@ export function PhaserCanvas({
   useEffect(() => {
     scene.current?.setInputLocked(locked);
   }, [locked]);
+
+  // Bảng có tiếng mở/đóng — hạ tiếng của màn xuống rồi trả lại.
+  useEffect(() => {
+    scene.current?.setMusicDucked(ducked);
+  }, [ducked]);
+
+  // Người chơi bật/tắt nhạc hoặc kéo âm lượng — kể cả ở một tab khác.
+  useEffect(() => {
+    scene.current?.setMusicPrefs(music);
+  }, [music]);
 
   return <div ref={holder} className="size-full" aria-hidden />;
 }

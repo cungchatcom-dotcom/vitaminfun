@@ -41,7 +41,7 @@ export type StageCreatePayload = components['schemas']['StageCreate'];
  */
 export type StageCreateInput = Pick<
   StageCreatePayload,
-  'name_i18n' | 'order_index' | 'scene_key' | 'map_shard_index'
+  'name_i18n' | 'order_index' | 'map_shard_index'
 > &
   Partial<StageCreatePayload>;
 export type StageUpdatePayload = components['schemas']['StageUpdate'];

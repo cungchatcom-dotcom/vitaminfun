@@ -14,6 +14,7 @@ from app.db.models.content import (
     PublishStatus,
     Quest,
     QuestPhase,
+    QUEST_OBJECT_NPC,
     QuestQuestion,
     Stage,
     Universe,
@@ -22,9 +23,9 @@ from app.db.models.content import (
 from app.db.models.media import MediaAsset, MediaKind
 from app.db.models.character import Character, CharacterAction, WorldCharacter
 from app.db.models.progress import MapShardOwned, StageProgress, WorldProgress
-from app.db.models.question import Question, QuestionStatus, QuestionType
+from app.db.models.question import PromptKind, Question, QuestionStatus, QuestionType
 from app.db.models.room import HeroKey, Room, RoomMember, RoomMode, RoomStatus
-from app.db.models.run import QuestAnswer, RunStatus, StageRun, StageRunPlayer
+from app.db.models.run import QuestAnswer, QuestDraft, RunStatus, StageRun, StageRunPlayer
 from app.db.models.user import User, UserRole, UserStatus
 
 __all__ = [
@@ -44,8 +45,10 @@ __all__ = [
     "PublishStatus",
     "Difficulty",
     "QuestPhase",
+    "QUEST_OBJECT_NPC",
     # kho câu hỏi & media
     "Question",
+    "PromptKind",
     "QuestionStatus",
     "QuestionType",
     "MediaAsset",
@@ -64,6 +67,7 @@ __all__ = [
     "StageRun",
     "StageRunPlayer",
     "QuestAnswer",
+    "QuestDraft",
     "RunStatus",
     # người dùng
     "User",

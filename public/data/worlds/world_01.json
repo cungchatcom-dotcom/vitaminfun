@@ -1,0 +1,176 @@
+{
+  "id": "world_01",
+  "code": "lost_in_atlantis",
+  "name": "Lost in Atlantis: Lạc vào vương quốc huyền thoại",
+  "status": "active",
+  "order": 1,
+  "unlockPrice": {
+    "currency": "Xu",
+    "amount": 0
+  },
+
+  "learning": {
+    "type": "language",
+    "targetLanguage": "English",
+    "systemLanguage": "vi",
+    "skills": ["Nghe", "Nói", "Đọc", "Viết"],
+    "targetAge": "16-25",
+    "difficultyLevels": {
+      "Easy": "be/have got; present simple/continuous; can/must; imperatives; there is/are; past simple; going to; comparatives; question forms",
+      "Medium": "question forms; narrative tenses; modals of deduction; reported speech; passive; conditionals; relative clauses; comparison; linking and persuasion",
+      "Hard": "hedging; advanced reporting; nominalisation; inversion; clefts; advanced concession; mixed conditionals; cohesion; counterargument"
+    }
+  },
+
+  "story": "Một nhóm bạn vô tình lạc vào thế giới huyền thoại Atlantis. Vượt qua các thử thách để sưu tầm 30 Mảnh bản đồ, khi ghép lại cánh cổng thời gian sẽ hiện ra để trở về nhà.",
+
+  "pointSystem": {
+    "expPoint": {
+      "id": "combat_power",
+      "name": "Điểm chiến lực",
+      "icon": "⚡",
+      "description": "Điểm kinh nghiệm tích lũy cá nhân, dùng để mở khóa màn chơi và nhảy bậc."
+    },
+    "energyPoint": {
+      "id": "energy",
+      "name": "Điểm năng lượng",
+      "icon": "🔋",
+      "description": "Điểm hỗ trợ cá nhân cấp mỗi màn, dùng cho các hành động dịch, nghe lại, xem gợi ý."
+    },
+    "expFormulaConstants": {
+      "taskBaseScore": 50,
+      "maxTimeBonus": 50,
+      "maxEnergyBonus": 50,
+      "difficultyMultipliers": {
+        "Easy": 1.0,
+        "Medium": 2.0,
+        "Hard": 3.0
+      }
+    }
+  },
+
+  "mainCollectible": {
+    "id": "map_shard",
+    "name": "Mảnh bản đồ",
+    "totalRequired": 30,
+    "description": "Thu thập đủ 30 mảnh bản đồ khác nhau qua 30 màn chơi để ghép thành Bản đồ Atlantis hoàn chỉnh."
+  },
+
+  "endGate": {
+    "id": "time_portal",
+    "name": "Cánh cổng Thời gian",
+    "unlockCondition": "collectAllShards",
+    "successMessage": "Kích hoạt mở cổng thành công! Cả nhóm an toàn trở về thế giới hiện đại.",
+    "failMessage": "Chưa đủ 30 mảnh bản đồ! Cổng thời gian đang bị phong ấn. Hãy hoàn thành các màn chơi còn thiếu."
+  },
+
+  "totalChapters": 5,
+  "totalStages": 30,
+
+  "chapters": [
+    {
+      "id": 1,
+      "number": "Chương 1",
+      "title": "Sự cố dưới đáy biển",
+      "subtitle": "Hang động biển sâu & Lối vào Atlantis",
+      "description": "Nhóm bạn bị đắm tàu, rơi vào hang động biển sâu và phát hiện ra lối vào Atlantis.",
+      "icon": "🌊",
+      "stageRange": [1, 6],
+      "themeColor": "#00f0ff",
+      "bannerImage": "./assets/backgrounds/chapter_1.jpg"
+    },
+    {
+      "id": 2,
+      "number": "Chương 2",
+      "title": "Ngoại ô Thành phố Thủy tinh",
+      "subtitle": "Tàn tích cổ & Vườn sinh thái biển",
+      "description": "Khám phá những tàn tích, khu vườn sinh thái ngoài rìa hoàng cung Atlantis.",
+      "icon": "🪸",
+      "stageRange": [7, 12],
+      "themeColor": "#27ae60",
+      "bannerImage": "./assets/backgrounds/chapter_2.jpg"
+    },
+    {
+      "id": 3,
+      "number": "Chương 3",
+      "title": "Đô thị cổ Hoàng gia",
+      "subtitle": "Quảng trường trung tâm & Đền Poseidon",
+      "description": "Tiến vào trung tâm Atlantis, nơi có kiến trúc vĩ đại nhưng đầy cạm bẫy cổ xưa.",
+      "icon": "🏛️",
+      "stageRange": [13, 18],
+      "themeColor": "#d4af37",
+      "bannerImage": "./assets/backgrounds/chapter_3.jpg"
+    },
+    {
+      "id": 4,
+      "number": "Chương 4",
+      "title": "Tháp Chúa Trời & Năng lượng Gốc",
+      "subtitle": "Ngọn tháp Orichalcum & Trận chiến hộ vệ",
+      "description": "Leo lên ngọn tháp cao nhất, nơi nắm giữ lõi năng lượng của toàn bộ lục địa Atlantis.",
+      "icon": "⚡",
+      "stageRange": [19, 24],
+      "themeColor": "#9b51e0",
+      "bannerImage": "./assets/backgrounds/chapter_4.jpg"
+    },
+    {
+      "id": 5,
+      "number": "Chương 5",
+      "title": "Cuộc đua với Thời gian",
+      "subtitle": "Atlantis sụp đổ & Cánh cổng thời gian",
+      "description": "Hệ thống tự hủy kích hoạt, nhóm bạn phải chạy trốn và mở Cánh cổng Thời gian để trở về nhà.",
+      "icon": "⏳",
+      "stageRange": [25, 30],
+      "themeColor": "#e74c3c",
+      "bannerImage": "./assets/backgrounds/chapter_5.jpg"
+    }
+  ],
+
+  "characters": [
+    {
+      "id": "leo",
+      "name": "Leo Harrison",
+      "codename": "The Guardian",
+      "role": "Đội trưởng — chuyên gia thể lực & cận chiến",
+      "personality": "Quyết đoán, dũng cảm nhưng đôi khi hơi bảo thủ.",
+      "skillTags": ["Đẩy vật nặng", "Phá rào chắn", "Bảo vệ đồng đội"],
+      "portrait": "./assets/portraits/leo.jpg",
+      "spriteFolder": "./characters/1"
+    },
+    {
+      "id": "maya",
+      "name": "Maya Sterling",
+      "codename": "The Scholar",
+      "role": "Nhà thông thái khảo cổ — giải đố & ngôn ngữ cổ",
+      "personality": "Điềm tĩnh, tò mò và cực kỳ chi tiết.",
+      "skillTags": ["Giải mã ký tự", "Phát hiện bẫy ngầm", "Mở lối đi bí mật"],
+      "portrait": "./assets/portraits/maya.jpg",
+      "spriteFolder": "./characters/2"
+    },
+    {
+      "id": "sam",
+      "name": "Sam Miller",
+      "codename": "The Fixer",
+      "role": "Thiên tài công nghệ — kỹ sư hệ thống & cơ khí",
+      "personality": "Lém lỉnh, hay cằn nhằn nhưng rất trung thành.",
+      "skillTags": ["Sửa chữa máy móc", "Hack năng lượng", "Chế tạo thiết bị"],
+      "portrait": "./assets/portraits/sam.jpg",
+      "spriteFolder": "./characters/3"
+    },
+    {
+      "id": "jade",
+      "name": "Jade Nguyen",
+      "codename": "The Wraith",
+      "role": "Tiên phong — chuyên gia di chuyển & thám thính",
+      "personality": "Lạc quan, ưa mạo hiểm, bản năng sinh tồn cực mạnh.",
+      "skillTags": ["Leo trèo Parkour", "Nhảy vực thẳm", "Nín thở lặn sâu"],
+      "portrait": "./assets/portraits/jade.jpg",
+      "spriteFolder": "./characters/4"
+    }
+  ],
+
+  "theme": {
+    "setting": "Thế giới Atlantis, huyền thoại, kì bí, cổ kính",
+    "bgm": "./assets/audio/world_01_theme.mp3",
+    "colorPalette": ["#00f0ff", "#d4af37", "#071318"]
+  }
+}

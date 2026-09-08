@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
+import { ImportPanel } from '@/components/question/import-panel';
 import { QUESTION_TYPE_META } from '@/components/question/registry';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { LinkButton } from '@/components/ui/link-button';
@@ -34,12 +35,19 @@ export function QuestionBank() {
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
   const [keyword, setKeyword] = useState('');
+  const [code, setCode] = useState('');
+  // Đổi sau mỗi lần nhập xong để danh sách tải lại — nhập 26 câu mà bảng vẫn
+  // trống là thứ khiến người dùng bấm nhập lần nữa.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(
     async (signal: AbortSignal) => {
       setLoading(true);
       try {
-        const data = await listQuestions({ type, status, q: keyword }, signal);
+        const data = await listQuestions(
+          { type, status, q: keyword, stage_code: code || undefined },
+          signal,
+        );
         if (signal.aborted) return;
         setItems(data.items);
         setTotal(data.total);
@@ -52,7 +60,7 @@ export function QuestionBank() {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [type, status, keyword],
+    [type, status, keyword, code, reloadKey],
   );
 
   useEffect(() => {
@@ -84,6 +92,8 @@ export function QuestionBank() {
           </LinkButton>
         }
       />
+
+      <ImportPanel onDone={() => setReloadKey((n) => n + 1)} />
 
       <Card className="mb-4">
         <div className="flex flex-wrap gap-3">
@@ -117,6 +127,16 @@ export function QuestionBank() {
             <option value="draft">{t('status.draft')}</option>
             <option value="published">{t('status.published')}</option>
           </select>
+          {/* Lọc theo MÃ MÀN CHƠI. Ô gõ tự do chứ không phải danh sách chọn:
+              mã do bộ phận nội dung đặt trong file, kho không có sẵn danh sách
+              các mã đang tồn tại, và một ô gõ thì luôn đúng. */}
+          <input
+            className="field-input w-auto max-w-40 font-mono"
+            placeholder={t('question.bank.stageCode')}
+            aria-label={t('question.bank.stageCode')}
+            value={code}
+            onChange={(event) => setCode(event.target.value.trim())}
+          />
         </div>
       </Card>
 
@@ -132,6 +152,7 @@ export function QuestionBank() {
             <DataTable
               columns={[
                 t('field.title'),
+                t('question.bank.code'),
                 t('field.type'),
                 t('field.score'),
                 t('field.status'),
@@ -141,6 +162,14 @@ export function QuestionBank() {
               rows={items.map((item) => [
                 <span key="p" className="line-clamp-2">
                   {summarize(item)}
+                </span>,
+                // Địa chỉ gốc. Câu soạn tay không có mã, và ô trống ở đây nói
+                // đúng điều đó — không bịa một dấu gạch trông như dữ liệu.
+                <span key="c" className="font-mono text-[11px] text-slate-500">
+                  {item.quest_code ?? ''}
+                  {item.question_order != null && (
+                    <span className="text-slate-600"> #{item.question_order}</span>
+                  )}
                 </span>,
                 t(QUESTION_TYPE_META[item.type]?.labelKey ?? 'field.type'),
                 item.points,

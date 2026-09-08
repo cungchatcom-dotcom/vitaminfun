@@ -33,6 +33,7 @@ from app.db.models import (
     RunStatus,
     Stage,
     StageProgress,
+    StageRun,
     StageRunPlayer,
     User,
     UserRole,
@@ -63,8 +64,9 @@ from app.modules.play.schemas import (
     RunResultOut,
     RunResultPlayer,
     RunSpriteOut,
-    SubmitAnswerIn,
-    SubmitAnswerOut,
+    SaveDraftIn,
+    SavePositionIn,
+    SubmitQuestOut,
     TeammateProgress,
 )
 from app.modules.worlds import service as worlds_service
@@ -151,6 +153,46 @@ async def _world_summary(db: DbDep, user: User, world: World) -> dict[str, Any]:
     }
 
 
+async def _audio_media(db: DbDep, audio: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    """(URL, TÊN FILE GỐC) của từng khối tiếng.
+
+    Trả cả tên vì `storage_key` là một chuỗi băm — nhìn vào
+    `43e3a40d10bb428e997cc82cc180b69a.mp3` thì không ai biết mình đã tải bản nào
+    lên. Tên gốc đã nằm sẵn trong `media_assets.original_name`, chỉ là chưa ai
+    chuyển nó ra tới giao diện.
+
+    MỘT truy vấn cho cả bộ, và các khối rất có thể dùng chung một file.
+    """
+    ids = {
+        track["media_id"]
+        for track in (audio or {}).values()
+        if isinstance(track, dict) and track.get("media_id")
+    }
+    if not ids:
+        return {}, {}
+
+    found = {
+        str(row.id): (row.url, row.original_name)
+        for row in await db.execute(
+            select(MediaAsset.id, MediaAsset.url, MediaAsset.original_name).where(
+                MediaAsset.id.in_(ids)
+            )
+        )
+    }
+    urls: dict[str, str] = {}
+    names: dict[str, str] = {}
+    for slot, track in (audio or {}).items():
+        if not isinstance(track, dict):
+            continue
+        hit = found.get(str(track.get("media_id")))
+        if not hit:
+            continue
+        urls[slot] = hit[0]
+        if hit[1]:
+            names[slot] = hit[1]
+    return urls, names
+
+
 @router.get("/galaxy", response_model=PlayGalaxyOut, summary="Bản đồ thiên hà")
 async def read_galaxy(current: CurrentUserDep, db: DbDep) -> PlayGalaxyOut:
     """Màn chọn world: nền, nhạc và các world người này được nhìn thấy.
@@ -183,7 +225,9 @@ async def read_galaxy(current: CurrentUserDep, db: DbDep) -> PlayGalaxyOut:
         name_i18n=galaxy.name_i18n,
         description_i18n=galaxy.description_i18n,
         background_url=await url_of(galaxy.background_media_id),
-        music_url=await url_of(galaxy.music_media_id),
+        background_kind=await _kind(db, galaxy.background_media_id),
+        audio=galaxy.audio_json or {},
+        audio_urls=(await _audio_media(db, galaxy.audio_json or {}))[0],
         title_url=await url_of(galaxy.title_media_id),
         title_x=galaxy.title_x,
         title_y=galaxy.title_y,
@@ -205,6 +249,42 @@ async def _url(db: DbDep, media_id) -> str | None:
     if media_id is None:
         return None
     return await db.scalar(select(MediaAsset.url).where(MediaAsset.id == media_id))
+
+
+async def _kind(db: DbDep, media_id) -> str | None:
+    """`media_assets.kind` của một tấm nền: `"image"` hay `"video"`.
+
+    Giao diện cần biết để chọn `<img>` hay `<video>`. Hỏi database thay vì đoán
+    theo đuôi file trong URL — xem `BackgroundKind` bên `worlds/schemas.py`.
+    """
+    if media_id is None:
+        return None
+    return await db.scalar(select(MediaAsset.kind).where(MediaAsset.id == media_id))
+
+
+async def _urls(db: DbDep, media_ids) -> dict[uuid.UUID, tuple[str, str]]:
+    """URL của NHIỀU tấm ảnh, một câu truy vấn.
+
+    Bản gộp của `_url()`, cho những chỗ hỏi ảnh của cả một danh sách: gọi `_url()`
+    trong vòng lặp thì một chương ba mươi màn là ba mươi lượt đi về database chỉ
+    để lấy ba mươi chuỗi ký tự.
+
+    Ảnh nào không có thì KHÔNG có khoá trong kết quả — người gọi dùng `.get()`,
+    và `None` ra `None` y như bản đơn lẻ.
+
+    Trả về `(url, kind)` chứ không chỉ URL: chỗ gọi duy nhất — mặt các màn trên
+    minimap — cần biết tấm nền là ảnh hay video để vẽ khung hình đầu thay vì
+    một thẻ `<img>` hỏng. Nhét thêm một cột vào câu truy vấn ĐÃ CHẠY thì rẻ hơn
+    hẳn một hàm `_kinds()` song song, tức thêm một lượt đi về database cho mỗi
+    chương chỉ để lấy mấy chuỗi "image".
+    """
+    wanted = {mid for mid in media_ids if mid is not None}
+    if not wanted:
+        return {}
+    rows = await db.execute(
+        select(MediaAsset.id, MediaAsset.url, MediaAsset.kind).where(MediaAsset.id.in_(wanted))
+    )
+    return {row.id: (row.url, row.kind) for row in rows}
 
 
 async def _lobby(db: DbDep, world: World) -> PlayLobbyOut:
@@ -256,14 +336,19 @@ async def _lobby(db: DbDep, world: World) -> PlayLobbyOut:
             if isinstance(element, dict) and str(element.get("media_id")) in found
         }
 
+    # MỘT id cho cả URL lẫn loại. Tính hai lần là mở cửa cho hai vế lệch nhau:
+    # phòng chờ chưa đặt nền thì thừa nền thiên hà, và nếu vế loại quên mất
+    # nhánh thừa kế thì một video sẽ được vẽ bằng `<img>`.
+    background_id = world.lobby_media_id or (galaxy.background_media_id if galaxy else None)
     return PlayLobbyOut(
-        background_url=await _url(
-            db, world.lobby_media_id or (galaxy.background_media_id if galaxy else None)
-        ),
+        background_url=await _url(db, background_id),
+        background_kind=await _kind(db, background_id),
         title=await frame("title"),
         desc=await frame("desc"),
         layout=layout,
         urls=urls,
+        audio=world.audio_json or {},
+        audio_urls=(await _audio_media(db, world.audio_json or {}))[0],
     )
 
 
@@ -462,6 +547,8 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
             )
         )
 
+        backgrounds = await _urls(db, (stage.background_media_id for stage in stages))
+
         out_stages: list[PlayStageOut] = []
         for stage in stages:
             required = worlds_service.effective_required_skill_pts(stage, world)
@@ -470,6 +557,9 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
                     StageProgress.stage_id == stage.id, StageProgress.user_id == current.id
                 )
             )
+            # `(None, None)` khi màn chưa đặt nền — gỡ cặp ra MỘT lần ở đây thay
+            # vì lặp lại biểu thức `.get(...) or (None, None)` cho từng vế.
+            bg_url, bg_kind = backgrounds.get(stage.background_media_id) or (None, None)
             out_stages.append(
                 PlayStageOut(
                     id=stage.id,
@@ -478,6 +568,8 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
                     synopsis_i18n=stage.synopsis_i18n,
                     map_shard_index=stage.map_shard_index,
                     quest_count=await worlds_service.quest_count(db, stage.id),
+                    background_url=bg_url,
+                    background_kind=bg_kind,
                     required_skill_pts=required,
                     # Nhảy bậc là HỆ QUẢ của luật này, không phải ngoại lệ phải
                     # viết riêng: đủ điểm thì mở, bất kể đã chơi màn trước hay chưa.
@@ -531,8 +623,38 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
         chapters=out_chapters,
         gate_ready=summary["my_shards"] >= world.shard_total,
         level_i18n=world.level_i18n or {},
+        resume_stage_id=await _resume_stage_id(db, world.id, current.id),
         **await _stats_numbers(db, world, current.id),
     )
+
+async def _resume_stage_id(db: DbDep, world_id: uuid.UUID, user_id: uuid.UUID) -> uuid.UUID | None:
+    """Màn người này đang chơi dở trong world này, nếu lượt đó còn giờ.
+
+    Lấy lượt mới nhất còn `playing`, rồi tự kiểm đồng hồ — `seconds_remaining()`
+    là chỗ DUY NHẤT biết luật thời gian, và tính lại bằng SQL ở đây là chép luật
+    ra chỗ thứ hai để hai chỗ lệch nhau.
+
+    Không chốt lượt hết giờ ở đây dù biết nó đã hết: đọc một phòng chờ không nên
+    ghi vào database. `start_run` chốt nó, và đó là lúc người chơi thật sự quay
+    lại màn đó.
+    """
+    run = await db.scalar(
+        select(StageRun)
+        .join(StageRunPlayer, StageRunPlayer.stage_run_id == StageRun.id)
+        .join(Stage, Stage.id == StageRun.stage_id)
+        .join(Chapter, Chapter.id == Stage.chapter_id)
+        .where(
+            Chapter.world_id == world_id,
+            StageRun.status == RunStatus.PLAYING,
+            StageRunPlayer.user_id == user_id,
+        )
+        .order_by(StageRun.started_at.desc())
+        .limit(1)
+    )
+    if run is None or service.seconds_remaining(run) <= 0:
+        return None
+    return run.stage_id
+
 
 
 # --------------------------------------------------------------------------
@@ -610,6 +732,11 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
     world = await service.world_of_run(db, run)
     max_attempts = read_balance(world.balance_json).get("maxAttemptsPerQuestion")
 
+    # Tính MỘT LẦN cho cả vòng lặp: cổng NPC giống nhau ở mọi nhiệm vụ, và
+    # gọi lại trong thân vòng lặp là quét lại danh sách bài làm mỗi nhiệm vụ.
+    cleared = service.advisor_cleared(run.snapshot_json, mine)
+    drafts = await service.drafts_of(db, run.id, user.id)
+
     progress: list[QuestProgress] = []
     for quest in run.snapshot_json["quests"]:
         quest_id = uuid.UUID(quest["id"])
@@ -618,18 +745,25 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
             question_id = uuid.UUID(question["id"])
             tries = [a for a in mine if a.quest_id == quest_id and a.question_id == question_id]
             done = any(a.is_correct for a in tries)
+            # Nhiệm vụ NPC không đếm lượt — xem `service.submit_quest`.
             left = (
                 None
-                if max_attempts is None
+                if max_attempts is None or quest["phase"] == "advisor"
                 else (0 if done else max(0, int(max_attempts) - len(tries)))
             )
             questions.append(
-                QuestionProgress(question_id=question_id, completed=done, attempts_left=left)
+                QuestionProgress(
+                    question_id=question_id,
+                    completed=done,
+                    attempts_left=left,
+                    draft=drafts.get(question_id),
+                )
             )
         progress.append(
             QuestProgress(
                 quest_id=quest_id,
                 completed=service.quest_earned(mine, quest_id) >= quest["pass_score"],
+                locked=not cleared and quest["phase"] != "advisor",
                 questions=questions,
             )
         )
@@ -637,6 +771,7 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
     players = list(
         await db.scalars(select(StageRunPlayer).where(StageRunPlayer.stage_run_id == run.id))
     )
+    me = next((p for p in players if p.user_id == user.id), None)
     names = {
         u.id: u.display_name
         for u in await db.scalars(
@@ -673,8 +808,10 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
         status=run.status,
         is_trial=run.is_trial,
         snapshot=run.snapshot_json,
-        team_energy_initial=run.team_energy_initial,
-        team_energy_remaining=run.team_energy_remaining,
+        my_energy_granted=me.energy_granted if me else 0,
+        my_energy_remaining=me.energy_remaining if me else 0,
+        my_pos_x=me.pos_x if me else None,
+        my_pos_y=me.pos_y if me else None,
         seconds_remaining=service.seconds_remaining(run),
         started_at=run.started_at,
         my_progress=progress,
@@ -685,6 +822,55 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
 # --------------------------------------------------------------------------
 # Vào màn
 # --------------------------------------------------------------------------
+
+
+class StageIntroOut(BaseModel):
+    """Video mở màn của một màn chơi. `None` = màn này vào thẳng."""
+
+    intro_video_url: str | None = None
+
+
+@router.get(
+    "/stages/{stage_id}/intro",
+    response_model=StageIntroOut,
+    summary="Video mở màn — đọc TRƯỚC khi lượt chơi tồn tại",
+)
+async def stage_intro(stage_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -> StageIntroOut:
+    """URL đoạn video che lúc màn chơi đang nạp.
+
+    Đường riêng, KHÔNG đi qua `snapshot_json`, và đó là chủ ý: đoạn này chạy
+    *trước khi lượt chơi tồn tại*, nên không thể đợi chính cái request tạo ra
+    snapshot. Trang màn chơi gọi nó lúc render phía server, song song với
+    `/play/context` — không tốn thêm nhịp chờ nào, và thẻ `<video>` đã nằm sẵn
+    trong HTML của lần vẽ đầu tiên. Xem GAME_DOMAIN §3e.
+
+    Cùng bộ lọc hiển thị với `start`, nhưng KHÔNG kiểm điểm chiến lực: biết URL
+    một đoạn video của màn chưa mở thì không mở được màn đó. Cái chặn nằm ở
+    `start`, chỗ duy nhất tạo ra lượt chơi.
+
+    ## Đang chơi dở thì KHÔNG có video
+
+    Vào lại một màn còn dở là *chơi tiếp* — bài đang làm còn nguyên, đồng hồ vẫn
+    đang chạy từ `started_at`. Chiếu lại đoạn mở màn ở đó là kể lại phần mở đầu
+    cho người đã đi được nửa đường, và tệ hơn: nó ăn thêm giây của chính cái
+    đồng hồ đang chạy.
+
+    Quyết ở SERVER chứ không ở giao diện, vì server là nơi biết câu trả lời —
+    và nhờ vậy trình duyệt không tải một đoạn video rồi mới phát hiện ra mình
+    không cần nó.
+
+    Dùng chung đúng một hàm với `start_run` (`resumable_run`): hai bản chép của
+    luật "vào lại có chơi tiếp không" sẽ lệch nhau ở lượt vừa hết giờ, và hậu
+    quả là học sinh xem video xong bước vào một lượt chơi dở — hoặc ngược lại.
+    """
+    stage = await db.scalar(worlds_service.visible_stages(current).where(Stage.id == stage_id))
+    if stage is None:
+        raise NotFoundError(ErrorCode.NOT_FOUND, resource="stage")
+
+    if await service.resumable_run(db, current, stage.id) is not None:
+        return StageIntroOut(intro_video_url=None)
+
+    return StageIntroOut(intro_video_url=await _url(db, stage.intro_video_media_id))
 
 
 @router.post(
@@ -728,34 +914,81 @@ async def read_run(run_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -> Run
     return await _run_out(db, current, run)
 
 
-@router.post(
-    "/runs/{run_id}/quests/{quest_id}/questions/{question_id}/answer",
-    response_model=SubmitAnswerOut,
-    summary="Nộp bài một câu hỏi",
+@router.put(
+    "/runs/{run_id}/quests/{quest_id}/questions/{question_id}/draft",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Lưu đáp án đang dở của một câu",
 )
-async def submit(
+async def save_draft(
     run_id: uuid.UUID,
     quest_id: uuid.UUID,
     question_id: uuid.UUID,
-    payload: SubmitAnswerIn,
+    payload: SaveDraftIn,
     current: CurrentUserDep,
     db: DbDep,
-) -> SubmitAnswerOut:
-    """Chấm ngay ở server, trả về ĐÚNG BỐN TRƯỜNG.
+) -> None:
+    """Ghi lại lựa chọn, KHÔNG chấm.
 
-    Không điểm, không đáp án, không giải thích, không điểm chiến lực — xem
-    docs/GAME_DOMAIN.md §1.6. Chi tiết ở màn xem lại sau khi hết màn.
+    Giao diện gọi mỗi khi người chơi chuyển sang câu khác. Nhờ vậy mất mạng hay
+    đóng nhầm tab thì vào lại vẫn thấy đúng những gì mình đã chọn.
+
+    `PUT` chứ không `POST`: gọi hai lần cùng một nội dung cho cùng một kết quả,
+    và mạng chập chờn thì lần gửi lại không được sinh ra thêm bản nháp thứ hai.
     """
     run = await service.get_run(db, current, run_id)
-    completed, quest_done, attempts_left, energy = await service.submit_answer(
-        db, current, run, quest_id, question_id, payload.response
-    )
-    return SubmitAnswerOut(
-        completed=completed,
+    await service.save_draft(db, current, run, quest_id, question_id, payload.response)
+
+
+@router.post(
+    "/runs/{run_id}/quests/{quest_id}/submit",
+    response_model=SubmitQuestOut,
+    summary="Nộp cả nhiệm vụ",
+)
+async def submit_quest(
+    run_id: uuid.UUID,
+    quest_id: uuid.UUID,
+    current: CurrentUserDep,
+    db: DbDep,
+) -> SubmitQuestOut:
+    """Chấm CẢ NHIỆM VỤ từ các bản nháp, ở server.
+
+    Trả về ĐÚNG BA TRƯỜNG: không điểm, không đáp án, không giải thích, không
+    điểm chiến lực — xem docs/GAME_DOMAIN.md §1.6. Chi tiết ở màn xem lại sau
+    khi hết màn.
+
+    Không nhận bài trong thân request: bài đã nằm ở `quest_drafts` rồi. Cho gửi
+    kèm ở đây là mở đường thứ hai vào cùng một chỗ, và hai đường thì sẽ có ngày
+    một đường nói khác đường kia.
+    """
+    run = await service.get_run(db, current, run_id)
+    quest_done, attempts_left, energy = await service.submit_quest(db, current, run, quest_id)
+    return SubmitQuestOut(
         quest_completed=quest_done,
         attempts_left=attempts_left,
-        team_energy=energy,
+        my_energy=energy,
     )
+
+
+@router.put(
+    "/runs/{run_id}/position",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Lưu chỗ nhân vật đang đứng",
+)
+async def save_position(
+    run_id: uuid.UUID,
+    payload: SavePositionIn,
+    current: CurrentUserDep,
+    db: DbDep,
+) -> None:
+    """Ghi chỗ đứng của RIÊNG người gọi, để vào lại còn đứng đúng chỗ đó.
+
+    `PUT` chứ không `POST`: gọi mười lần cùng một toạ độ cho cùng một kết quả,
+    và đây là thứ được gọi liên tục trong lúc chơi.
+    """
+    run = await service.get_run(db, current, run_id)
+    await service.save_position(db, current, run, payload.x, payload.y)
 
 
 @router.post(
@@ -800,7 +1033,9 @@ async def result(run_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -> RunRe
         status=run.status,
         map_shard_index=stage.map_shard_index if (stage and run.status == RunStatus.WON) else None,
         duration_seconds=run.duration_seconds,
-        team_energy_remaining=run.team_energy_remaining,
+        my_energy_remaining=next(
+            (p.energy_remaining for p in players if p.user_id == current.id), 0
+        ),
         players=[
             RunResultPlayer(
                 user_id=p.user_id,

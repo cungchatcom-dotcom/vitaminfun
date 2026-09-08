@@ -42,21 +42,10 @@
   },
   "play": {
     "title": "Bản đồ thiên hà",
-    "welcome": "Chào {name}",
-    "skillPts": "Điểm chiến lực",
-    "mapShards": "Mảnh bản đồ",
     "noWorlds": "Chưa có thế giới nào được phát hành.",
     "noWorldsHint": "Hãy quay lại sau, hoặc hỏi giáo viên của bạn.",
-    "noStagesYet": "Chưa có màn chơi nào được phát hành.",
-    "play": "Vào chơi",
-    "playAgain": "Chơi lại",
-    "completed": "Đã hoàn thành",
     "locked": "Đang khoá",
-    "quests": "Nhiệm vụ",
-    "shard": "Mảnh",
-    "bestScore": "Điểm cao nhất",
-    "gateReady": "Bạn đã đủ mảnh bản đồ — Cánh cổng Thời gian đã sẵn sàng!",
-    "enterWorld": "Chơi / vào world"
+    "gateReady": "Bạn đã đủ mảnh bản đồ — Cánh cổng Thời gian đã sẵn sàng!"
   },
   "admin": {
     "title": "Quản trị",
@@ -107,7 +96,14 @@
     "TIMEOUT": "Máy chủ không phản hồi. Kiểm tra xem API có đang chạy không.",
     "QUESTION_IN_USE": "Câu hỏi này đang được dùng trong một màn chơi. Gỡ khỏi màn trước rồi mới xoá được.",
     "CHAPTER_HAS_STAGES": "Chương còn {stageCount} màn chơi. Xoá các màn trước rồi mới xoá chương được.",
-    "STAGE_HAS_RUNS": "Màn này đã có {runCount} lượt chơi. Xoá là mất lịch sử chơi và điểm đã ghi."
+    "STAGE_HAS_RUNS": "Màn này đã có {runCount} lượt chơi. Xoá là mất lịch sử chơi và điểm đã ghi.",
+    "ADVISOR_QUEST_REQUIRED": "Mỗi màn giữ đúng một nhiệm vụ NPC. Đổi tên hay đổi câu hỏi bên trong thì được, gỡ đi thì không.",
+    "ADVISOR_LOCKED": "Phải qua nhiệm vụ NPC thì nhiệm vụ này mới mở.",
+    "ADVISOR_QUEST_EXISTS": "Màn này đã có nhiệm vụ NPC rồi. Mỗi màn giữ đúng một cái.",
+    "IMPORT_FILE_UNREADABLE": "Không mở được file. Cần đúng định dạng .xlsx và không đặt mật khẩu.",
+    "IMPORT_SHEET_MISSING": "File thiếu sheet Questions.",
+    "IMPORT_HEADER_MISSING": "Không tìm thấy hàng tiêu đề có đủ các cột quest_code, question_order, answer_type, question_content.",
+    "IMPORT_NO_ROWS": "Không đọc được dòng nào hợp lệ."
   },
   "common": {
     "loading": "Đang tải…",
@@ -125,6 +121,23 @@
     "close": "Đóng"
   },
   "question": {
+    "transcript": "Transcript",
+    "player": {
+      "play": "Phát",
+      "pause": "Tạm dừng",
+      "seek": "Nghe từ chỗ nào"
+    },
+    "promptKind": {
+      "label": "Cách ra đề",
+      "text": "Đọc",
+      "audio": "Nghe",
+      "textHint": "Đề bài hiện ra dạng chữ như bình thường.",
+      "audioHint": "Học sinh nghe một đoạn ghi âm. Đoạn chữ của đề trở thành transcript, giấu sau một cái nút.",
+      "noAudio": "Chưa có tệp nghe. Chừng nào chưa tải lên, học sinh sẽ chỉ đọc đoạn chữ của đề.",
+      "removeAudio": "Gỡ tệp nghe",
+      "showTranscript": "Hiện transcript ngay từ đầu",
+      "showTranscriptHint": "Mặc định tắt — nghe trước là cả điểm của bài nghe. Nút Transcript thì lúc nào cũng có, nên em nào không nghe ra vẫn đọc lại được."
+    },
     "new": {
       "title": "Chuẩn bị bài tập mới",
       "subtitle": "Chọn loại câu hỏi phù hợp để bắt đầu soạn nội dung cho học sinh.",
@@ -139,7 +152,9 @@
       "gapFill": "Điền vào ô trống",
       "gapFillDesc": "Học sinh gõ từ còn thiếu vào chỗ trống",
       "dropdown": "Chọn từ danh sách",
-      "dropdownDesc": "Học sinh chọn từ đúng trong danh sách xổ xuống"
+      "dropdownDesc": "Học sinh chọn từ đúng trong danh sách xổ xuống",
+      "shortAnswer": "Gõ đáp án",
+      "shortAnswerDesc": "Học sinh tự gõ câu trả lời; chấm bằng danh sách các cách viết được chấp nhận."
     },
     "bank": {
       "title": "Kho câu hỏi",
@@ -147,9 +162,16 @@
       "count": "{count} câu hỏi trong kho",
       "search": "Tìm trong đề bài và chủ đề",
       "allTypes": "Tất cả dạng",
+      "byStageCode": "Lọc theo mã màn chơi",
+      "allStageCodes": "Mọi màn chơi",
+      "byQuestCode": "Lọc theo mã nhiệm vụ",
+      "allQuestCodes": "Mọi nhiệm vụ",
+      "thisStage": "(màn này)",
       "allStatus": "Tất cả trạng thái",
       "empty": "Kho chưa có câu hỏi nào",
-      "emptyHint": "Bấm “Tạo câu hỏi” để thêm câu đầu tiên."
+      "emptyHint": "Bấm “Tạo câu hỏi” để thêm câu đầu tiên.",
+      "code": "Mã",
+      "stageCode": "Mã màn chơi"
     },
     "editor": {
       "newTitle": "Soạn câu hỏi",
@@ -184,13 +206,28 @@
       "blank": "Ô trống",
       "noBlank": "Câu chưa có ô trống nào.",
       "acceptedAnswers": "Các cách viết được chấp nhận",
-      "acceptedHint": "Mỗi dòng một cách viết. Ví dụ: “seven” và “7”.",
+      "acceptedHint": "Liệt kê mọi cách viết đáng được tính là đúng. Hoa thường, dấu câu và khoảng trắng thừa đã được bỏ qua sẵn — không cần liệt kê các biến thể đó.",
       "typoTolerance": "Bỏ qua 1 lỗi gõ (chỉ áp dụng cho từ dài)",
       "correctAnswer": "Đáp án đúng",
       "wrongAnswers": "Đáp án sai",
       "addWrong": "Thêm đáp án sai",
       "shuffleNote": "Học sinh sẽ thấy các đáp án được xáo trộn.",
-      "sentencePlaceholder": "Ví dụ: hello there, my name is Nam"
+      "sentencePlaceholder": "Ví dụ: hello there, my name is Nam",
+      "accepted": "Cách viết được chấp nhận (mỗi dòng một cách)",
+      "placeholder": "Chữ mờ trong ô nhập",
+      "maxWords": "Giới hạn số từ (không bắt buộc)"
+    },
+    "import": {
+      "title": "Nhập câu hỏi từ file Excel",
+      "hint": "File .xlsx của bộ phận nội dung, cần có sheet Questions. Câu nào khớp mã nhiệm vụ đang có thì tự lắp vào nhiệm vụ đó; còn lại nằm trong kho và giữ mã.",
+      "running": "Đang đọc file…",
+      "created": "Tạo mới",
+      "updated": "Ghi đè",
+      "linked": "Đã lắp vào nhiệm vụ",
+      "alreadyLinked": "Đã có sẵn",
+      "inBank": "Nằm trong kho",
+      "missingQuests": "Chưa có nhiệm vụ nào mang các mã này. Điền mã vào nhiệm vụ trong trình thiết kế rồi nhập lại là chúng tự lắp vào:",
+      "skipped": "{count} dòng bị bỏ qua:"
     }
   },
   "field": {
@@ -278,12 +315,10 @@
     "detail": {
       "summary": "{chapters} chương · {stages} màn ({published} đã xuất bản) · {shards} mảnh bản đồ",
       "addStage": "+ Thêm màn",
-      "createStage": "Tạo màn chơi",
       "noStage": "Chương này chưa có màn chơi nào.",
       "noChapter": "World chưa có chương nào",
       "noChapterHint": "Chạy seed để tạo 5 chương của Lost in Atlantis.",
       "questCount": "{count} nhiệm vụ",
-      "newStageHint": "Màn số {order}, trao mảnh bản đồ #{shard}. Sửa lại được sau.",
       "backToWorld": "Chương & màn chơi",
       "addChapter": "+ Thêm chương",
       "createChapter": "Tạo chương",
@@ -294,7 +329,9 @@
       "confirmDeleteChapter": "Xoá chương này? Chỉ xoá được khi chương đã rỗng.",
       "publishWorld": "Phát hành world",
       "unpublishWorld": "Rút về nháp",
-      "publishWorldHint": "World phát hành rồi thì học sinh mới nhìn thấy."
+      "publishWorldHint": "World phát hành rồi thì học sinh mới nhìn thấy.",
+      "worldCode": "Mã world",
+      "worldCodeHint": "Dành cho file nội dung sau này. Hiện chưa có file nào dùng, để trống là đúng."
     },
     "characters": {
       "title": "Nhân vật ({count})",
@@ -311,17 +348,16 @@
   "stage": {
     "field": {
       "name": "Tên màn",
-      "sceneKey": "Khoá cảnh Phaser",
-      "advisor": "NPC cố vấn",
       "timeLimit": "Thời gian (giây)",
-      "energy": "Năng lượng đội",
+      "energy": "Năng lượng mỗi người",
       "skillPtsMax": "Chiến lực tối đa",
       "shardIndex": "Mảnh bản đồ #",
       "requiredSkillPts": "Chiến lực cần để mở",
       "requiredFromBalance": "(tính từ cấu hình cân bằng của world)",
       "starMax": "Số sao tối đa",
       "starScorePcts": "Ngưỡng nhận sao (%)",
-      "starScorePctsHint": "Phần trăm điểm tối đa của màn cho từng sao, ví dụ 40, 70, 90. Bỏ trống thì chưa trao sao."
+      "starScorePctsHint": "Phần trăm điểm tối đa của màn cho từng sao, ví dụ 40, 70, 90. Bỏ trống thì chưa trao sao.",
+      "energyHint": "Mỗi người chơi nhận từng này năng lượng sau khi chính họ qua được nhiệm vụ NPC. Nó trả cho gợi ý — mỗi lần xin gợi ý tốn 2, nên mặc định 10 là năm lần. Hết năng lượng không làm thua màn, và trả lời sai không tốn gì. Đặt 0 nghĩa là màn này không có gợi ý."
     },
     "phase": {
       "advisor": "Hội thoại NPC",
@@ -365,22 +401,31 @@
       "pointsShort": "đ",
       "removeQuestion": "Bỏ câu hỏi khỏi nhiệm vụ",
       "viewQuestion": "Xem",
-      "renameHint": "Bấm để sửa tên vật thể. Enter hoặc bấm ra ngoài để lưu."
+      "renameHint": "Bấm để sửa tên vật thể. Enter hoặc bấm ra ngoài để lưu.",
+      "npcGateNote": "Màn nào cũng vào bằng NPC. Các nhiệm vụ còn lại khoá cho tới khi người chơi qua được nó — nhờ vậy ai cũng hoàn thành ít nhất một nhiệm vụ, đúng điều kiện để cả đội được chia mảnh bản đồ.",
+      "questRequired": "Bắt buộc",
+      "renameStage": "Bấm để đổi tên màn chơi",
+      "renameNpc": "Bấm để đổi tên NPC — đây là cái tên học sinh nhìn thấy",
+      "passScoreHint": "Điểm cần đạt để qua nhiệm vụ. Mặc định bằng tổng điểm của nhiệm vụ ({total}) — để nguyên bằng tổng thì thêm bớt câu hỏi ngưỡng tự đi theo."
     },
     "preview": {
       "subtitle": "Xem trước nội dung màn chơi. Hoàn thành tất cả nhiệm vụ để nhận Mảnh bản đồ #{shard}.",
-      "noSceneYet": "Cảnh 2.5D “{scene}” chưa được dựng — phần đồ hoạ đến ở Bước 5. Bên dưới là thứ tự nhiệm vụ và câu hỏi đúng như học sinh sẽ gặp.",
+      "noSceneYet": "Trang này liệt kê nội dung, không phải hình ảnh. Bên dưới là đúng thứ tự nhiệm vụ và câu hỏi học sinh sẽ gặp — bấm “Chơi thử” để xem cảnh 2.5D thật.",
       "totalPoints": "Tổng điểm"
     },
     "viewer": {
       "title": "Xem câu hỏi",
       "close": "Đóng"
-    }
+    },
+    "quest": {
+      "npcDefault": "NPC"
+    },
+    "defaultName": "Stage {order}"
   },
   "stageBlocker": {
     "STAGE_TOO_FEW_QUESTS": "Màn cần tối thiểu {required} nhiệm vụ, hiện có {actual}.",
     "STAGE_QUEST_QUESTION_DRAFT": "Nhiệm vụ #{questOrder} ({questObject}) đang dùng câu hỏi chưa xuất bản hoặc đã xoá.",
-    "STAGE_NO_ADVISOR": "Màn khai báo NPC “{npc}” nhưng chưa có bước hội thoại nào.",
+    "STAGE_NO_ADVISOR": "Màn này chưa có nhiệm vụ NPC. Màn nào cũng phải có đúng một cái — nó là cổng mở khoá các nhiệm vụ còn lại.",
     "STAGE_SHARD_INDEX_TAKEN": "Mảnh bản đồ #{shardIndex} đã được một màn khác trao.",
     "STAGE_QUEST_EMPTY": "Nhiệm vụ #{questOrder} ({questObject}) chưa có câu hỏi nào.",
     "STAGE_QUEST_PASS_SCORE_TOO_HIGH": "Nhiệm vụ #{questOrder} ({questObject}) cần {passScore} điểm để qua, nhưng tổng chỉ có {totalPoints} — không ai qua nổi."
@@ -392,13 +437,17 @@
     "nextQuestion": "Câu tiếp →",
     "missionComplete": "MISSION COMPLETE",
     "notComplete": "CHƯA HOÀN THÀNH",
-    "energyLost": "Đội mất điểm năng lượng",
     "triesLeft": "Còn {count} lượt thử",
     "unlimitedTries": "Không giới hạn lượt thử",
     "alreadyCorrect": "Đã trả lời đúng",
     "questDone": "Đã hoàn thành",
-    "questAllDone": "Nhiệm vụ đã hoàn thành!",
     "questionOf": "Câu {current}/{total}",
+    "intro": {
+      "skip": "Bỏ qua ▸",
+      "loading": "Đang vào màn…",
+      "unmute": "🔊 Bật tiếng",
+      "label": "Video mở màn"
+    },
     "questsDone": "Nhiệm vụ {done}/{total}",
     "leave": "Rời màn",
     "review": "Xem lại bài làm",
@@ -419,7 +468,23 @@
       "walkToQuest": "Bấm vào một vật thể để đi thẳng tới nó.",
       "enterZone": "Bảng nhiệm vụ mở khi nhân vật chạm vào khung ảnh của vật thể rồi dừng lại. Đi ngang qua thì không mở.",
       "boundary": "Bấm ra ngoài mép bản đồ thì nhân vật đi theo hướng đó tới khi chạm mép rồi dừng.",
-      "energy": "Trả lời sai làm cả đội mất năng lượng. Hết năng lượng hoặc hết giờ là thua màn."
+      "energy": "Năng lượng là của riêng bạn, nhận được sau khi qua nhiệm vụ NPC. Dùng để mua gợi ý."
+    },
+    "advisorLocked": "Đang khoá. Qua “{npc}” trước đã — NPC trao cho bạn bí quyết cần dùng ở đây.",
+    "energyMine": "Năng lượng của bạn — của riêng bạn, không dùng chung với đội",
+    "next": "Tiếp →",
+    "stepOf": "Bước {current}/{total}",
+    "wrongAnswer": "Chưa đúng. Thử lại nhé.",
+    "claim": "NHẬN SỔ TAY",
+    "claimBody": "Bấm biểu tượng 📖 ở góc màn để mở ra bất cứ lúc nào.",
+    "cluebook": {
+      "title": "Sổ tay bí quyết",
+      "locked": "Qua nhiệm vụ NPC để nhận sổ tay"
+    },
+    "music": {
+      "mute": "Tắt nhạc",
+      "unmute": "Bật nhạc",
+      "volume": "Âm lượng"
     }
   },
   "designer": {
@@ -430,6 +495,15 @@
     "background": "Ảnh nền màn chơi",
     "uploadBackground": "Chọn ảnh nền",
     "noBackground": "Chưa có ảnh nền — tải lên ở bảng bên phải",
+    "introVideo": {
+      "title": "Video mở màn",
+      "hint": "Chạy trong lúc màn chơi đang nạp ngầm, hết video là vào thẳng. Bỏ trống thì học sinh vào ngay, y như trước.",
+      "empty": "Chưa có video — học sinh vào thẳng, đúng như hiện tại. Đây là một lựa chọn hợp lệ.",
+      "remove": "Gỡ video",
+      "duration": "Dài {seconds} giây",
+      "clock": "Đồng hồ làm bài CHẠY trong lúc xem — không hoãn được, vì một lượt chơi là của cả phòng. Nên để 5–10 giây.",
+      "tooLong": "Dài {seconds} giây, tức là học sinh mất bấy nhiêu giây thời gian làm bài. Cân nhắc cắt ngắn còn 5–10 giây."
+    },
     "quests": "Nhiệm vụ ({count})",
     "addQuest": "+ Tạo nhiệm vụ",
     "newQuestName": "Nhiệm vụ {n}",
@@ -456,7 +530,127 @@
     "pulsePercent": "Độ phồng",
     "pulsePeriod": "Nhịp thở",
     "pulseOff": "tắt",
-    "pulseHint": "Vật thể phóng to thu nhỏ để người chơi nhận ra là bấm được. Kéo độ phồng về 0 để tắt."
+    "pulseHint": "Vật thể phóng to thu nhỏ để người chơi nhận ra là bấm được. Kéo độ phồng về 0 để tắt.",
+    "characterSize": "Cỡ nhân vật",
+    "characterHeight": "Chiều cao (đơn vị thế giới)",
+    "characterHint": "Kéo góc để ướm nhân vật cho vừa map này",
+    "characterInherited": "Đang kế thừa từ màn đầu tiên của world. Kéo ở đây thì màn này có số riêng.",
+    "characterOwn": "Số riêng của màn này.",
+    "characterReset": "Về lại kế thừa",
+    "characterNone": "World này chưa có nhân vật nào đã tải spritesheet, nên chưa có gì để ướm cỡ.",
+      "cluebook": {
+        "title": "Sổ tay & lời chia tay NPC",
+        "intro": "Một khoảnh khắc trong trận: học sinh trả lời xong câu cuối của NPC, và cuộc hội thoại sang bước cuối — bước không hỏi gì cả.",
+        "outro": "Lời NPC nói lúc trao",
+        "outroPlaceholder": "Giờ thì tiếp tục hành trình đi và nhận lấy cuốn sổ tay này…",
+        "outroHint": "Hiện trên bảng cuối, ngay trên cái nút. Bỏ trống thì bảng chỉ còn biểu tượng và cái nút.",
+        "outroAudio": "Tiếng của lời chia tay",
+        "outroTranscript": "Hiện luôn đoạn chữ cạnh trình phát",
+        "outroTranscriptHint": "BẬT SẴN — ngược với câu hỏi nghe. Câu hỏi nghe giấu chữ vì đọc được đề thì bài nghe không còn đo gì nữa; lời NPC không phải bài tập, và vừa nghe vừa đọc theo là cách từ mới ở lại.",
+        "bookTitle": "Tên sổ tay",
+        "bookTitlePlaceholder": "SỔ TAY BÍ MẬT CỦA THUYỀN TRƯỞNG DRAKE",
+        "bookTitleHint": "Nói sổ tay này của ai. Bỏ trống thì màn nào cũng lùi về đúng một nhãn chung.",
+        "body": "Nội dung sổ tay",
+        "bodyPlaceholder": "Những bí quyết NPC trao. Xuống dòng ở đâu thì giữ nguyên ở đó.",
+        "bodyHint": "Học sinh mở lại từ biểu tượng 📖 bất cứ lúc nào sau khi đã nhận.",
+        "bodyEmpty": "Chưa có nội dung, nên biểu tượng 📖 sẽ không hiện ra chút nào. Một cái nút bấm vào chẳng bao giờ có gì thì tệ hơn là không có nút.",
+        "notTranslated": "Chưa dịch sang thứ tiếng này. Học sinh đang đọc bằng nó sẽ thấy bản của thứ tiếng nào có chữ."
+      },
+    "spawn": "Chỗ xuất phát",
+    "spawnHint": "Kéo để đặt chỗ người chơi xuất hiện",
+    "spawnDefault": "Chưa đặt — người chơi xuất hiện ở chỗ mặc định của cảnh. Kéo nhân vật trên khung thì màn này có chỗ riêng.",
+    "spawnOwn": "Chỗ riêng của màn này. Mỗi màn một chỗ xuất phát.",
+    "spawnStuck": "Chỗ này nằm ngoài vùng đi được. Người chơi sẽ bị kéo về ô đi được gần nhất chứ không xuất hiện ở đây.",
+    "spawnReset": "Về chỗ mặc định",
+    "walkarea": {
+      "title": "Vùng đi được",
+      "open": "✏️ Vẽ",
+      "close": "✓ Xong",
+      "empty": "Chưa vẽ — nhân vật đi được trên cả bản đồ.",
+      "summary": "{count} hình đã vẽ. Đường bao hiện mờ trên khung bên trái.",
+      "boardHint": "Đang vẽ vùng đi được — kéo thả nhiệm vụ tạm khoá. Bấm “Xong” để trở lại.",
+      "tool": "Công cụ",
+      "tools": {
+        "rect": "Hộp",
+        "ellipse": "Oval",
+        "poly": "Đa giác",
+        "pick": "Chọn"
+      },
+      "hints": {
+        "rect": "Bấm giữ rồi kéo một khung.",
+        "ellipse": "Bấm giữ rồi kéo — hình oval nằm vừa trong khung vừa kéo.",
+        "poly": "Bấm từng điểm. Về lại điểm đầu (chấm to) để khép hình.",
+        "pick": "Bấm vào một hình để chọn, kéo để dời."
+      },
+      "mode": {
+        "allow": "Đi được",
+        "block": "Cấm đi"
+      },
+      "kinds": {
+        "rect": "Hộp",
+        "ellipse": "Oval",
+        "poly": "Đa giác"
+      },
+      "raise": "Lên trên",
+      "lower": "Xuống dưới",
+      "remove": "Xoá hình",
+      "undo": "Hoàn tác",
+      "redo": "Làm lại",
+      "clear": "Xoá hết",
+      "outside": "Ngoài mọi hình",
+      "warnAllow": "Ngoài mọi hình vẫn đi được, nên hình “đi được” không đổi gì cả. Đổi công tắc trên sang “Cấm đi”.",
+      "keys": "Ctrl+Z hoàn tác · Ctrl+Shift+Z làm lại · Backspace bỏ điểm vừa chấm · Esc bỏ chọn hoặc huỷ hình đang vẽ · Delete xoá hình đang chọn · giữ Alt để rời lưới 20 đơn vị",
+      "test": "Đi thử",
+      "testReset": "Về chỗ đầu",
+      "testHint": "Bấm phím mũi tên hoặc W A S D để đi. Vòng tròn dưới chân là ĐIỂM VA CHẠM — đúng cái điểm cảnh chơi xét, không phải giữa người.",
+      "testStuck": "Đang đứng ngoài vùng đi được. Bấm phím đi một cái là nó tự về chỗ gần nhất.",
+      "testNoRoom": "Không còn chỗ nào đi được. Học sinh vào màn này sẽ kẹt tại chỗ.",
+      "modeOfNext": "Hình SẮP VẼ sẽ là",
+      "modeOfSelected": "{kind} đang chọn",
+      "shapes": "Các hình ({count})",
+      "topWins": "hình trên cùng thắng",
+      "recipe": "Vẽ thêm hình: chọn công cụ rồi kéo tiếp trên khung — vẽ bao nhiêu hình cũng được. Lối đi vòng quanh hồ = một Oval “Đi được” trùm cả khu, rồi một Oval “Cấm đi” nhỏ đè lên đúng cái hồ."
+    },
+    "audio": {
+      "title": "Âm thanh",
+      "intro": "Mặc định không có tiếng nào. Tải file lên khối nào thì khối đó mới kêu.",
+      "slots": {
+        "ambient": "Nhạc nền",
+        "walk": "Tiếng khi đi",
+        "idle": "Tiếng khi đứng"
+      },
+      "hints": {
+        "ambient": "Chạy suốt màn. Gần như luôn cần bật lặp — hết bài mà im bặt giữa chừng thì học sinh tưởng mất tiếng.",
+        "walk": "Kêu trong lúc nhân vật di chuyển, tắt ngay khi dừng.",
+        "idle": "Kêu khi nhân vật đứng yên. Bỏ trống nếu chỉ muốn im lặng lúc đứng."
+      },
+      "file": "File âm thanh",
+      "empty": "Chưa có file — khối này im lặng.",
+      "remove": "Gỡ file",
+      "preview": "Nghe thử",
+      "stop": "Dừng",
+      "volume": "Âm lượng",
+      "muted": "câm",
+      "rate": "Tốc độ",
+      "loop": "Lặp lại khi hết",
+      "loopDefaultOn": "(mặc định bật)",
+      "loopDefaultOff": "(mặc định tắt)",
+      "unnamed": "(không rõ tên file)",
+      "fromVideo": "Dùng tiếng của video nền",
+      "fromVideoHint": "Chỉ hiện khi ảnh nền là video. Bật thì nhạc nền lấy thẳng từ đường tiếng của video đó.",
+      "fromVideoOn": "Nhạc nền đang lấy từ video nền.",
+      "fromVideoUnused": "File này đang KHÔNG được dùng. Bỏ chọn ở trên là nó phát lại ngay.",
+      "fromVideoNoRate": "Tốc độ và lặp lại do chính video quyết định.",
+      "confirmTitle": "Dùng tiếng của video làm nhạc nền?",
+      "confirmBody": "Tiếng của video nền sẽ được dùng làm nhạc nền. File âm thanh đã tải lên sẽ KHÔNG được sử dụng — nó vẫn nằm nguyên đây, bỏ chọn là dùng lại được ngay.",
+      "confirmOk": "Đồng ý",
+      "confirmCancel": "Huỷ"
+    },
+    "noIconHint": "Để trống cũng được: khung nét đứt vẫn kéo và đổi cỡ được để đặt vùng va chạm. Học sinh sẽ chỉ thấy tên nhiệm vụ, không thấy hình nào.",
+    "stageCode": "Mã màn chơi",
+    "stageCodeHint": "Mã trong file nội dung, ví dụ W1-S1. Điền vào thì câu hỏi đã nhập của màn này tự hiện ra khi lắp nhiệm vụ. Để trống cũng không sao.",
+    "questCode": "Mã nhiệm vụ",
+    "questCodeHint": "Mã trong sheet Questions, ví dụ W1-S1-Quest-01. Nhập file mà khớp mã này thì câu hỏi tự lắp vào đây."
   },
   "galaxy": {
     "designer": {
@@ -465,7 +659,6 @@
       "subtitle": "Sắp đặt màn chọn world mà học sinh nhìn thấy.",
       "scene": "Khung thiên hà",
       "background": "Ảnh nền",
-      "music": "Nhạc nền",
       "removeMedia": "Gỡ ra",
       "noBackground": "Chưa có ảnh nền — tải lên ở bảng bên phải",
       "worlds": "World ({count})",
@@ -590,6 +783,9 @@
       "prev": "Màn trước",
       "next": "Màn tiếp",
       "open": "Mở danh sách màn chơi"
+    },
+    "play": {
+      "resume": "Chơi tiếp “{stage}” — bạn đang dở màn này"
     }
   },
   "character": {

@@ -409,6 +409,88 @@ export function GapDropdownBuilder({ content, answer, onChange }: BuilderProps) 
 
 // ==========================================================================
 
+/**
+ * Soạn câu GÕ ĐÁP ÁN.
+ *
+ * Hai ô: đề bài, và danh sách CÁCH VIẾT ĐƯỢC CHẤP NHẬN — mỗi dòng một cách.
+ *
+ * Danh sách chứ không phải một đáp án duy nhất, vì tiếng Anh có nhiều cách nói
+ * đúng cùng một ý: "lower the sails", "lower sails", "lower the sails
+ * immediately". Ép một cách viết duy nhất thì học sinh nói đúng vẫn bị chấm sai,
+ * và đó là kiểu sai làm người ta mất lòng tin vào cả bài học.
+ *
+ * Hoa thường, dấu câu và khoảng trắng thừa thì server đã bỏ qua sẵn — người soạn
+ * không phải liệt kê "Lower the sails!" và "lower the sails" thành hai dòng.
+ */
+export function ShortAnswerBuilder({ content, answer, onChange }: BuilderProps) {
+  const t = useTranslations();
+  const { prompt = "", placeholder = "", maxWords } = content as {
+    prompt?: string;
+    placeholder?: string;
+    maxWords?: number;
+  };
+  const accepted = ((answer as { accepted?: string[] }).accepted ?? []) as string[];
+
+  function set(nextContent: Record<string, unknown>, nextAnswer: Record<string, unknown>) {
+    onChange({ content: { ...content, ...nextContent }, answer: { ...answer, ...nextAnswer } });
+  }
+
+  return (
+    <div className="space-y-4">
+      <label className="block">
+        <span className="field-label">{t("question.builder.prompt")}</span>
+        <textarea
+          className="field-input min-h-20"
+          value={prompt}
+          onChange={(e) => set({ prompt: e.target.value }, {})}
+        />
+      </label>
+
+      <label className="block">
+        <span className="field-label">{t("question.builder.accepted")}</span>
+        <textarea
+          className="field-input min-h-28 font-mono text-sm"
+          // Giữ nguyên CHUỖI người ta đang gõ, tách dòng khi lưu: ép về mảng sau
+          // mỗi phím thì dòng trống vừa xuống bị nuốt và không gõ tiếp được.
+          value={accepted.join("\n")}
+          onChange={(e) =>
+            set({}, { accepted: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) })
+          }
+        />
+        <span className="mt-1 block text-xs" style={{ color: "var(--color-text-muted)" }}>
+          {t("question.builder.acceptedHint")}
+        </span>
+      </label>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="field-label">{t("question.builder.placeholder")}</span>
+          <input
+            className="field-input"
+            value={placeholder}
+            onChange={(e) => set({ placeholder: e.target.value }, {})}
+          />
+        </label>
+        <label className="block">
+          <span className="field-label">{t("question.builder.maxWords")}</span>
+          <input
+            type="number"
+            min={0}
+            className="field-input"
+            value={maxWords ?? ""}
+            placeholder="—"
+            onChange={(e) =>
+              set({ maxWords: e.target.value ? Number(e.target.value) : undefined }, {})
+            }
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================================================
+
 export function QuestionBuilder({ type, ...props }: BuilderProps & { type: string }) {
   switch (type) {
     case "MCQ_SINGLE":
@@ -419,6 +501,8 @@ export function QuestionBuilder({ type, ...props }: BuilderProps & { type: strin
       return <GapFillBuilder {...props} />;
     case "GAP_DROPDOWN":
       return <GapDropdownBuilder {...props} />;
+    case "SHORT_ANSWER":
+      return <ShortAnswerBuilder {...props} />;
     default:
       return null;
   }

@@ -1,0 +1,446 @@
+{
+  "id": "stage_02",
+  "worldId": "world_01",
+  "stageNumber": 2,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Hang bong bóng",
+  "story": "Nhóm bạn tỉnh dậy trong hang động ngầm sau vụ chìm tàu. Hãy gặp Tinh linh Coralia để học bí quyết tạo bóng khí thở, sau đó thu thập nhu yếu phẩm và phá lối thoát ngầm.",
+  "difficulty": "Easy",
+  "grammarHint": "Can / Must & Present Simple (Khả năng & Mệnh lệnh sinh tồn)",
+  "minCombatPower": 150,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 2,
+  "scene": {
+    "background": "./assets/backgrounds/stage_02_bubble_cavern.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -750,
+        "y": 350
+      },
+      {
+        "x": -400,
+        "y": 480
+      },
+      {
+        "x": 650,
+        "y": 450
+      },
+      {
+        "x": 800,
+        "y": 200
+      },
+      {
+        "x": 600,
+        "y": -250
+      },
+      {
+        "x": 350,
+        "y": -450
+      },
+      {
+        "x": -250,
+        "y": -450
+      },
+      {
+        "x": -600,
+        "y": -200
+      },
+      {
+        "x": -780,
+        "y": 50
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -120,
+        "y": 100
+      }
+    },
+    "advisorSpawn": {
+      "x": 450,
+      "y": -320
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -250,
+        "y": 50
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 100,
+        "y": 180
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -40,
+        "y": -120
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "Chuỗi San Hô Khí Thở",
+        "icon": "🪸",
+        "color": "#00f0ff",
+        "x": 240,
+        "y": -180,
+        "role": "Khu vực kích hoạt bóng oxy sinh học",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Túi Cứu Thương Trôi Dạt",
+        "icon": "🎒",
+        "color": "#2ecc71",
+        "x": -420,
+        "y": 260,
+        "role": "Túi nhu yếu phẩm trôi dạt từ tàu",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Khớp Đá Phong Tỏa",
+        "icon": "🪨",
+        "color": "#e74c3c",
+        "x": 460,
+        "y": 200,
+        "role": "Khớp đá ngầm chặn lối thoát",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Vách Hang Khắc Thơ Cổ",
+        "icon": "🗿",
+        "color": "#f39c12",
+        "x": -280,
+        "y": -240,
+        "role": "Vách đá linh hồn giữ Mảnh bản đồ 2",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "coralia",
+    "name": "Coralia (Tinh linh bóng khí)",
+    "role": "NPC Cố vấn trưởng Màn 2",
+    "portrait": "./assets/portraits/coralia.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_02_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Greeting & Status",
+        "question_text": "Welcome to the luminous deep, brave travelers! How are you surviving underwater without gills?",
+        "text_translation": "Chào mừng đến với vực sâu phát sáng, những lữ khách dũng cảm! Các bạn sống sót dưới nước thế nào khi không có mang cá?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Hello Coralia! We are survivors from the shipwreck, but we are running out of breath!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We are fish who forgot how to swim.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Leave us alone, we want to sleep underwater.",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 2,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Guidance Request",
+        "question_text": "Do not fear, young mortals! What do you require to navigate and open the stone path ahead?",
+        "text_translation": "Đừng sợ hãi! Các bạn cần điều gì để định hướng và mở lối đi bằng đá phía trước?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please teach us how to create air bubbles and give us the secret keys to clear the blocked path!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Can you turn us into real mermaids?",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "We want to build a submarine with sand.",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 3,
+        "question_type": "text",
+        "answer_type": "",
+        "question_text": "Take this handbook of the deep, brave ones. Let its secrets fill your lungs and open the stone path ahead—swim well!",
+        "text_translation": "Cầm lấy cuốn sổ tay của biển sâu này, hỡi những kẻ dũng cảm. Hãy để bí quyết trong đó lấp đầy lồng ngực các ngươi và mở ra lối đá phía trước — bơi cho khéo nhé!",
+        "item": "cluebook"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 CORALIA'S HANDBOOK OF THE DEEP",
+      "content": "First, swim to the Breathing Coral Chain and call out, Breathe the glowing coral bubble! to refill your oxygen. Next, sort through the drifting First-Aid Bag and report its contents as bandages and medicine. Then face the Sealed Stone Joint and speak the command, Break the stone seal! to weaken the binding force. Finally, read the Ancient Poem Wall and answer with the mythical line—Life beneath the waves—to open the way ahead."
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Breathing Coral Chain",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The glowing coral is waiting for the right voice frequency to release its oxygen bubbles!",
+          "text_translation": "Hãy hô khẩu lệnh tiếng Anh để kích hoạt bóng khí thở.",
+          "hint": "Coralia's secret: Breathe the glowing coral bubble!",
+          "options": [
+            {
+              "key": "A",
+              "text": "Breathe the glowing coral bubble!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Destroy all the coral!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Turn off the lights!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the command that makes the coral release its bubble!",
+          "text_translation": "Gõ khẩu lệnh khiến san hô nhả bóng khí.",
+          "hint": "Coralia's secret: Breathe the glowing coral bubble!",
+          "options": [
+            "breathe the glowing coral bubble",
+            "breathe the coral bubble"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    },
+    {
+      "id": 2,
+      "title": "Drifting First-Aid Bag",
+      "skill": "Read & Write",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The first-aid bag is soaked. Report the most important supplies inside it!",
+          "text_translation": "Gõ tên băng gạc và thuốc (bandages and medicine).",
+          "hint": "Coralia's secret: bandages and medicine.",
+          "options": [
+            {
+              "key": "A",
+              "text": "We found bandages and medicine",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "We found ice cream and candy",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "The bag is completely empty",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type your inventory report: what are the two supplies inside the bag?",
+          "text_translation": "Gõ báo cáo kiểm kê: hai thứ quan trọng nhất trong túi là gì?",
+          "hint": "Coralia's secret: bandages and medicine.",
+          "options": [
+            "bandages and medicine",
+            "medicine and bandages"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "Coralia tests your first aid: what do you wrap around a wound to stop the bleeding?",
+          "text_translation": "Quấn thứ gì quanh vết thương để cầm máu?",
+          "hint": "You wrap a bandage around a wound.",
+          "options": [
+            {
+              "key": "A",
+              "text": "A bandage",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "A bucket",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "A compass",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 3,
+      "title": "Sealed Stone Joint",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The stone joint is straining under the pressure. Speak the command to break the seal!",
+          "text_translation": "Hô khẩu lệnh phá phong ấn đá.",
+          "hint": "Coralia's secret: Break the stone seal!",
+          "options": [
+            {
+              "key": "A",
+              "text": "Break the stone seal immediately!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Build a bigger wall here!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Sit down and do nothing!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the command that breaks the seal on the stone joint!",
+          "text_translation": "Gõ mật lệnh phá phong ấn khớp đá.",
+          "hint": "Coralia's secret: Break the stone seal!",
+          "options": [
+            "break the stone seal"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Before the stone gives way, name it: type the English word for a magical lock that keeps something shut.",
+          "text_translation": "Gõ từ tiếng Anh chỉ dấu phong ấn giữ chặt một thứ gì đó.",
+          "hint": "The word is right inside the command you spoke: the stone 'seal'.",
+          "options": [
+            "seal",
+            "a seal",
+            "the seal"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 4,
+      "title": "Ancient Poem Wall",
+      "skill": "Read & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "Spirit of the rock wall: do you seek life, or ruin, beneath the deep water?",
+          "text_translation": "Nói câu triết lý cổ: Life beneath the waves.",
+          "hint": "Coralia's secret: Life beneath the waves.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Life beneath the waves will endure forever!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Darkness consumes everything here!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "We want gold and diamonds!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the mythical line carved on the poem wall!",
+          "text_translation": "Gõ câu triết lý cổ khắc trên vách thơ.",
+          "hint": "Coralia's secret: Life beneath the waves.",
+          "options": [
+            "life beneath the waves"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    }
+  ]
+}

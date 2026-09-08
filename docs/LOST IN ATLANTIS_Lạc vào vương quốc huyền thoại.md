@@ -2,10 +2,7 @@
 
 ## Concept
 
-- Play to Learn là concept xuyên suốt.
 - Tiếng Anh là ngôn ngữ vận hành: người chơi phải dùng tiếng Anh để lấy thông tin, thuyết phục, quyết định và làm thay đổi world state.
-- Game nhập vai tương tác realtime với người chơi và NPC.
-- Game tương tác nhiều người chơi trong room, tối đa 4 người chơi trong 1 room. Nếu không đủ người thì nhân vật còn lại là Bot.
 - Thiết kế cho lứa tuổi 16-25.
 
 ## Language
@@ -16,48 +13,48 @@
 
 - Chọn kiểu Single hoặc Multi-players:
   - Nếu Single thì không cần chờ room, vào chơi luôn.
-  - Nếu Multi thì đợi tối đa 30s để người khác vào.
+  - Nếu Multi thì đợi tối đa 30s để người khác vào. Có thể rủ bạn bè vào phòng ngay từ bước này nếu muốn có người hỗ trợ vượt màn khó — không mời được người vào giữa một lượt chơi đang diễn ra.
 - **Đăng nhập:** một link duy nhất. Tài khoản **giáo viên** vào giao diện soạn câu hỏi & dựng màn chơi; tài khoản **học sinh** vào giao diện chơi.
 - **Flow điều hướng chính (Meta Navigation):**
   `Màn hình Thiên hà (Galaxy Map)` → chọn **Hành tinh/World** → `Màn hình Chi tiết World` (mô tả, chương, màn chơi, danh sách phòng đang mở, tiến độ cá nhân) → `Danh sách Màn chơi của World` → `Chi tiết Màn chơi` → **Tạo phòng** hoặc **Tham gia phòng** → `Màn hình Phòng chờ (Room/Lobby)` (mời bạn bè, chọn nhân vật, sẵn sàng) → (chờ đủ người chơi: auto chơi sau 30s hoặc chủ phòng bấm Bắt đầu) → **Bắt đầu chơi** → `Kết thúc màn chơi` → Chấm điểm & cộng Điểm chiến lực → nhận Mảnh bản đồ → quay lại `Chi tiết World`.
+  - **Chọn nhân vật là độc quyền:** mỗi nhân vật chỉ một người được chọn; chọn rồi thì hệ thống khoá lại, người vào sau phải chọn nhân vật còn trống.
+  - **Phòng thiếu người vẫn bắt đầu được** — người chơi đảm nhận thêm nhiệm vụ của nhân vật còn trống.
 - Chi tiết bố cục từng màn hình xem tại [UI_META_SCREENS.md](./UI_META_SCREENS.md).
-- **End-game Flow (Về đích):** Khi vượt qua hết 30 màn, người chơi đi đến địa điểm Cánh cổng Thời gian và bấm Mở cửa:
-  - **Đủ điều kiện:** Nếu người chơi sở hữu đủ 30 mảnh bản đồ khác nhau thì sẽ kích hoạt mở cổng và được trở về nhà (hoàn thành World).
-  - **Chưa đủ điều kiện:** Hệ thống sẽ hiển thị cảnh báo và liệt kê danh sách các màn chơi / nhiệm vụ còn thiếu để người chơi quay lại hoàn thành.
+- **End-game Flow (Về đích):** Sau khi vượt qua hết 30 màn, người chơi đi đến Cánh cổng Thời gian và bấm Mở cửa (điều kiện đủ/chưa đủ: xem mục Rules → Điều kiện Mở Cánh cổng Thời gian).
 
 ## Assets
 
-- **Vật phẩm (Mảnh bản đồ):** Mỗi màn chơi hoàn thành sẽ nhận được 1 mảnh bản đồ. Người chơi cần thu thập đủ 30 mảnh bản đồ khác nhau (tương ứng 30 màn chơi) để mở Cánh cổng Thời gian.
-- **Điểm năng lượng:** Được cấp trước mỗi màn chơi để hỗ trợ hoàn thành màn chơi. **Điểm năng lượng là share chung cho cả team**; nếu dùng hết điểm năng lượng mà chưa hoàn thành màn chơi thì cả đội phải chơi lại (quản lý theo từng màn chơi).
-- **Điểm chiến lực:** Là điểm cá nhân trong 1 world, ban đầu bằng **0**. Sau mỗi màn chơi hoàn thành, mỗi cá nhân sẽ được cộng điểm chiến lực dựa trên các nhiệm vụ mà cá nhân đó đã hoàn thành (kết hợp độ khó, thời gian hoàn thành, số năng lượng đã dùng). Điểm chiến lực sử dụng để **unlock các màn chơi**.
+- **Vật phẩm (Mảnh bản đồ):** Mỗi màn chơi hoàn thành sẽ nhận được 1 mảnh bản đồ (áp dụng cho tất cả thành viên trong phòng nếu chơi Multiplayer). Người chơi cần thu thập đủ 30 mảnh bản đồ khác nhau (tương ứng 30 màn chơi) để mở Cánh cổng Thời gian.
+- **Điểm năng lượng:** Là điểm cá nhân (mỗi người chơi có quỹ riêng), được cấp lúc bắt đầu màn chơi để dùng cho các hành động trợ giúp (nghe lại NPC, xem text, dịch text...). Đây là điểm mang tính hỗ trợ: dùng hết năng lượng **không** làm thua màn chơi, chỉ khiến người chơi mất quyền dùng các hành động trợ giúp đó và phải tự lực vượt nhiệm vụ.
+- **Điểm chiến lực:** Là điểm cá nhân trong 1 world, ban đầu bằng **0**, tính riêng cho từng người kể cả khi chơi Multiplayer. Được cộng một lần khi **chiến thắng** màn chơi, theo công thức chung của dự án (xem `PROJECT OVERVIEW.md` mục Hệ thống điểm): số nhiệm vụ cá nhân hoàn thành × độ khó, cộng thêm điểm thưởng theo tỉ lệ thời gian còn lại và tỉ lệ năng lượng còn lại. Điểm chiến lực sử dụng để **unlock các màn chơi**.
   - **Cơ chế nhảy bậc (Level Jump):** Có thể chơi 1 màn nhiều lần để tăng điểm chiến lực, từ đó đủ điều kiện nhảy bậc màn chơi (ví dụ: nhảy từ màn 1 lên màn 4, bỏ qua màn 2, 3).
+- **Túi đồ:** Ngăn Vật phẩm chứa các Mảnh bản đồ đã thu thập; Ngăn Kiến thức chứa các từ vựng/mẫu câu (`targetPhrase`) và bí quyết (`cluebook`) đã học được từ NPC cố vấn qua từng màn, để người chơi luyện lại khi cần.
 
 ## Rules
 
 - **Cấu trúc World & Màn chơi:**
   - Mỗi world có nhiều màn chơi. Hoàn thành tất cả các màn chơi mới hoàn thành world.
   - Mỗi màn chơi có nhiều nhiệm vụ: **Tối thiểu 4 nhiệm vụ / màn chơi**.
-- **Điều kiện hoàn thành màn chơi & Share Mảnh bản đồ:**
-  - Tất cả các thành viên tham gia vào 1 màn chơi phải **hoàn thành ít nhất 1 nhiệm vụ** thì màn chơi mới được tính là hoàn thành.
-  - Khi màn chơi hoàn thành, các thành viên mới được share và nhận mảnh bản đồ của màn chơi đó.
+- **Điều kiện Thắng/Thua & Share Mảnh bản đồ:**
+  - Thắng khi tất cả các thành viên tham gia đều **hoàn thành ít nhất 1 nhiệm vụ** và cả nhóm hoàn thành đủ nhiệm vụ **trong thời gian cho phép của màn chơi** — điều kiện thời gian là tiên quyết, hết giờ mà chưa xong thì tính là thua, cả nhóm phải chơi lại từ đầu màn.
+  - Khi màn chơi hoàn thành, các thành viên được share và nhận mảnh bản đồ của màn chơi đó.
 - **Quy tắc Nộp bài & Kết quả cá nhân (Independent Submission):**
   - **Kết quả của mỗi thành viên là độc lập.** Cả 4 người đều được làm cả 4 nhiệm vụ; ai làm được nhiệm vụ nào thì tính điểm cho người đó.
-  - Làm xong một nhiệm vụ, người chơi bấm **Nộp bài** trên máy mình. Server chấm ngay và ghi nhận tiến độ, cộng điểm chiến lực.
+  - Làm xong một nhiệm vụ, người chơi bấm **Nộp bài** trên máy mình. Server chấm ngay và ghi nhận tiến độ; điểm chiến lực thì chỉ chốt khi màn chơi kết thúc thắng lợi.
   - **Trong trận chỉ báo hoàn thành hay chưa.** Đúng thì hiện `MISSION COMPLETE`; sai thì báo chưa hoàn thành kèm nút **Thử lại**. Không hiện điểm số, không hiện đáp án đúng, không hiện giải thích.
-  - **Thử lại có giá và có trần:** mỗi lần sai trừ năng lượng chung của đội, tối đa 3 lượt thử cho một nhiệm vụ, và đúng càng sớm càng được nhiều điểm.
+  - **Thử lại có trần:** tối đa 3 lượt thử cho một nhiệm vụ, và đúng càng sớm càng được nhiều điểm. Trả lời sai **không** trừ năng lượng — năng lượng chỉ tiêu cho các hành động trợ giúp.
   - Bài làm không lộ sang máy khác: đồng đội chỉ thấy *ai đã xong nhiệm vụ nào*, không thấy nội dung trả lời.
-  - Trả lời sai trừ vào **quỹ năng lượng chung của đội** — đây là điểm duy nhất bài làm cá nhân ảnh hưởng tới cả nhóm.
-  - **Thua màn vẫn giữ điểm chiến lực cơ bản đã kiếm được**, chỉ mất phần thưởng thời gian/năng lượng và Mảnh bản đồ.
+  - Bài làm của một người **không** ảnh hưởng tới quỹ năng lượng hay điểm của đồng đội. Thứ duy nhất cả đội chia chung là điều kiện thắng/thua của màn và Mảnh bản đồ nhận được.
+  - **Thua màn thì không cộng điểm chiến lực** — công thức Exp chỉ áp dụng khi thắng (xem `PROJECT OVERVIEW.md` mục Hệ thống điểm). Bù lại, điểm chiến lực chỉ tăng chứ không bao giờ bị trừ đi.
 - **Xem lại bài làm (Review) — chỉ sau khi màn chơi kết thúc:**
   - Hết màn (thắng hoặc thua), mỗi cá nhân mới xem được **chi tiết chấm điểm của riêng mình**: từng nhiệm vụ được mấy điểm, đã thử mấy lần, đáp án đúng là gì, giải thích vì sao, và nhận được bao nhiêu điểm chiến lực.
   - **Chỉ xem được bài của chính mình**, không xem được bài của thành viên khác.
   - Để dành chi tiết đến cuối màn vì hai lý do: giữ nhịp chơi không bị cắt ngang, và không rò đáp án cho người còn lượt thử hoặc cho đồng đội chưa làm nhiệm vụ đó.
-- **Quy tắc Điểm năng lượng (Team-shared):**
-  - Cả đội có một quỹ Điểm năng lượng dùng chung trong mỗi màn chơi để hỗ trợ vượt ải.
-  - Các hành động tiêu hao năng lượng: thực hiện nhiệm vụ, nghe lại NPC nói, xem dạng text lời NPC nói, dịch text NPC nói...
-  - Dùng hết điểm năng lượng trước khi hoàn thành màn chơi sẽ tính là thất bại và phải chơi lại.
+- **Quy tắc Điểm năng lượng (hỗ trợ cá nhân):**
+  - Mỗi người chơi có quỹ Điểm năng lượng riêng, cấp lúc bắt đầu màn chơi, dùng cho các hành động trợ giúp: nghe lại NPC nói, xem dạng text lời NPC nói, dịch text NPC nói...
+  - Dùng hết điểm năng lượng **không** làm thua màn chơi — chỉ khiến người chơi đó mất quyền dùng các hành động trợ giúp trên, buộc phải tự lực hoàn thành nhiệm vụ còn lại bằng khả năng của mình.
 - **Quy tắc Điểm chiến lực & Mở khóa màn chơi:**
-  - Điểm chiến lực ban đầu = 0. Tích lũy điểm cá nhân sau mỗi lần hoàn thành nhiệm vụ trong màn chơi.
+  - Điểm chiến lực ban đầu = 0. Được cộng một lần cho mỗi cá nhân khi **chiến thắng** màn chơi, theo công thức chung của dự án (độ khó × số nhiệm vụ hoàn thành + điểm thưởng theo tỉ lệ thời gian còn lại + điểm thưởng theo tỉ lệ năng lượng còn lại).
   - Đủ Điểm chiến lực yêu cầu mới được phép unlock và tham gia màn chơi tiếp theo.
   - Cho phép chơi lại màn đã qua nhiều lần để cày thêm điểm chiến lực và nhảy cóc bỏ qua các màn chơi trung gian (nhảy bậc).
 - **Cơ chế Tương tác NPC Cố vấn & Đối tượng Nhiệm vụ (NPC Advisor & Quest Objects):**
@@ -95,8 +92,7 @@ Vũ trụ (Universe)
 
 ## World
 
-- Mỗi world là seri các câu chuyện liên quan tới nhau, người chơi phải phối hợp cùng vượt qua các thử thách để vượt ải.
-- Hoàn thành tất cả các màn chơi mới hoàn thành world.
+- Mỗi world là seri các câu chuyện liên quan tới nhau, người chơi phải phối hợp cùng vượt qua các thử thách để vượt ải (điều kiện hoàn thành World: xem mục Rules → Cấu trúc World & Màn chơi).
 - Thuộc tính:
   - Học ngôn ngữ:
   - Học kĩ năng:
@@ -197,9 +193,7 @@ Một website, hai giao diện tùy theo vai trò đăng nhập. Bản đồ rou
 
 ### World 1 — Lost in Atlantis: The Way Home
 
-- **Cốt truyện:** Một nhóm bạn vô tình lạc vào thế giới huyền thoại Atlantis. Vượt qua các thử thách để sưu tầm 30 "Mảnh bản đồ", khi ghép lại cánh cổng thời gian sẽ hiện ra để trở về nhà.
-- **Vật phẩm chính:** Mảnh bản đồ (30 mảnh khác nhau).
-- **Nhiệm vụ:** Người chơi cần vượt qua tổng cộng 30 màn chơi: chia làm 5 Chương, mỗi chương có 6 màn chơi (mỗi màn tối thiểu 4 nhiệm vụ). Sưu tầm đủ 30 mảnh bản đồ khác nhau, sau đó tới Cánh cổng Thời gian bấm mở cửa để trở về nhà. Nếu chưa đủ mảnh, cổng sẽ báo các nhiệm vụ/màn chơi còn thiếu.
+*(Xem cốt truyện & tổng quan ở mục World → World 1. Dưới đây là chi tiết từng Chương/Màn/Nhiệm vụ.)*
 
 ---
 

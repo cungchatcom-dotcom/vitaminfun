@@ -1,0 +1,444 @@
+{
+  "id": "stage_03",
+  "worldId": "world_01",
+  "stageNumber": 3,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Ánh sáng kỳ lạ",
+  "story": "Giải mã các khối đá phát quang để mở lối đi sâu vào lòng đất. Hãy gặp Người gác hang Gideon để học quy tắc quang học và cân bằng bệ đá.",
+  "difficulty": "Easy",
+  "grammarHint": "Colors, Prepositions & Imperatives (Màu sắc, Giới từ chỉ vị trí & Mệnh lệnh)",
+  "minCombatPower": 350,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 3,
+  "scene": {
+    "background": "./assets/backgrounds/stage_03_strange_light.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -800,
+        "y": 380
+      },
+      {
+        "x": -450,
+        "y": 520
+      },
+      {
+        "x": 700,
+        "y": 480
+      },
+      {
+        "x": 820,
+        "y": 220
+      },
+      {
+        "x": 620,
+        "y": -240
+      },
+      {
+        "x": 400,
+        "y": -460
+      },
+      {
+        "x": -280,
+        "y": -470
+      },
+      {
+        "x": -620,
+        "y": -220
+      },
+      {
+        "x": -810,
+        "y": 80
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -100,
+        "y": 100
+      }
+    },
+    "advisorSpawn": {
+      "x": 480,
+      "y": -350
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -260,
+        "y": 40
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 110,
+        "y": 150
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -30,
+        "y": -130
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "4 Tinh Thể Phát Quang",
+        "icon": "💎",
+        "color": "#9b59b6",
+        "x": 250,
+        "y": -190,
+        "role": "Trục đặt 4 viên đá tinh thể màu",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Bệ Đá Pha Màu Quang Học",
+        "icon": "🌈",
+        "color": "#e67e22",
+        "x": -440,
+        "y": 270,
+        "role": "Bệ đá hấp thu quang phổ",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Bệ Trọng Lực Cân Bằng",
+        "icon": "⚖️",
+        "color": "#1abc9c",
+        "x": 470,
+        "y": 210,
+        "role": "Bàn đạp cân bằng áp suất bước chân",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Hốc Đá Trung Tâm",
+        "icon": "🔮",
+        "color": "#f1c40f",
+        "x": -290,
+        "y": -250,
+        "role": "Nơi phong ấn Mảnh bản đồ 3",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "gideon",
+    "name": "Gideon (Người gác hang ngầm)",
+    "role": "NPC Cố vấn trưởng Màn 3",
+    "portrait": "./assets/portraits/gideon.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_03_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Greeting & Good Will",
+        "question_text": "Halt! Who dares illuminate the ancient cavern of crystals?",
+        "text_translation": "Dừng lại! Kẻ nào dám thắp sáng hang động tinh thể cổ xưa này?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Greetings Warden Gideon! We seek the light to journey deeper into Atlantis.",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We came to smash all your crystals into dust!",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "I am lost and I want to go home right now.",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 2,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Secret Knowledge",
+        "question_text": "Your intent is noble. Do you understand how to align the ancient crystal spectrum?",
+        "text_translation": "Ý định của các bạn rất cao quý. Các bạn có hiểu cách sắp xếp quang phổ tinh thể cổ không?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please teach us the crystal colors and the gravity sync codes to open the gate!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Color does not matter, let us just kick the stones.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Can you give us a flashlight instead?",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 3,
+        "question_type": "text",
+        "answer_type": "",
+        "question_text": "Carry this optical map with you, seekers of light. Read it carefully, for the crystals answer only to those who understand them.",
+        "text_translation": "Hãy mang theo tấm bản đồ quang học này, những kẻ đi tìm ánh sáng. Đọc thật kỹ vào, vì tinh thể chỉ đáp lời người nào hiểu được chúng.",
+        "item": "cluebook"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 GIDEON'S OPTICAL MAP",
+      "content": "First, at the Four Glowing Crystals, set the blue one to the north by saying, Place the blue crystal north. Next, on the Optical Colour Mixing Pedestal, combine the three primary colours in the order Red, Green, Blue. Then, on the Gravity Balance Platform, synchronise your footsteps with the count, Step on three, two, one! Finally, stand before the Central Stone Alcove and speak the unlocking spell—Lumos Atlantis."
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Four Glowing Crystals",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The northern crystal pedestal is waiting for the command to set the right coloured stone!",
+          "text_translation": "Nói câu lệnh đặt viên tinh thể xanh dương phía bắc.",
+          "hint": "Gideon's secret: Place the blue crystal north.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Place the blue crystal north!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Throw the yellow crystal away!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Hide the stone behind your back!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the placement order for the northern pedestal!",
+          "text_translation": "Gõ câu lệnh đặt tinh thể lên bệ phía bắc.",
+          "hint": "Gideon's secret: Place the blue crystal north.",
+          "options": [
+            "place the blue crystal north"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "Gideon points at the compass: which direction is opposite to north?",
+          "text_translation": "Hướng nào đối diện với hướng bắc?",
+          "hint": "North and south face each other on a compass.",
+          "options": [
+            {
+              "key": "A",
+              "text": "South",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "East",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "West",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 2,
+      "title": "Optical Colour Mixing Pedestal",
+      "skill": "Read & Write",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "Enter the exact order of the three primary colours to activate the prism!",
+          "text_translation": "Gõ: Red, Green, Blue",
+          "hint": "Gideon's secret: Red, Green, Blue.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Red, Green, Blue in proper order",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Black, White, Grey",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Yellow, Pink, Purple",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the three primary colours in the correct order!",
+          "text_translation": "Gõ ba màu cơ bản theo đúng thứ tự.",
+          "hint": "Gideon's secret: Red, Green, Blue.",
+          "options": [
+            "red, green, blue",
+            "red green blue"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    },
+    {
+      "id": 3,
+      "title": "Gravity Balance Platform",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The pressure sensor needs the whole team to step in time, all at once!",
+          "text_translation": "Hô nhịp đếm: Step on three, two, one!",
+          "hint": "Gideon's secret: Step on three, two, one!",
+          "options": [
+            {
+              "key": "A",
+              "text": "Step on three, two, one, now!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Run away as fast as you can!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Jump up and down randomly!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the countdown call so the whole team steps together!",
+          "text_translation": "Gõ khẩu lệnh đếm nhịp để cả đội cùng bước.",
+          "hint": "Gideon's secret: Step on three, two, one!",
+          "options": [
+            "step on three, two, one",
+            "step on three two one"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "The platform counts down. Type the missing number in English: three, ..., one.",
+          "text_translation": "Gõ số còn thiếu bằng tiếng Anh: three, ..., one.",
+          "hint": "Count down in English: three, two, one.",
+          "options": [
+            "two"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 4,
+      "title": "Central Stone Alcove",
+      "skill": "Read & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The glowing alcove is blazing with light. Call out the name of the spell!",
+          "text_translation": "Nói thần chú: Lumos Atlantis.",
+          "hint": "Gideon's secret: Lumos Atlantis.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Lumos Atlantis, reveal the truth!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Open Sesame and give me coins!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Close the door forever!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the unlocking spell for the central alcove!",
+          "text_translation": "Gõ câu thần chú mở hốc đá trung tâm.",
+          "hint": "Gideon's secret: Lumos Atlantis.",
+          "options": [
+            "lumos atlantis"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    }
+  ]
+}

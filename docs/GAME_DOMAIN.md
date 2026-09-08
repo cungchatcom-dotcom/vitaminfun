@@ -155,6 +155,11 @@ Không có ba thứ này thì một câu trắc nghiệm 3 lựa chọn luôn đ
 
 **Đúng rồi thì dừng.** Một người chỉ được ăn điểm một lần cho một nhiệm vụ; database cưỡng chế bằng partial unique index ở §3.4, không phải bằng câu `if` trong service.
 
+> ⚠️ **Đoạn dưới đã LỖI THỜI.** Năng lượng giờ là quỹ **riêng từng người**, cấp
+> sau khi qua NPC, chỉ tiêu cho hành động trợ giúp; trả lời sai không trừ gì và
+> hết cũng không thua. Xem [TASKS.md → Bước 6v](./TASKS.md). Giữ lại đoạn cũ vì
+> phần lý lẽ về "bài làm cá nhân ảnh hưởng cả nhóm" còn dùng được khi cân bằng.
+
 **Cái duy nhất dùng chung là quỹ năng lượng.** Trả lời sai trừ vào quỹ của cả đội. Đây là chỗ trò chơi vẫn còn tính hợp tác dù bài làm riêng: bạn cùng đội đoán bừa thì cả đội chịu.
 
 > ⚠️ **Hệ quả phải theo dõi khi cân bằng:** bốn người cùng làm cả bốn nhiệm vụ nghĩa là số lần trả lời sai có thể gấp ~4 lần so với mô hình "mỗi người một nhiệm vụ". Với `energyCost.wrongAnswer = 2` và quỹ 100, đội yếu sẽ cạn năng lượng rất nhanh. Con số này nằm trong `balance_json`, chỉnh được sau buổi test đầu tiên mà không cần deploy — nhưng phải nhớ mà chỉnh.
@@ -211,7 +216,7 @@ worlds            id, galaxy_id, name_i18n, story_i18n, position,
                   lobby_json (bố cục mọi khối kéo thả của phòng chờ)
 galaxies          id, universe_id, name_i18n, description_i18n, position,
                   background_media_id → media_assets,   ← ảnh nền màn chọn world
-                  music_media_id → media_assets,        ← nhạc nền màn chọn world
+                  audio_json (nhạc nền màn chọn world; xem §Nền động)
                   title_media_id → media_assets,        ← khung tiêu đề
                   title_x, title_y, title_width,
                   title_color (#rrggbb), title_font (% so với cỡ nền),
@@ -286,6 +291,105 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
   trong cái vòng tròn đang giữ chỗ cho ảnh đại diện. Chiều cao hàng chia theo
   `LOBBY_RANK_ROWS`, không theo số người đang có: nếu không thì world có ba
   người sẽ hiện ba hàng to bằng nắm tay, và người thứ tư vào là bố cục tự đổi.
+- **Năng lượng là của TỪNG NGƯỜI, cấp SAU khi họ qua nhiệm vụ NPC.** Số lượng
+  do giáo viên đặt ở `stages.energy_per_player`; quỹ nằm ở `stage_run_players`,
+  không còn con số nào cho cả đội. Chỉ tiêu cho các hành động TRỢ GIÚP — trả lời
+  sai không trừ gì, và hết năng lượng KHÔNG làm thua màn (`lost_energy` đã bị gỡ
+  khỏi ràng buộc CHECK; hết giờ là cách thua duy nhất).
+- **Chấm điểm theo CẢ NHIỆM VỤ, không theo từng câu.** Chọn đáp án là lưu
+  `quest_drafts` (bảng nháp, không có điểm); bấm Nộp bài mới chấm cả cụm. Quay
+  lại sửa câu nào cũng được cho tới lúc nộp. Một lần nộp = một lượt thử cho mỗi
+  câu CHƯA đúng; câu đã đúng và câu chưa chọn đều không bị chấm.
+- **Nhiệm vụ đang khoá thì KHÔNG lưu nháp — chặn ở phía giao diện, trước khi gửi.**
+  Server đã từ chối bằng `ADVISOR_LOCKED` (đúng: nháp cũng là ghi vào lượt chơi),
+  nhưng bảng "đang khoá" vẫn có hẹn giờ tự lưu 800ms chạy trước cái `return` sớm
+  của nó — hook thì React không cho bỏ qua. Kết quả: cứ bấm vào một vật đang khoá
+  là bắn một request chắc chắn hỏng, và lời từ chối rơi ra thành unhandled
+  rejection. **Chặn** chứ không bọc `try/catch` cho im: nuốt lỗi ở đây thì giấu
+  luôn những lần lưu nháp hỏng thật, mà lưu nháp hỏng thật là mất bài người chơi.
+- **NHIỆM VỤ NPC đi theo luật riêng: từng câu một, và KHÔNG có trần lượt thử.**
+  Nó là một cuộc hội thoại, không phải một bài tập — bảng không có nút Nộp bài,
+  chỉ có **Tiếp**, bấm là chấm ngay câu đang nói. Sai thì hiện
+  `content_json.wrong_answer_message` và người chơi trả lời lại, bao nhiêu lần
+  cũng được. Bỏ trần `maxAttemptsPerQuestion` ở đây là bắt buộc chứ không phải
+  ưu ái: cạn lượt ở một nhiệm vụ thường thì mất điểm câu đó rồi đi tiếp, còn cạn
+  lượt ở CỔNG VÀO thì không có "đi tiếp" nào cả — mọi nhiệm vụ khác vẫn khoá,
+  không nhiệm vụ nào hoàn thành được, và cả màn hỏng hẳn tới lúc hết giờ.
+- **Xong hội thoại NPC là hiện nút CLAIM để nhận sổ tay**, bấm xong đóng bảng.
+  Màn Claim hiện đúng lời NPC nói lúc trao (`stages.advisor_outro_i18n` — chính
+  là bước cuối của `dialogueSteps`), rồi mới tới nút nhận. Sổ tay gồm TÊN
+  (`stages.cluebook_title_i18n`) và NỘI DUNG (`stages.cluebook_i18n`), mở được
+  bằng biểu tượng 📖 ở góc màn;
+  trước đó biểu tượng vẫn hiện nhưng khoá, để người chơi biết có thứ để lấy.
+  Không tự trao lặng lẽ: cú bấm tay là lúc người chơi BIẾT mình vừa được cho cái
+  gì, còn một biểu tượng tự mọc ra ở góc màn thì chẳng ai buồn bấm vào.
+- **Nút Chơi ngay ở phòng chờ ưu tiên màn ĐANG DỞ** (`resume_stage_id`), không
+  có thì mới về màn mở cao nhất. Chỉ tính lượt còn giờ.
+- **Chỗ đứng của nhân vật lưu ở `stage_run_players.pos_x/pos_y`** — theo LƯỢT
+  CHƠI, nên tự khắc là riêng từng người ở từng màn, và tự reset khi mở lượt mới.
+  Ghi theo nhịp 2 giây, không ghi mỗi bước.
+- **Vào lại màn mà lượt cũ còn giờ thì CHƠI TIẾP**, khôi phục nguyên trạng (đề,
+  bài đã chấm, bài đang dở, năng lượng, đồng hồ). Hết giờ thì chốt lượt cũ thành
+  `lost_time` rồi mở lượt mới. Màn đã thắng vẫn chơi lại được, và đó là lượt mới.
+- **Đồng hồ: server giữ MỐC, giao diện đọc HIỆU SỐ tới cái mốc đó — tuyệt đối
+  không đếm lùi từng nhịp.** Thời gian còn lại luôn tính từ `started_at`
+  (`seconds_remaining()`); tin đồng hồ máy người chơi thì đổi giờ hệ thống là
+  chơi được vô hạn. Phía giao diện, nhận `seconds_remaining` thì quy ngay ra một
+  mốc `Date.now() + n * 1000` rồi mỗi nhịp đọc hiệu số — **không** viết
+  `setClock(s => s - 1)`.
+
+  Vì sao: trình duyệt **bóp `setInterval` của tab chạy nền**. Đo thật trên Chrome
+  — tab ẩn 219 giây, hàm 1 giây chỉ chạy **73 lần**, và có một quãng đứt **trọn
+  60 giây**. Trừ dần theo số lần hàm chạy nghĩa là đi vắng ba phút chỉ trừ hơn
+  một phút. Hậu quả nặng hơn một con số xấu: người chơi quay lại thấy còn 01:37,
+  chơi tiếp, rồi server báo thua vì thật ra đã hết giờ từ lâu — cái đồng hồ đã
+  nói dối họ. Đọc hiệu số thì hàm chạy thưa bao nhiêu cũng chỉ làm con số **cập
+  nhật chậm**, không làm nó **sai**.
+
+  Kèm theo một listener `visibilitychange` đọc lại ngay khi quay về tab: nhịp kế
+  tiếp có thể còn cách cả phút, đúng lúc người chơi cần biết mình còn bao nhiêu
+  thời gian nhất.
+- **Cỡ nhân vật đặt theo TỪNG MÀN, kế thừa từ màn đầu world.**
+  `stages.character_height` lưu chiều CAO (không phải bề rộng — mỗi nhân vật một
+  khổ spritesheet, thứ so sánh được là chiều cao). `NULL` = kế thừa: lấy số của
+  màn đầu tiên trong world, không có thì lấy 160. Đọc lúc cần chứ không sao chép
+  xuống từng màn, để sửa màn 1 vẫn lan xuống.
+- **CHỖ XUẤT PHÁT đặt riêng cho từng màn** (`stages.spawn_x/spawn_y`), bằng cách
+  KÉO chính hình nhân vật trong trình thiết kế. `NULL` = chỗ mặc định của cảnh
+  (`DEFAULT_SPAWN`), không phải một cặp số điền sẵn — trình thiết kế đọc chính
+  cái `NULL` đó để biết có nên hiện nút gỡ, đúng nếp với `character_height`.
+
+  Toạ độ là **ĐIỂM VA CHẠM** — cùng thứ `canWalk()` xét, cao hơn gót chân
+  `HERO_FOOT_Y` — chứ không phải tâm tấm ảnh nhân vật. Cú kéo cũng neo vào điểm
+  đó, nên trên cả đường từ ngón tay xuống cột database không có phép quy đổi nào
+  để lệch. Hai chỗ đó cách nhau gần nửa chiều cao nhân vật; lưu nhầm là người
+  dựng căn nhân vật vào vùng vừa vẽ thấy đúng, vào chơi thấy sai.
+
+  **Thứ tự khi vào màn: `stage_run_players.pos_x/pos_y` → `spawn_x/spawn_y` →
+  mặc định.** Chỗ người chơi đi tới thắng chỗ người dựng chọn: đảo lại thì thoát
+  ra vào lại là một cách quay về vạch xuất phát. Đóng băng vào `snapshot_json`
+  như vùng đi được và cỡ nhân vật, rồi vẫn đi qua `rescueToWalkable()` — chỗ
+  xuất phát không có gì bảo đảm nằm trong bản vẽ vùng đi được, và thả người chơi
+  vào một chỗ không có đường ra là nhốt họ ngay từ giây đầu. Trình thiết kế
+  cảnh báo trước khi điều đó xảy ra thay vì để phát hiện lúc đang chơi.
+- **Trong PATCH, `null` mặc định nghĩa là "KHÔNG GỬI", và xoá phải nói riêng.**
+  `_apply()` bỏ qua mọi `None` — đúng cho gần hết các trường, vì giao diện vá
+  từng mẩu payload một. Trường nào người dùng phải xoá được thì đi đường khác:
+  `_apply_optional()` (phân biệt bằng `model_fields_set`, dùng cho mã định danh
+  và ảnh vật thể) hoặc một cờ `clear_*` riêng (`clear_spawn`,
+  `clear_character_height`, `clear_pass_score`, `clear_collision`).
+
+  Chọn nhầm thì **không có lỗi nào cả**: server trả 200 kèm bản ghi y như cũ, và
+  người dùng bấm một cái nút không làm gì — lặp đi lặp lại. Đó là điều đã xảy ra
+  với nút "Gỡ ảnh" của nhiệm vụ, và là lý do hai danh sách trường
+  (`QUEST_KEEP_FIELDS`, `QUEST_CLEARABLE_FIELDS`) giờ nằm cạnh nhau ở mức module
+  với một test chốt rằng chúng không giao nhau.
+- **Nhiệm vụ NPC là CỔNG VÀO của mọi màn chơi.** Mỗi màn có đúng một nhiệm vụ
+  `phase = 'advisor'`, tạo tự động cùng màn, không xoá và không hạ xuống thường
+  được. Mọi nhiệm vụ khác KHOÁ cho tới khi người chơi qua nó — khoá theo TỪNG
+  NGƯỜI, không theo đội. Nhờ vậy điều kiện "mỗi thành viên hoàn thành ít nhất
+  một nhiệm vụ mới được chia mảnh bản đồ" thành hệ quả chứ không còn là chuyện
+  may rủi. Chốt ở `submit_answer` (`ADVISOR_LOCKED`), không chỉ ở giao diện.
 - **Bảng thành tích là MỘT khung cộng NĂM khối con.** `stats` chỉ còn tấm ảnh
   nền; năm con số (`LOBBY_STAT_KEYS`) là năm khối riêng, kéo và chỉnh được một
   mình, và chỉ hiện CON SỐ vì tấm khung đã vẽ sẵn biểu tượng cho từng dòng.
@@ -299,6 +403,14 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
 - **Tiến độ world = nhiệm vụ ĐÃ ĐỘNG TỚI / tổng nhiệm vụ của màn ĐÃ PHÁT HÀNH.**
   Đã động tới chứ không phải đã làm đúng: đây là thanh "đi được bao xa". Mẫu số
   bỏ màn nháp, nếu không thì tạo thêm một màn nháp là tiến độ của mọi người tụt.
+- **Khối phòng chờ đi theo NHÓM** (`LOBBY_GROUPS`): `character` kéo theo dòng mô
+  tả, `stats` kéo theo năm con số. Rê chuột vào một khối là cả nhóm phóng, cùng
+  tỉ lệ, mỗi khối nở ĐỀU quanh tâm của chính nó; kéo khối cha là các con dời
+  theo đúng bấy nhiêu. Đổi kích thước thì không — khung to ra, con số vẫn ở chỗ
+  đã căn.
+- **Phòng chờ học sinh chỉ còn giao diện đồ hoạ.** Không còn danh sách chương và
+  màn chơi dạng chữ bên dưới: tấm khung đã vẽ hết những thứ đó. Vào màn chơi qua
+  hàng chương → bản đồ chương.
 - **Mỗi khối phòng chờ có một KHUNG NỘI DUNG riêng** — chỗ thật sự vẽ chữ, bên
   trong tấm ảnh nền. Lưu ở `lobby_json.<khối>.content`, toạ độ tính bằng PHẦN
   TRĂM CỦA KHỐI (không phải hệ 3200×1800): ảnh nền căng theo khối, nên đổi cỡ
@@ -318,7 +430,9 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
   hệ thống in đè lên chỉ tạo ra hai lớp chữ chồng nhau. Chỉ khối trong
   `LOBBY_ACTION_KEYS` mới có ô chữ; khối khác đã có nội dung riêng.
 - **`chapters.minimap_media_id` là cột RIÊNG, tách khỏi `cover_media_id`.** Hai ảnh phục vụ hai chỗ có khuôn hình khác hẳn nhau: `cover` là ô nhỏ trên hàng chương ở phòng chờ, `minimap` là cả cái nền trải rộng phía sau danh sách màn chơi mở ra khi bấm vào chương. Dùng chung một ảnh thì hoặc ô nhỏ bị méo, hoặc cái nền vỡ hạt. `SET NULL` khi ảnh bị xoá — chương vẫn mở ra bình thường với nền trơn.
+- **Chưa có ảnh minimap thì MƯỢN ảnh chương (`cover`).** Hai cột vẫn tách, và tải riêng vẫn cho ra kết quả đẹp hơn vì hai khuôn hình khác nhau; nhưng một tấm ảnh hơi bị kéo giãn vẫn hơn hẳn một mảng đen trống, và ảnh chương thì luôn nói đúng về chương này. Chỉ giao diện lùi bậc — cột trong database vẫn là `NULL`, nên ô tải ảnh của người dựng vẫn hiện đúng "chưa có", không giả vờ đã có.
 - **Bấm vào một chương đã mở là mở MINIMAP của chương, không phải nhảy thẳng vào một màn.** Các màn xếp một hàng ngang theo thứ tự vì đây là một con đường, không phải một cái kho. Màn có tên thì tên nằm giữa vòng tròn, chưa có tên thì số thứ tự — chỗ nào cũng phải bấm được, kể cả màn người dựng chưa kịp đặt tên.
+- **Mặt của mỗi vòng tròn màn chơi là ẢNH NỀN CỦA CHÍNH MÀN ĐÓ** (`stages.background_media_id`, gửi xuống qua `PlayStageOut.background_url`). Minimap nhờ vậy là một lời hứa xem trước được: cái hang xanh trên bản đồ chính là cái hang xanh lát nữa bước vào. Không thêm cột "ảnh đại diện màn" riêng — nơi sắp đến TRÔNG NHƯ THẾ NÀO thì đã có sẵn một câu trả lời đúng, thêm cột nữa chỉ tạo cơ hội cho hai ảnh nói hai điều khác nhau. Màn khoá vẫn đeo ảnh nhưng **xám và tối hơn**: thấy nơi mình sắp tới là một phần của động lực đi tiếp, còn xám thì nói rõ "chưa phải bây giờ" mà không cần thêm chữ nào.
 - **`world_progress.character_id` là nhân vật người này đã chọn cho world này.** Cột trên `world_progress` chứ không phải bảng mới: lựa chọn khoá theo đúng cặp (world, user) mà bảng đó đã khoá sẵn, và nó là một phần của "tiến trình của tôi trong world này". `SET NULL` khi nhân vật bị xoá — học sinh thấy ô trống và chọn lại, không mất tiến trình. **Đổi được bất cứ lúc nào**: một đứa trẻ chọn nhầm ở giây thứ ba mà phải chơi hết học kỳ với nhân vật đó là một hình phạt vô cớ.
 - **Spritesheet của nhân vật đi theo `RunOut`, không vào `snapshot_json`.** Snapshot là đề bài đóng băng; nhân vật là lựa chọn của người chơi và đổi được giữa hai lượt, nên nó phải đọc mới mỗi lần. Chỉ những hành động **có ảnh và đo được khổ khung** mới gửi xuống — khổ khung để trống thì server suy `ảnh ÷ frames`, vì cắt lệch một pixel là cả hoạt ảnh trượt khung và chỉ server mới có `media_assets.width/height`. Chưa chọn nhân vật → `character: null`, cảnh chơi vẽ ký hiệu mặc định: **một màn chơi không được đứng hình vì một lựa chọn cũ hết hiệu lực.**
 - **Trong màn chơi, `idle` lúc đứng và `walk` lúc đi — suy từ chính vị trí nhân vật, không từ nơi ra lệnh.** Có ba đường làm nhân vật dịch chuyển (tween của cú bấm, phím WASD, cú huỷ tween giữa chừng); so vị trí hai khung hình liên tiếp là MỘT luật đúng cho cả ba, thay vì ba chỗ phải nhớ đồng bộ. Nhân vật thiếu tấm cho hành động đang cần thì giữ nguyên tấm đang chạy — chỉ có mỗi `idle` vẫn đi lại được, chỉ là không có bước chân.
@@ -327,6 +441,8 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
 - **Phòng chờ của world (`worlds.lobby_*` / `title_*` / `desc_*`) dùng CÙNG bộ thiết lập với bản đồ thiên hà, và MỌI cột đều `null` được — `null` nghĩa là THỪA CỦA THIÊN HÀ.** Một world vừa tạo đã có sẵn giao diện đúng tông với cả bản đồ; giáo viên chỉ động vào chỗ họ thực sự muốn khác. Chép sẵn giá trị của thiên hà xuống lúc tạo thì đổi nền thiên hà sau này không lan xuống được world nào nữa.
 - **`galaxies.title_*` / `galaxies.desc_*` là hai tấm bảng trang trí trên bản đồ.** Ảnh do giáo viên tải lên; `x`/`y`/`width` cùng hệ toạ độ 3200×1800 với world, chiều cao suy ra theo tỉ lệ gốc của ảnh. Mặc định (NULL) là giữa bản đồ, phía dưới.
   - Chúng mang tên và mô tả **THIÊN HÀ** lúc nghỉ; rê chuột vào một world thì đổi sang tên và mô tả của world đó. **Cái khung đứng yên, chỉ chữ đổi** — vẽ lại khung cho từng world nghĩa là bản đồ nhấp nháy đổi hình mỗi lần con trỏ đi ngang, mà con trỏ thì đi ngang liên tục.
+  - **Rời một world là VỀ LẠI thiên hà ngay, kể cả khi con trỏ vẫn còn trong bản đồ.** Chuyện xoá là của TỪNG world (`pointerleave` trên mỗi world), không phải của cả tấm bản đồ; chỉ đặt trên tấm bản đồ thì rê chuột ra khoảng trống giữa các world là hai khung chữ kẹt lại ở world vừa đi qua, và người chơi không còn cách nào đọc lại mô tả thiên hà ngoài việc tải lại trang. Tấm bản đồ vẫn giữ một `pointerleave` làm lưới an toàn, cho lúc con trỏ phóng thẳng ra khỏi cửa sổ.
+  - **Xoá có ĐIỀU KIỆN: chỉ xoá nếu world đang hiện đúng là world vừa rời.** Đi thẳng từ world này sang world kia, trình duyệt bắn `pointerleave` của cái cũ **sau** `pointerenter` của cái mới; xoá vô điều kiện là cái vừa trỏ tới bị chính cái vừa rời khỏi thổi bay.
   - Chưa có ảnh thì vẫn vẽ, bằng một tấm nền trơn: màn hình phải chạy được trước khi ai kịp vẽ khung.
   - Cỡ chữ tính bằng `cqw` (phần trăm bề rộng CỦA KHUNG), không bằng `px`. Kéo khung to nhỏ thì chữ co giãn theo đúng tỉ lệ; đặt `px` cố định thì khung nhỏ lại là chữ tràn qua viền, khung to ra là chữ lọt thỏm.
   - **`*_color` và `*_font` đặt cho CÁI KHUNG, không cho từng world.** Chữ của thiên hà và chữ của mọi world đều hiện ra ở đúng chỗ đó, nên cấu hình riêng từng world nghĩa là rê chuột qua ba world là chữ đổi màu ba lần. `*_font` là **phần trăm** so với cỡ nền (100 = giữ nguyên, 40…250) — lưu một con số `px` sẽ sai ngay khi ai đó kéo cái khung to ra.
@@ -334,14 +450,39 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
 - **`worlds.is_locked` là cột RIÊNG, không suy ra từ số màn đã xuất bản.** Giáo viên phải khoá được một world đã có nội dung — đang sửa dở, để dành học kỳ sau — và điều đó không suy ra từ đâu được. World mới tạo mặc định `true`: lúc đó nó chưa có chương hay màn nào.
 - **Khoá HIỂN THỊ ≠ cột `is_locked`.** Trên bản đồ thiên hà, một world hiện ổ khoá khi `is_locked` **HOẶC** chưa có màn nào phát hành. Vế thứ hai phải đếm màn nên chỉ server tính được; `PlayWorldOut.is_locked` trả về giá trị ĐÃ TÍNH, không phải cột thô.
 - **`PlayWorldOut.can_enter` tách khỏi `is_locked`** vì hai câu hỏi khác nhau: ổ khoá là thứ VẼ RA cho mọi người thấy, còn vào được hay không thì giáo viên chơi thử khác học sinh. Trộn hai thứ vào một cờ là hoặc giáo viên không xem trước được, hoặc học sinh đi thẳng vào world chưa phát hành.
+- **Rê chuột vào một world thì nó PHÓNG TO một chút, KHÔNG vẽ khung.** Một cái khung của trình duyệt úp lên tấm ảnh người dựng vẽ là nói "đây là ô bấm được" bằng giọng lạc lõng, giữa một bản đồ không có ô nào cả; phóng to thì nói đúng điều đó bằng chính tấm ảnh — vật lại gần thì to lên. Cái đang phóng to phải kèm `hover:z-10`, vì các world đều là `absolute` không z-index nên chúng xếp lớp theo thứ tự DOM và world vẽ sau sẽ cắt ngang mép nó. **Nhưng `focus-visible` thì VẪN vẽ khung**: người dùng bàn phím không có con trỏ để nhìn theo, và 5% to hơn là thứ không thấy nổi khi mắt đang ở chỗ khác. Đừng "dọn cho nhất quán" bằng cách gỡ nốt cái khung đó.
 - **Bản đồ hiện MỌI world, kể cả world khoá.** Giấu hẳn thì bản đồ thủng lỗ chỗ và học sinh không biết còn gì đang được dựng — mà bản đồ là chỗ để nhìn thấy cả hành trình, không chỉ chặng đang mở. Cái chặn nằm ở `GET /play/worlds/{id}` (404 khi `can_enter` sai), không nằm ở danh sách: chặn ở danh sách nghĩa là ai gõ thẳng URL vẫn vào được.
 - **Ảnh nền và nhạc nền thuộc về `galaxies`, không thuộc từng world.** Đó là cái nền mà mọi world nằm lên trên. Nhạc KHÔNG tự phát: trình duyệt chặn âm thanh tự chạy trước khi người dùng chạm vào trang, nên `autoplay` chỉ đem lại một thẻ audio im lặng và một cảnh báo trong console.
-- **`pulse_percent` / `pulse_period_ms` — nhịp thở của ảnh vật thể.** Ảnh phóng to thu nhỏ liên tục để người chơi nhận ra "cái này bấm được". `pulse_percent` là **to thêm bao nhiêu phần trăm** ở đỉnh nhịp (8 = phình lên 108% rồi về 100%); `pulse_period_ms` là **một nhịp đầy đủ**, to rồi nhỏ.
+
+- **`stages.intro_video_media_id` là TẤM MÀN che lúc nạp, không phải một đoạn phim gắn thêm.** `NULL` = màn chơi chạy y như trước, và đó là mặc định. Đoạn video chạy trong lúc gói Phaser, ảnh nền và spritesheet đang tải ngầm; nó KHÔNG vào `snapshot_json` vì nó chạy trước khi lượt chơi tồn tại. Xem §3e.
+
+### Nền động — video làm ảnh nền
+
+**Ba màn được phép, và chỉ ba:** bản đồ thiên hà (`galaxies.background_media_id`), phòng chờ world (`worlds.lobby_media_id`), màn chơi (`stages.background_media_id`). Mọi chỗ khác — ảnh bìa chương, mặt màn trên minimap, khung tiêu đề, ảnh vật thể — vẫn là **ảnh tĩnh**. Ba màn kia là những chỗ người chơi ĐỨNG LẠI và nhìn; một cái bìa chương 120px đang chạy vòng lặp thì không ai xem, chỉ tốn một bộ giải mã.
+
+- **Không thêm cột nào.** `media_assets.kind` đã biết file là `image` hay `video` (server suy ra từ đuôi file lúc tải lên). Thứ duy nhất phải thêm là **trả cái loại đó xuống client** cạnh URL đã có: `background_kind` / `lobby_kind`. Thêm một cột "video nền" riêng chỉ tạo ra một câu hỏi mới cho giáo viên — đặt cả hai thì cái nào thắng.
+- **Minimap chương vẫn nhận URL video** (mặt của mỗi màn chính là ảnh nền màn đó). Ở đó video được ghim ở **khung hình đầu**, không `autoplay`, không `loop`: minimap vẽ nhiều màn cùng lúc, cho tất cả chạy là bắt máy học sinh giải mã N luồng video để hiển thị mấy vòng tròn nhỏ.
+- **Video được CĂNG cho vừa thế giới 3200×1800, và phải căng lại khi có khung hình đầu.** `setDisplaySize()` của Phaser không lưu bề rộng mong muốn — nó tính ra một TỈ LỆ ngay lúc gọi. Thẻ video vừa dựng thì chưa có khung hình nào và đang mượn tấm texture `__MISSING` 256×256, nên tỉ lệ tính ra là 3200/256 = **12,5**; khi khung hình thật về, tỉ lệ đó vẫn còn và một video 1280×720 hiện ra rộng 16000 đơn vị, tức phóng to gấp 5 lần. `StageScene.fitBgVideo()` canh theo KHỔ TEXTURE mỗi khung hình chứ không nghe sự kiện `textureready` — đo trên máy thật thì sự kiện đó không bắn. Lỗi này chỉ lộ ra với video **nạp chậm**: một video nhỏ đã nằm trong bộ nhớ đệm kịp có texture trước `create()` và trông vẫn đúng, nên đừng thử bằng file nhỏ.
+  - Hệ quả: tỉ lệ khung hình của video **nên là 16:9**. Cả ảnh tĩnh lẫn video đều bị ép đúng 3200×1800; một file 4:3 sẽ bị kéo giãn, không phải cắt cúp.
+- **Hình ảnh KHÔNG phụ thuộc vào quyền phát âm thanh.** Video nền luôn khởi động ở trạng thái **câm**, nên khung hình chạy ngay khi vào màn. Tiếng chỉ được mở sau đó, và chỉ khi có yêu cầu — xem dưới. Làm ngược lại (mở tiếng ngay từ đầu) là trình duyệt chặn cả cú `play()`, và người chơi mất luôn cái nền động chứ không chỉ mất tiếng.
+
+**Tiếng của video làm nhạc nền.** Mặc định là **tắt tiếng**. Giáo viên bật bằng cờ `audio_json.ambient.from_video`:
+
+- Cờ này chỉ có nghĩa ở khối `ambient`. Đặt nó lên `walk`/`idle` là lỗi 422 — hai khối đó gắn với hành động của nhân vật, không có "tiếng video" tương ứng nào.
+- **Nhạc tải riêng thắng, trừ khi giáo viên nói khác.** Đã tải file cho `ambient` thì file đó được dùng. Bật `from_video` là một lựa chọn CÓ Ý THỨC, và giao diện bắt xác nhận: tiếng video sẽ thay chỗ, file đã tải **vẫn nằm nguyên đó** nhưng không phát.
+- **Bỏ chọn là quay lại file cũ ngay**, không phải tải lên lần nữa. Đó là lý do cờ nằm CẠNH `media_id` chứ không thay thế nó.
+- Cờ chỉ có tác dụng khi ảnh nền THẬT SỰ là video. Đổi nền sang ảnh tĩnh thì cờ nằm im và nhạc tải riêng phát như thường — đổi ngược lại thì cờ sống lại. Không có trạng thái nào bị mất, và không có màn nào im lặng vì một cờ mồ côi.
+- Âm lượng vẫn theo `ambient.volume`, nhân với âm lượng tổng của người chơi như mọi tiếng khác. **Tốc độ (`rate`) và lặp (`loop`) thì không**: đổi tốc độ phát là đổi tốc độ cả HÌNH, còn video nền thì vốn đã lặp.
+- **`pulse_percent` / `pulse_period_ms` — nhịp thở của vật thể.** Ảnh **và tên** cùng phóng to thu nhỏ liên tục, MỘT nhịp chung, để người chơi nhận ra "cái này bấm được". Tên phải thở vì nó có thể là thứ DUY NHẤT nhìn thấy — xem mục ngay dưới. `pulse_percent` là **to thêm bao nhiêu phần trăm** ở đỉnh nhịp (8 = phình lên 108% rồi về 100%); `pulse_period_ms` là **một nhịp đầy đủ**, to rồi nhỏ.
   - `null` = lấy mặc định của cảnh (`web/src/game/world.ts`), **`0` = tắt hẳn**. Phân biệt được hai thứ đó là lý do cột để `nullable` thay vì mặc định `0`.
   - Chỉ ĐỔI CÁCH VẼ. Khung va chạm — vùng bấm và chỗ nhân vật dừng lại — vẫn tính theo `icon_size` gốc. Cho khung phập phồng theo thì đích bấm chạy dưới tay người chơi.
   - Sàn `pulse_period_ms` là 400ms (2,5 nhịp/giây). Dưới ngưỡng đó thành nhấp nháy tần số cao, thứ có thể gây khó chịu và co giật.
   - **Ba tầng — CHECK constraint, Pydantic và thanh trượt — dùng CHUNG một khoảng.** Cho API rộng hơn giao diện là tạo ra một vùng giá trị hợp lệ mà không nút bấm nào chạm tới được, và người đọc tài liệu sẽ hỏi vì sao.
   - **KHÔNG kiểm `prefers-reduced-motion`** — quyết định có cân nhắc. Cài đặt đó chặn chuyển động *trang trí*, còn nhịp thở ở đây là thứ duy nhất phân biệt vật thể bấm được với hình vẽ trên nền. Trong một trò chơi nhiều người, tắt nó theo cài đặt từng máy nghĩa là hai đứa trẻ chơi chung một màn mà một đứa thấy gợi ý, đứa kia phải bấm mò. Nút tắt nằm ở tay giáo viên (`pulse_percent = 0`), tắt cho cả lớp cùng lúc.
+- **Ảnh vật thể để trống là một LỰA CHỌN hợp lệ, không phải một thiếu sót.** Rất nhiều vật thể đã được vẽ sẵn ngay trong ảnh nền — cái rương, cột buồm, thùng gỗ. Việc của người dựng khi đó chỉ là khoanh vùng va chạm chồng lên đúng chỗ ấy.
+  - **Trong trình thiết kế**: một ô NÉT ĐỨT, rỗng ruột. Vẫn kéo được, vẫn đổi cỡ được, vẫn là vùng va chạm thật. Nét trắng kèm viền ngoài đen, cùng lối với nhãn nhiệm vụ — nền là tranh vẽ tay, nên một nét mỏng một màu sẽ biến mất ở nửa số chỗ.
+  - **Khi chơi**: KHÔNG VẼ GÌ CẢ. Chỉ còn cái tên (vẫn thở), còn vùng va chạm thì vô hình mà vẫn chặn bước chân và vẫn bấm được. Trước đây chỗ này vẽ một vòng sáng màu thay thế; nó là một vật thể MÀ KHÔNG AI CHỌN ĐẶT VÀO CẢNH, và nó nổi lù lù đè lên chính cái rương mà người dựng vừa khoanh.
+  - Ô nét đứt của trình thiết kế **cố ý** không giống thứ học sinh thấy. Đó là chỗ khác nhau duy nhất giữa hai bên, và nó được nói thẳng bằng chữ ngay dưới ô chọn ảnh.
 
 ### 3.2. Tiến trình người chơi (progress)
 
@@ -438,6 +579,186 @@ Cả hai ràng buộc đều tính tới `question_id` vì một nhiệm vụ ch
 `stage_run_players` là **bản cộng dồn** của `quest_answers` theo từng người, cập nhật mỗi lần nộp. Nó dư thừa về mặt lý thuyết nhưng cần cho màn hình kết thúc và bảng điểm trực tiếp trong trận — không muốn quét lại toàn bộ `quest_answers` mỗi lần vẽ HUD.
 
 **Chi phí ghi:** một lượt chơi 4 người × 4 nhiệm vụ = tối đa 16 lần ghi, chứ không phải ghi theo nhịp khung hình. Không cần gom lô ở giai đoạn này.
+
+---
+
+## 3b. MÃ ĐỊNH DANH và nhập câu hỏi từ file .xlsx
+
+Bộ phận nội dung soạn cả một world trong **một bảng tính**, và trong đó mọi thứ được gọi bằng **mã** chứ không bằng UUID: `W1`, `W1-S1`, `W1-S1-Quest-01`. Mã do người đặt, ổn định qua nhiều lần xuất file, và là thứ duy nhất nối một dòng Excel với một bản ghi trong database.
+
+Bốn bảng mang mã: `worlds.world_code`, `stages.stage_code`, `quests.quest_code` là **địa chỉ của chính bản ghi**; còn `questions.world_code / stage_code / quest_code` là **địa chỉ nơi câu hỏi thuộc về**, chép từ file lúc nhập.
+
+- **Tất cả đều NULL được, và duy nhất khi khác NULL.** Dữ liệu dựng tay không bắt buộc có mã. Nhưng đã có mã thì mã đó là của riêng nó: hai nhiệm vụ cùng mang `W1-S1-Quest-01` thì lúc nhập không biết lắp câu hỏi vào cái nào, và nó sẽ chọn bừa. Vì thế unique index có điều kiện `WHERE ... IS NOT NULL`.
+- **Câu hỏi giữ MÃ chứ không chỉ giữ khoá ngoại tới `quests`**, vì ba lý do: (1) lúc nhập, nhiệm vụ mang mã đó có thể **chưa tồn tại**; (2) nhập lại cùng một file không được sinh bản sao, và cặp (`quest_code`, `question_order`) chính là danh tính của một dòng; (3) mở một màn thì hiện được ngay mọi câu cùng `stage_code`, kể cả câu chưa lắp vào nhiệm vụ nào.
+- **`world_code` hôm nay luôn để trống.** File hiện tại chưa có cột đó. KHÔNG suy ra từ tiền tố `W1-S1`: suy ra thì đúng với nếp đặt tên hôm nay và sai lặng lẽ vào ngày ai đó đổi nếp.
+
+### Trình nhập làm gì, và cố ý KHÔNG làm gì
+
+`POST /questions/import` đọc sheet `Questions` (bắt buộc) và sheet `Stage-Quests` (không bắt buộc, chỉ để tra `quest_code` thuộc `stage_code` nào).
+
+- **Không tạo màn chơi hay nhiệm vụ.** Bố cục cảnh — vật thể nằm ở đâu, to bao nhiêu, vùng đi được thế nào — là việc của trình thiết kế, và một dòng trong bảng tính không nói được điều đó. Giáo viên dựng cảnh bằng tay rồi **điền mã** vào ô `stage_code` / `quest_code`; đó mới là chỗ quyết định.
+- **Khớp mã thì tự lắp, không khớp thì nằm lại trong kho** và giữ nguyên mã. Danh sách mã chưa có nhiệm vụ được trả về như một việc-cần-làm: điền mã rồi nhập lại là chúng tự lắp vào.
+- **Câu nhập vào nối vào CUỐI nhiệm vụ**, không chiếm chỗ theo `question_order` của file. `quest_questions` có ràng buộc duy nhất `(quest_id, order_index)`, nên lắp bằng số của file là đâm vào chỗ đã có người ngồi và cả lần nhập gãy giữa chừng — lỗi này đo được, không phải giả định. Đẩy cái đang ngồi đó ra thì tệ hơn: giáo viên có thể đã tự sắp lại thứ tự, và một lần nhập không được xoá công đó. Thứ tự tương đối giữa các câu vừa nhập vẫn đúng như trong file.
+- **Dòng hỏng thì bỏ qua, không kéo đổ cả file.** Một file nghìn dòng mà chết vì dòng 997 là người dùng phải sửa rồi nhập lại từ đầu, nhiều lần. Nhập phần lành, rồi nói rõ phần hỏng kèm số dòng.
+- **Trạng thái là `published`.** Đây là nội dung đã soạn xong, không phải bản nháp. Để `draft` thì bộ chọn câu hỏi lọc mất chúng, và người dùng phải bấm xuất bản hai mươi sáu lần trước khi làm được việc mình định làm.
+
+### Chọn câu hỏi theo mã, ở màn hình lắp nhiệm vụ
+
+Nhập xong thì việc tiếp theo là **lắp câu vào nhiệm vụ**, và cả hai màn hình làm việc đó (`stage-builder`, và hộp thoại nhiệm vụ trong trình thiết kế) đều dùng chung `QuestionPicker`.
+
+- **Hai ô chọn mã LUÔN hiện: mã màn, rồi mã nhiệm vụ.** Trước đây chỗ này là một ô tích chỉ xuất hiện khi màn ĐANG MỞ đã có `stage_code` — tức là nó vắng mặt đúng vào lúc cần nhất: vừa nhập file xong, chưa màn nào mang mã nào, nên không có gì để tích và không có đường nào lọc.
+- **Danh sách mã đọc từ KHO CÂU HỎI** (`GET /questions/codes`), không từ bảng `stages`/`quests`. Hai bên lệch nhau theo đúng cái chiều làm người dùng bí: ngay sau một lần nhập, kho đã có `W1-S1` mà chưa màn nào mang mã đó. Dựng ô chọn từ bảng `stages` thì nó rỗng đúng lúc nó cần đầy. Mã của màn đang mở luôn có mặt trong danh sách kể cả khi kho chưa có câu nào mang mã đó, nếu không thì ô chọn im lặng nhảy về "tất cả".
+- **Mã nhiệm vụ thu hẹp theo mã màn đang chọn.** Một world nhiều màn có hàng trăm mã nhiệm vụ, và một danh sách dài như thế thì không chọn được bằng mắt.
+- **Mỗi dòng hiện `quest_code` kèm `question_order`.** Khi đã lọc về một màn, đó là thứ duy nhất phân biệt hai mươi sáu câu trông na ná nhau. Mã màn chỉ hiện khi KHÔNG lọc theo màn — đang lọc rồi thì mọi dòng cùng một mã, và một cột giống hệt nhau chỉ ăn chỗ.
+- **Đã lọc theo mã thì thứ tự là thứ tự TRONG ĐỀ** (`quest_code`, rồi `question_order`), không phải mới-nhất-trước như kho chung — xem `service.list_questions()`.
+
+### Một trường khai báo mà quên điền thì KHÔNG có lỗi nào
+
+`QuestionOut` khai báo `world_code / stage_code / quest_code / question_order` với mặc định `None`, và `to_out()` — chỗ duy nhất biến bản ghi thành phản hồi API — quên điền cả bốn. Pydantic dùng mặc định, FastAPI trả 200, OpenAPI sinh đúng kiểu, TypeScript biên dịch sạch. Cái duy nhất sai là dữ liệu: `null` cho mọi câu, kể cả câu vừa nhập từ file. Nhìn từ ngoài thì giống hệt như bộ nhập khẩu đã không ghi gì.
+
+Chốt bằng một test đối chiếu `QuestionOut.model_fields` với `model_fields_set` của kết quả `to_out()`, nên một trường mới thêm vào schema mà quên điền sẽ đổ ngay — không cần ai nhớ ra để viết thêm test.
+
+### Ánh xạ cột sang dạng câu hỏi
+
+File có **hai** cột kiểu, và chúng trả lời hai câu hỏi khác hẳn nhau:
+
+| cột | câu hỏi nó trả lời | đi vào |
+|---|---|---|
+| `answer_type` | học sinh **trả lời bằng cách nào** — chọn phương án, hay gõ chữ | `questions.type` (`MCQ_SINGLE`, `SHORT_ANSWER`…) |
+| `question_type` | đề bài **đến với học sinh bằng cách nào** — đọc, hay nghe | `questions.prompt_kind` (`text`, `audio`) |
+
+Hai trục **vuông góc** nhau, và đó là lý do chúng là hai cột chứ không phải một danh sách ghép. Một câu nghe rồi chọn phương án và một câu nghe rồi gõ chữ là cùng một cách ra đề với hai cách trả lời; nhồi thành `LISTEN_MCQ` / `LISTEN_SHORT` là nhân đôi số dạng mỗi lần thêm một cách ra đề, và mọi hàm chấm phải học thuộc gấp đôi số tên.
+
+| `answer_type` | dạng | `content_json` | `answer_json` |
+|---|---|---|---|
+| `select` | `MCQ_SINGLE` | `prompt`, `options` (mã `"1"`..`"4"` theo **số cột**) | `correctOptionId` |
+| `text` | `SHORT_ANSWER` | `prompt` | `accepted` (tách theo dấu phẩy) |
+
+**`question_type` lạ thì BỎ QUA cả dòng**, không lặng lẽ hạ về `text`. Hạ xuống thì một bài nghe do người soạn cố ý viết ra sẽ thành một bài đọc, cả lớp làm xong mà không ai biết mình vừa làm sai đề. Bỏ qua kèm lý do thì sửa đúng một ô rồi nhập lại.
+
+Mã lựa chọn giữ đúng **số cột** chứ không đánh lại theo thứ tự các ô có chữ: cột `accepted_answers` ghi số đó, nên một ô trống ở giữa mà đánh số lại sẽ làm mọi đáp án lệch một bậc mà không có gì báo.
+
+**`question_content_translation` đi vào `answer_json`, không vào `content_json`.** Cùng luật với `hint`: content bị đóng băng vào đề bài rồi gửi thẳng xuống máy học sinh, nên mọi thứ phải TRẢ BẰNG NĂNG LƯỢNG mới được xem đều không được nằm ở đó. Gửi kèm là phát không, và mở tab mạng của trình duyệt là thấy.
+
+---
+
+## 3c. CÂU HỎI NGHE — `prompt_kind` và transcript
+
+Cách ra đề (`questions.prompt_kind`) nói **đề bài đến với học sinh bằng cách nào**, tách hẳn khỏi `questions.type` vốn nói **học sinh trả lời bằng cách nào** — xem bảng ở §3b.
+
+- **`text`** (mặc định) — đề bài là chữ, y như trước khi có cột này. Mọi câu đang có đều rơi vào nhánh này, nên không câu nào đổi.
+- **`audio`** — học sinh **nghe**. Trình phát hiện lên trên cùng câu hỏi, và **đoạn chữ của đề bị giấu sau nút "Transcript"**.
+
+### Ba luật của transcript
+
+1. **Transcript CHÍNH LÀ `content.prompt`.** Không có trường thứ hai. Một bản chép lời riêng là một bản sao có thể lệch với thứ đang phát, và không có gì bắt hai bên khớp nhau. Câu nhập từ file vì thế đã có sẵn transcript — chính là `question_content`.
+2. **Nút Transcript LUÔN có; `show_transcript` chỉ quyết định nó MỞ SẴN hay không.** Mặc định đóng: nghe trước là cả điểm của bài nghe. Nhưng không khoá hẳn — một học sinh không nghe ra thì cần đường đọc lại, và một câu hỏi không giải mã nổi thì không đo được gì cả.
+3. **Chỉ giấu ĐOẠN CHỮ CỦA ĐỀ, không bao giờ giấu phần tương tác.** Phương án trắc nghiệm, ô trống, ô nhập vẫn hiện nguyên. Giấu cái ô phải điền thì câu hỏi thành không làm được, chứ không thành khó hơn.
+
+### Không có audio thì transcript hiện ra, bất kể `show_transcript`
+
+`prompt_kind = 'audio'` + chưa tải audio + `show_transcript = false` = học sinh nhìn vào **một khoảng trống**. Server không chặn trạng thái đó — giáo viên phải đặt được cách ra đề trước rồi mới tải file lên, chứ không thì không có thứ tự thao tác nào hợp lệ. Nên chặn ở chỗ VẼ: không có audio thì đoạn chữ hiện ra như một câu `text` bình thường. Một câu hỏi thiếu file vẫn phải làm được.
+
+Luật này nằm ở **một hàm dùng chung** (`resolvePrompt()`), không viết lại ở khung xem trước và ở màn học sinh — hai bản của cùng một luật thì có ngày giáo viên xem trước thấy một đằng, học sinh thấy một nẻo.
+
+### Tự phát khi mở tới câu
+
+Đến câu nghe thì audio **tự chạy**, không bắt bấm. Học sinh đã bấm rất nhiều lần trước đó (đi tới vật thể, mở bảng nhiệm vụ), nên trang đã có "user activation" và trình duyệt cho phát kèm tiếng.
+
+Vẫn phải bắt lỗi `play()` bị từ chối: thanh điều khiển hiện sẵn nên bấm tay được, và **không có gì kẹt lại**. Cùng bài học với video nền (§3.1) — chỉ khác ở chỗ với audio thì không có "hình" để cứu, nên khi bị từ chối thì thứ phải còn lại là **cái nút bấm được**.
+
+`questions.audio_max_plays` (số lần nghe lại, trừ năng lượng đội) đã có cột từ bản LMS nhưng **chưa nối vào đâu** — lần tự phát này không đếm, vì chưa có gì đếm.
+
+### Bảng có tiếng mở ra thì cả màn chơi LÙI RA SAU
+
+Nhạc nền của màn và đoạn ghi âm của câu hỏi phát ra cùng lúc, cùng cỡ âm lượng, và học sinh phải nghe ra một câu tiếng Anh giữa hai thứ đó. Nên khi mở một bảng **có tiếng**, mọi tiếng của màn hạ xuống còn **20%** (`DUCK_VOLUME`), và trả lại nguyên khi đóng bảng.
+
+- **Hạ, không TẮT.** Cắt phăng nhạc nền mỗi lần mở câu hỏi thì cái im lặng đột ngột còn dễ nhận ra hơn cả bản nhạc, và học sinh tưởng game vừa đứng. Dừng rồi phát lại còn tệ hơn: bản nhạc nhảy về đầu mỗi lần, nên một màn sáu câu nghe là nghe đúng tám giây đầu sáu lần.
+- **Hạ CẢ tiếng đứng/đi, không riêng nhạc nền.** Cái phải nghe rõ là đoạn ghi âm; một vòng lặp tiếng thở nền chồng lên nó đúng như bản nhạc chồng lên. Cùng mục đích thì cùng một cái van.
+- **NHÂN vào âm lượng đang có, không thay nó.** Người chơi vặn nhỏ rồi thì lúc hạ phải nhỏ hơn nữa, chứ không nhảy lên mức của người khác. Ba tầng nhân vào nhau — giáo viên cân bản phối, người chơi vặn tổng, bảng câu hỏi lùi cả màn — và cả ba đi qua đúng một hàm (`StageScene.mixVolume`).
+- **Chỉ bảng CÓ TIẾNG mới hạ.** Một câu trắc nghiệm chữ thì không có gì để ưu tiên, và hạ nhạc ở đó chỉ làm bản nhạc lên xuống suốt màn mà không ai hiểu vì sao. "Có tiếng" = nhiệm vụ có câu hỏi nghe, **hoặc** là nhiệm vụ NPC của một màn có ghi âm lời chia tay (§3d) — vế thứ hai dễ quên nhất, mà nó đúng là cái bảng có giọng người đang nói.
+- **React quyết KHI NÀO, Phaser chỉ vặn van.** Cảnh không biết bảng nào đang mở, cũng không nên biết — cùng ranh giới với `QUEST_ZONE_ENTERED`.
+
+---
+
+## 3d. LỜI CHIA TAY CỦA NPC và SỔ TAY BÍ QUYẾT
+
+Ba trường, một khoảnh khắc: học sinh trả lời xong câu cuối của nhiệm vụ NPC, và bảng hội thoại chuyển sang bước cuối — bước **không hỏi gì cả**.
+
+| trường | hiện ở đâu | bỏ trống thì sao |
+|---|---|---|
+| `stages.advisor_outro_i18n` | lời NPC nói trên bảng Claim | bảng chỉ còn biểu tượng và cái nút |
+| `stages.cluebook_title_i18n` | dòng đầu khi mở sổ tay | lùi về nhãn dịch chung ("Sổ tay bí quyết") |
+| `stages.cluebook_i18n` | nội dung sổ tay | **biểu tượng 📖 không hiện ra** — nút bấm vào không bao giờ có gì thì tệ hơn là không có nút |
+
+Đó là ba hậu quả KHÁC NHAU, và trình thiết kế nói thẳng từng cái ra thay vì để người dựng đoán từ một ô trống.
+
+### Vì sao ba cột chứ không một
+
+Lời chia tay là thứ NPC nói **một lần** lúc trao; sổ tay là thứ người chơi **mở ra đọc lại suốt màn**. Gộp làm một thì mỗi lần mở sổ tay lại phải đọc lại câu chia tay của thuyền trưởng. Tên sổ tay tách khỏi nội dung vì nó nói sổ tay này **của ai** — "CAPTAIN DRAKE'S SECRET HANDBOOK" thì mỗi màn một khác, còn "Sổ tay bí quyết" thì màn nào cũng giống màn nào.
+
+### Lời chia tay có TIẾNG, và mặc định hiện CẢ HAI
+
+`stages.advisor_outro_audio_media_id` — đoạn ghi âm NPC nói. Tự phát khi bảng hiện ra, đúng cơ chế của câu hỏi nghe (§3c) và dùng chung đúng một component.
+
+**Mặc định `advisor_outro_show_transcript = true`, ngược với câu hỏi nghe.** Sự khác nhau đó có lý do, không phải một chỗ quên đồng bộ:
+
+- Câu hỏi **nghe** giấu chữ vì đọc được đề thì bài nghe không còn đo gì nữa. Chữ ở đó là **đáp án của chính bài tập**.
+- Lời NPC không phải bài tập. Nó là một nhân vật đang nói, và học sinh vừa nghe vừa đọc theo là cách học từ mới nhanh nhất. Giấu chữ đi chỉ để "cho giống câu hỏi" là bắt một đứa trẻ nghe hết ba câu tiếng Anh rồi tự đoán mình vừa được cho cái gì.
+
+Nút thu gọn vẫn còn — người dựng nào muốn bắt nghe thuần thì tắt được, nhưng phải chủ động tắt.
+
+---
+
+## 3e. VIDEO MỞ MÀN — che lúc nạp, không phải một đoạn phim
+
+`stages.intro_video_media_id` — `NULL` = **không có gì thay đổi so với trước**. Đó là mặc định, và nó phải là mặc định: 30 màn đã dựng không được tự dưng mọc thêm một bước bấm.
+
+### Vì sao có nó
+
+Bấm vào một màn rồi phải nhìn chữ "Đang tải…" là chỗ trải nghiệm gãy. Thời gian đó có thật và không bỏ đi được — gói Phaser gần một megabyte, ảnh nền có khi là video, spritesheet nhân vật bốn hướng, tiếng bước chân. Thứ bỏ đi được là **cái màn hình trống trong lúc chờ**.
+
+Nên video mở màn không phải một tính năng kể chuyện gắn thêm. Nó là **tấm màn che đúng khoảng thời gian đó**, và mọi quyết định dưới đây đi theo đúng một câu ấy.
+
+### Nạp NGAY, không đợi video xong
+
+Lúc video bắt đầu chạy, ba việc chạy song song phía sau:
+
+1. `import('phaser')` — chunk lớn nhất, và **không cần server trả lời gì** mới bắt đầu được.
+2. `POST /play/stages/{id}/start` — lấy đề bài đóng băng.
+3. Đề bài về tới nơi thì `StageScene` dựng luôn **ở dưới tấm màn**, `preload()` kéo ảnh nền, biểu tượng, spritesheet, tiếng.
+
+Cảnh báo xong thì bắn `STAGE_READY`. Cửa vào màn mở khi **cả hai** đã xong: video hết VÀ cảnh sẵn sàng. Video hết trước thì đứng ở khung hình cuối và hiện một dòng chờ; cảnh xong trước thì im lặng đợi video — đó chính là trường hợp mong muốn, và là lý do 5–10 giây là con số đúng.
+
+### Đồng hồ màn chơi CHẠY trong lúc xem
+
+`stage_runs.started_at` đóng ở bước 2, tức là học sinh mất đúng số giây của video. Nói thẳng ra vì đây là một cái giá, không phải một chỗ quên:
+
+Không hoãn được. Một lượt chơi là của **cả phòng** tối đa bốn người, `started_at` là một cột dùng chung — người thứ hai vào phòng mà xem intro rồi mới tính giờ thì họ vừa lùi đồng hồ của ba người kia. Còn nếu đợi video xong mới `start` thì mất sạch cái đang mua: đúng khoảnh khắc video tắt là lúc bắt đầu chờ mạng, tức là chuyển cái gãy sang chỗ khác chứ không sửa.
+
+Vậy nên: video **ngắn**. 5–10 giây trên trần 300 giây là 2–3%. Người dựng đặt một đoạn 60 giây thì đó là lựa chọn của họ, và trình thiết kế nói trước con số đó.
+
+### ĐANG CHƠI DỞ thì không chiếu
+
+Vào lại một màn còn dở là **chơi tiếp**: bài đang làm còn nguyên, đồng hồ vẫn chạy từ `started_at` cũ. Chiếu lại đoạn mở màn ở đó là kể lại phần mở đầu cho người đã đi được nửa đường — và tệ hơn, nó ăn thêm giây của chính cái đồng hồ đang chạy, lần này chẳng đổi lấy gì cả (cảnh đã nạp một lần rồi, và các tệp còn trong bộ nhớ đệm).
+
+Quyết ở **server**, trong chính `GET /play/stages/{id}/intro`: trả `null` khi người này có lượt còn dở. Nhờ vậy trình duyệt không tải một đoạn video rồi mới phát hiện ra mình không cần nó, và không có khung hình nào loé lên.
+
+Dùng chung đúng một hàm với `start_run` — `resumable_run()`. Hai bản chép của luật "vào lại có chơi tiếp không" sẽ lệch nhau ở đúng trường hợp khó thấy nhất, lượt **vừa hết giờ**: bản này bảo còn dở nên không chiếu, bản kia thấy hết giờ nên mở lượt mới — và học sinh vào một lượt hoàn toàn mới mà không có gì mở màn.
+
+### Luôn có đường thoát
+
+- **Nút Bỏ qua** hiện suốt. Học sinh chơi lại lần thứ năm không phải xem lại lần thứ năm. Bỏ qua sớm mà cảnh chưa xong thì rơi về đúng màn hình chờ như trước khi có tính năng này — tức là không tệ hơn hiện trạng, chỉ là không tốt hơn.
+- **Video hỏng thì đi tiếp ngay.** `onError`, và một mốc chờ tối đa cho trường hợp tệ hơn: file không bao giờ trả metadata. Một tấm màn không mở ra được là cách khoá học sinh ngoài màn chơi bằng chính thứ đáng ra làm nó mượt hơn.
+- **Tiếng: thử bật, hỏng thì tắt tiếng và hiện nút.** Trình duyệt chỉ cho tự phát khi đã tắt tiếng, và cú bấm vào màn ở trang TRƯỚC không tính cho trang này. Nên luôn có một nút 🔊 chứ không bao giờ có một đoạn phim câm không giải thích được. Cùng luật với `CompactAudio` (§3c).
+
+### KHÔNG nằm trong snapshot
+
+Mọi thứ màn chơi vẽ đều lấy từ `stage_runs.snapshot_json` (§1.3). Video mở màn thì không, và đó là chủ ý: nó chạy **trước khi lượt chơi tồn tại** — phải biết URL để phát ngay, chứ không thể đợi chính cái request tạo ra snapshot.
+
+Nó cũng không phải đề bài. Đóng băng đề bài là để giữa chừng người dựng sửa nội dung thì bài đang làm không đổi. Đoạn mở màn đã chạy xong trước khi có gì để đổi.
+
+Nên nó đi đường riêng: `GET /play/stages/{id}/intro`, gọi lúc **render trang phía server**, song song với `/play/context` — không tốn thêm một nhịp chờ nào, và thẻ `<video>` đã nằm sẵn trong HTML của lần vẽ đầu tiên.
 
 ---
 
@@ -552,6 +873,11 @@ Nhịp 2 — khi màn kết thúc THẮNG
 
 "Âm thầm" ở nhịp 1 nghĩa là ghi vào database ngay nhưng **không hiện lên màn hình** cho tới khi màn kết thúc (§1.6). Ghi ngay để không mất khi mất kết nối; hiện muộn để không cắt mạch chơi và không rò manh mối.
 
+> ⚠️ **Luật này đã đổi sau khi merge `main`.** `docs/PROJECT OVERVIEW.md` quy
+> định công thức Exp **chỉ áp dụng khi thắng màn**. Lý lẽ dưới đây giữ lại để
+> lần cân bằng sau biết vì sao từng chọn ngược lại — xem
+> [TASKS.md → Bước 8b](./TASKS.md).
+
 **Thua thì vẫn giữ điểm cơ bản đã kiếm được.** Đây là quyết định có chủ ý và đi thẳng từ nguyên tắc "kết quả từng người là độc lập": học sinh trả lời đúng ba câu tiếng Anh thì đã học được cái gì đó, kể cả khi đồng đội tiêu hết năng lượng. Nếu xoá sạch điểm khi thua, người chơi giỏi bị phạt vì đồng đội kém — và sẽ tránh chơi cùng bạn yếu, đúng thứ trò chơi hợp tác này muốn tránh.
 
 Ngược lại, **Mảnh bản đồ vẫn chỉ trao khi cả đội thắng** và mọi thành viên hoàn thành ≥1 nhiệm vụ. Đó là phần thưởng tập thể, giữ nguyên theo tài liệu thiết kế. Hai loại phần thưởng, hai điều kiện — cá nhân thì theo nỗ lực cá nhân, tập thể thì theo kết quả tập thể.
@@ -615,7 +941,9 @@ Ghi ra để không bị mở rộng phạm vi giữa chừng:
 - [x] Duyệt bảng `required_skill_pts` — suy ra từ balance_json.skillPtsStep, không lưu 30 dòng
 - [x] Bỏ multi-tenant — thay bằng `users.role` (quyết định #2)
 - [ ] Copy `question-schemas.md` từ LMS sang `docs/`, bổ sung các dạng game cần ở đợt 2 (`SHORT_ANSWER`, `MATCHING`, `REORDER`, `READ_ALOUD`)
-- [ ] Chốt `scene_key` → cách `web/src/game/` nạp cảnh Phaser tương ứng
+- [x] ~~Chốt `scene_key` → cách `web/src/game/` nạp cảnh Phaser tương ứng~~ — **bỏ**. Cả trò chơi chạy trên MỘT lớp cảnh dựng từ dữ liệu: ảnh nền lấy từ
+      `background_media_id`, vật thể lấy từ bảng `quests`. Cột `scene_key` giữ lại
+      nhưng không điều khiển gì và thôi là ô bắt buộc — xem TASKS.md → Bước 6w.
 - [x] Kết quả từng người độc lập, nộp từng nhiệm vụ (§1.5) — chốt 2026-08-25
 - [x] Giáo viên/admin chơi thử bằng giao diện học sinh — chốt 2026-08-25
 - [x] Trong trận chỉ báo xong/chưa xong, chi tiết để dành đến hết màn (§1.6) — chốt 2026-08-25

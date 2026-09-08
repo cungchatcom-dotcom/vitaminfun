@@ -3,10 +3,17 @@
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
+import { InlineName } from '@/components/ui/inline-name';
+import { questLabel } from '@/lib/quest-label';
 import { Badge, Card, PageHeader, SectionTitle } from '@/components/ui/primitives';
 import { ApiError } from '@/lib/api-error';
 import { ownText, pickText } from '@/lib/i18n-text';
@@ -202,7 +209,23 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
     <div className="mx-auto max-w-7xl">
       <Breadcrumb items={crumbs} />
       <PageHeader
-        title={pickText(stage.name_i18n, locale)}
+        title={
+          <InlineName
+            value={pickText(stage.name_i18n, locale)}
+            title={t('stage.builder.renameStage')}
+            className="text-xl font-semibold text-slate-100"
+            onCommit={(next) =>
+              // Giữ các ngôn ngữ khác, chỉ sửa ngôn ngữ đang xem — không thì
+              // sửa bản tiếng Việt là xoá mất bản tiếng Anh.
+              withError(async () => {
+                await updateStage(stage.id, {
+                  name_i18n: { ...stage.name_i18n, [locale]: next },
+                });
+                await reload();
+              })
+            }
+          />
+        }
         description={t('stage.builder.subtitle', { shard: stage.map_shard_index })}
         badge={
           <Badge tone={stage.status === 'published' ? 'success' : 'neutral'}>
@@ -254,11 +277,9 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
             🗺 {t('stage.builder.shardNote', { shard: stage.map_shard_index })}
           </p>
 
-          {stage.advisor_npc_key && (
-            <p className="mb-3 text-sm text-slate-400">
-              NPC: <span className="text-slate-200">{stage.advisor_npc_key}</span>
-            </p>
-          )}
+          <p className="mb-3 rounded-lg bg-abyss-950/50 px-3 py-2 text-xs text-slate-400">
+            🔒 {t('stage.builder.npcGateNote')}
+          </p>
 
           <ul className="space-y-2">
             {stage.quests.map((quest) => (
@@ -291,7 +312,21 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
                 onRemoveQuestion={(linkId) => withQuest(() => removeQuestQuestion(linkId))}
                 onRemove={() => withError(() => deleteQuest(quest.id))}
                 onView={setViewingQuestionId}
-                onRename={(key) => withQuest(() => updateQuest(quest.id, { quest_object_key: key }))}
+                // Nhiệm vụ NPC sửa TÊN HIỂN THỊ, nhiệm vụ thường sửa KHOÁ VẬT THỂ.
+                //
+                // Khoá vật thể của NPC cố định là `npc` và không đổi được (cảnh
+                // và migration đều gọi đúng cái tên đó), nên ô sửa ở hàng đó
+                // phải trỏ vào thứ duy nhất còn đổi được — và cũng là thứ học
+                // sinh thật sự nhìn thấy.
+                onRename={(next) =>
+                  withQuest(() =>
+                    quest.phase === 'advisor'
+                      ? updateQuest(quest.id, {
+                          name_i18n: { ...quest.name_i18n, [locale]: next },
+                        })
+                      : updateQuest(quest.id, { quest_object_key: next }),
+                  )
+                }
               />
             ))}
           </ul>
@@ -369,6 +404,11 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
 
             <div className="min-h-0 flex-1">
               <QuestionPicker
+                // Mã màn ĐANG MỞ, để bộ lọc chọn sẵn nó. Màn hình này trước đây
+                // không truyền gì cả, nên nó là màn duy nhất mà "vào một màn thì
+                // tự hiện câu hỏi của màn đó" không xảy ra — mà đây lại chính là
+                // màn hình lắp câu hỏi vào nhiệm vụ.
+                stageCode={stage.stage_code}
                 selected={new Set(picked.keys())}
                 alreadyIn={alreadyIn}
                 onToggle={togglePick}
@@ -445,40 +485,52 @@ function QuestRow({
   onRemoveQuestion: (linkId: string) => void;
   onRemove: () => void;
   onView: (questionId: string) => void;
-  onRename: (key: string) => void;
+  onRename: (next: string) => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
+
+  // Nhiệm vụ NPC là bắt buộc: không gỡ, không hạ xuống nhiệm vụ thường. Server
+  // cũng từ chối cả hai việc đó — ẩn nút ở đây chỉ để giáo viên khỏi bấm vào
+  // một thứ rồi nhận lỗi. Chốt thật nằm ở server, không nằm ở cái nút này.
+  const isAdvisor = quest.phase === 'advisor';
 
   return (
+    // CẢ CÁI THẺ nhận cú bấm, không phải riêng hàng huy hiệu bên trong.
+    //
+    // Trước đây chỉ mỗi cái `<button>` quanh mấy huy hiệu là bấm được, nên bấm
+    // vào phần nền của thẻ thì không có gì xảy ra — và vì `onSelect` là BẬT/TẮT,
+    // bấm trúng rồi bấm trượt rồi lại bấm trúng thành ra chọn xong bỏ chọn.
+    // Người dùng thấy "bấm mấy lần mới được", và họ đọc đúng: nó hỏng thật.
+    //
+    // Vùng nào bên trong có việc riêng thì tự chặn nổi bọt — xem `stopSelect`.
     <li
-      className={`rounded-xl border p-3 transition ${
+      onClick={onSelect}
+      className={`cursor-pointer rounded-xl border p-3 transition ${
         active ? 'border-lagoon-500 bg-lagoon-500/10' : 'border-abyss-800 bg-abyss-900/40'
       }`}
     >
-      {/* Tên nằm NGOÀI nút chọn: nút lồng trong nút là HTML không hợp lệ, và
-          bấm vào tên phải mở ô sửa chứ không phải chọn nhiệm vụ. */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs text-slate-500">#{quest.order_index}</span>
 
-        <QuestNameEditor
-          value={quest.quest_object_key}
-          onCommit={onRename}
-          onStartEditing={() => {
-            // Sửa tên thì cũng chọn luôn nhiệm vụ đó — bấm vào một dòng mà cột
-            // bên phải vẫn trỏ dòng khác là dễ thêm nhầm câu hỏi.
-            if (!active) onSelect();
-          }}
-        />
+        {/* Bấm vào TÊN là mở ô sửa, không phải chọn nhiệm vụ — nên chặn ở đây. */}
+        <span onClick={stopSelect}>
+          <InlineName
+            value={isAdvisor ? questLabel(quest, locale, t) : quest.quest_object_key}
+            title={t(isAdvisor ? 'stage.builder.renameNpc' : 'stage.builder.renameHint')}
+            className="w-40 font-medium text-slate-100"
+            onCommit={onRename}
+            onStartEditing={() => {
+              // Sửa tên thì cũng chọn luôn nhiệm vụ đó — bấm vào một dòng mà
+              // cột bên phải vẫn trỏ dòng khác là dễ thêm nhầm câu hỏi.
+              if (!active) onSelect();
+            }}
+          />
+        </span>
 
-        <button
-          type="button"
-          onClick={onSelect}
-          aria-pressed={active}
-          className="flex flex-1 flex-wrap items-center gap-2 text-left"
-        >
-          <Badge tone={quest.phase === 'advisor' ? 'info' : 'neutral'}>
-            {t(`stage.phase.${quest.phase}`)}
-          </Badge>
+        <span className="flex flex-1 flex-wrap items-center gap-2 text-left">
+          <Badge tone={isAdvisor ? 'info' : 'neutral'}>{t(`stage.phase.${quest.phase}`)}</Badge>
+          {isAdvisor && <Badge tone="warning">🔒 {t('stage.builder.questRequired')}</Badge>}
           <span className="text-xs text-slate-500">
             {t('stage.builder.questionCount', { count: quest.questions.length })} ·{' '}
             {t('stage.builder.passOf', {
@@ -489,11 +541,13 @@ function QuestRow({
           {quest.questions.length === 0 && (
             <Badge tone="danger">{t('stage.builder.emptyQuest')}</Badge>
           )}
-        </button>
+        </span>
       </div>
 
+      {/* Chặn ở THẺ BAO, không phải ở từng cái nút bên trong: thêm một nút mới
+          vào đây sau này thì nó được chặn sẵn, không phải nhớ. */}
       {quest.questions.length > 0 && (
-        <ol className="mt-2 space-y-1.5">
+        <ol className="mt-2 space-y-1.5" onClick={stopSelect}>
           {quest.questions.map((item) => {
             // Xoá mềm cũng là hỏng: câu hỏi có thể vừa `published` vừa đã xoá.
             const broken = item.question_status !== 'published' || item.question_deleted;
@@ -537,109 +591,95 @@ function QuestRow({
         </ol>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="sm" onClick={onTogglePhase}>
-          {t(`stage.phase.${quest.phase === 'advisor' ? 'main' : 'advisor'}`)}
-        </Button>
+      <div className="mt-2 flex flex-wrap items-center gap-2" onClick={stopSelect}>
+        {!isAdvisor && (
+          <Button variant="secondary" size="sm" onClick={onTogglePhase}>
+            {t('stage.phase.advisor')}
+          </Button>
+        )}
 
-        <label className="flex items-center gap-1 text-xs text-slate-500">
-          {t('stage.builder.passScore')}
-          <input
-            type="number"
-            className="field-input w-20 px-1.5 py-0.5 text-center text-xs"
-            defaultValue={quest.pass_score ?? ''}
-            // Placeholder là tổng điểm: bỏ trống nghĩa là "phải đúng hết".
-            placeholder={String(quest.total_points)}
-            onBlur={(e) => {
-              const raw = e.target.value.trim();
-              const value = raw === '' ? null : Number(raw);
-              if (value !== quest.pass_score) onSetPassScore(value);
-            }}
-          />
-        </label>
+        <PassScoreInput quest={quest} onCommit={onSetPassScore} />
 
-        <Button variant="danger" size="sm" onClick={onRemove}>
-          {t('stage.builder.removeQuest')}
-        </Button>
+        {!isAdvisor && (
+          <Button variant="danger" size="sm" onClick={onRemove}>
+            {t('stage.builder.removeQuest')}
+          </Button>
+        )}
       </div>
     </li>
   );
 }
 
 /**
- * Tên vật thể của nhiệm vụ — bấm vào để sửa tại chỗ.
+ * Chặn cú bấm khỏi trôi lên thẻ nhiệm vụ.
  *
- * Enter hoặc rời ô thì lưu; Escape thì huỷ. Không có nút "Sửa" riêng: tên là
- * thứ sửa thường xuyên lúc dựng màn, thêm một nút cho mỗi dòng là thêm nhiễu
- * vào chỗ vốn đã nhiều nút.
+ * Cả thẻ nhiệm vụ là một cái nút chọn; những vùng có việc riêng — sửa tên, sửa
+ * điểm, xoá câu hỏi — không được vừa làm việc của mình vừa bật/tắt lựa chọn.
  */
-function QuestNameEditor({
-  value,
+function stopSelect(event: ReactMouseEvent) {
+  event.stopPropagation();
+}
+
+/**
+ * Điểm qua ải của một nhiệm vụ.
+ *
+ * **Luôn hiện một con số**, mặc định là ĐIỂM TỐI ĐA của nhiệm vụ. Trước đây ô
+ * này để trống và tổng điểm chỉ nằm ở placeholder mờ — người dựng nhìn vào một
+ * ô rỗng thì không biết luật đang là gì, và "trống nghĩa là phải đúng hết" là
+ * thứ không ai đoán ra được.
+ *
+ * Bên dưới vẫn là `pass_score = NULL` khi con số bằng đúng tổng điểm: giữ NULL
+ * thì thêm một câu hỏi vào nhiệm vụ là ngưỡng tự đi theo. Ghim cứng 30 rồi thêm
+ * câu thứ tư thành 40 điểm là bỗng dưng qua ải dễ đi mà không ai đụng vào nó.
+ */
+function PassScoreInput({
+  quest,
   onCommit,
-  onStartEditing,
 }: {
-  value: string;
-  onCommit: (key: string) => void;
-  onStartEditing: () => void;
+  quest: Quest;
+  onCommit: (value: number | null) => void;
 }) {
   const t = useTranslations();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft] = useState(String(quest.pass_score_effective));
 
-  // Tên đổi từ nơi khác (server trả về) thì đồng bộ lại.
+  // Đổi từ nơi khác (thêm/bớt câu hỏi làm tổng điểm đổi) thì đồng bộ lại.
   useEffect(() => {
-    setDraft(value);
-  }, [value]);
+    setDraft(String(quest.pass_score_effective));
+  }, [quest.pass_score_effective]);
 
   function commit() {
-    setEditing(false);
-    const next = draft.trim();
-    // Rỗng thì trả về tên cũ: nhiệm vụ không có khoá vật thể thì Phaser không
-    // biết gắn nó vào đâu.
-    if (!next) {
-      setDraft(value);
+    const raw = draft.trim();
+    // Xoá trắng = trả về mặc định, tức bám theo tổng điểm.
+    const next = raw === '' ? null : Number(raw);
+    if (next !== null && (!Number.isFinite(next) || next < 0)) {
+      setDraft(String(quest.pass_score_effective));
       return;
     }
-    if (next !== value) onCommit(next);
-  }
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          onStartEditing();
-          setEditing(true);
-        }}
-        title={t('stage.builder.renameHint')}
-        className="rounded px-1 font-medium text-slate-100 underline decoration-dotted decoration-slate-600 underline-offset-4 transition hover:bg-abyss-800 hover:decoration-lagoon-400"
-      >
-        {value}
-      </button>
-    );
+    // Gõ đúng bằng tổng điểm cũng là mặc định — lưu NULL để nó còn bám theo.
+    const value = next === null || next === quest.total_points ? null : next;
+    if (value !== quest.pass_score) onCommit(value);
+    else setDraft(String(quest.pass_score_effective));
   }
 
   return (
-    <input
-      className="field-input w-40 px-1.5 py-0.5 font-medium"
-      value={draft}
-      aria-label={t('stage.builder.renameHint')}
-      // autoFocus đúng chỗ ở đây: ô chỉ xuất hiện do người dùng vừa bấm vào,
-      // nên con trỏ nhảy vào là điều họ đang mong đợi.
-      autoFocus
-      onFocus={(e) => e.currentTarget.select()}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          commit();
-        } else if (e.key === 'Escape') {
-          setDraft(value);
-          setEditing(false);
-        }
-      }}
-    />
+    <label className="flex items-center gap-1 text-xs text-slate-500">
+      {t('stage.builder.passScore')}
+      <input
+        type="number"
+        min={0}
+        className="field-input w-20 px-1.5 py-0.5 text-center text-xs"
+        title={t('stage.builder.passScoreHint', { total: quest.total_points })}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+      />
+    </label>
   );
 }
 
@@ -692,7 +732,15 @@ function PointsInput({
   );
 }
 
-/** Sửa thông tin nhận dạng của màn: tên, cảnh Phaser, NPC, số thứ tự. */
+/**
+ * Sửa thông tin nhận dạng của màn: tên và số thứ tự.
+ *
+ * Không còn ô `scene_key` và `advisor_npc_key`. Cả hai là khoá KỸ THUẬT mà giờ
+ * không chỗ nào đọc tới: cảnh Phaser dựng hoàn toàn từ dữ liệu, còn tên NPC mà
+ * học sinh nhìn thấy là tên của chính NHIỆM VỤ NPC — sửa ngay ở sơ đồ màn bên
+ * trên. Hai ô hỏi một thứ đã có chỗ khác trả lời thì chỉ tạo ra hai câu trả lời
+ * lệch nhau.
+ */
 function StageInfoForm({
   stage,
   locale,
@@ -704,18 +752,14 @@ function StageInfoForm({
 }) {
   const t = useTranslations();
   const [name, setName] = useState(ownText(stage.name_i18n, locale));
-  const [sceneKey, setSceneKey] = useState(stage.scene_key);
-  const [advisor, setAdvisor] = useState(stage.advisor_npc_key ?? '');
   const [order, setOrder] = useState(stage.order_index);
 
   const { run: submit, pending } = useAsyncAction(async () => {
-    if (!name.trim() || !sceneKey.trim()) return;
+    if (!name.trim()) return;
     await onSave({
       // Giữ các ngôn ngữ khác, chỉ sửa ngôn ngữ đang xem — không thì sửa bản
       // tiếng Việt là xoá mất bản tiếng Anh.
       name_i18n: { ...stage.name_i18n, [locale]: name.trim() },
-      scene_key: sceneKey.trim(),
-      advisor_npc_key: advisor.trim() || null,
       order_index: order,
     });
   });
@@ -732,23 +776,6 @@ function StageInfoForm({
         />
       </label>
       <label className="block">
-        <span className="field-label">{t('stage.field.sceneKey')}</span>
-        <input
-          className="field-input"
-          value={sceneKey}
-          onChange={(e) => setSceneKey(e.target.value)}
-        />
-      </label>
-      <label className="block">
-        <span className="field-label">{t('stage.field.advisor')}</span>
-        <input
-          className="field-input"
-          placeholder="captain_drake"
-          value={advisor}
-          onChange={(e) => setAdvisor(e.target.value)}
-        />
-      </label>
-      <label className="block">
         <span className="field-label">{t('stage.builder.order')}</span>
         <input
           type="number"
@@ -762,7 +789,7 @@ function StageInfoForm({
           variant="primary"
           size="sm"
           loading={pending}
-          disabled={!name.trim() || !sceneKey.trim()}
+          disabled={!name.trim()}
           onClick={submit}
         >
           {t('common.action.save')}
@@ -781,7 +808,7 @@ function StageSettings({
 }) {
   const t = useTranslations();
   const [time, setTime] = useState(stage.time_limit_seconds);
-  const [energy, setEnergy] = useState(stage.initial_team_energy);
+  const [energy, setEnergy] = useState(stage.energy_per_player);
   const [skillMax, setSkillMax] = useState(stage.skill_pts_max);
   const [shard, setShard] = useState(stage.map_shard_index);
   const [starMax, setStarMax] = useState(stage.star_max);
@@ -796,7 +823,7 @@ function StageSettings({
 
   const dirty =
     time !== stage.time_limit_seconds ||
-    energy !== stage.initial_team_energy ||
+    energy !== stage.energy_per_player ||
     skillMax !== stage.skill_pts_max ||
     shard !== stage.map_shard_index ||
     starMax !== stage.star_max ||
@@ -808,6 +835,9 @@ function StageSettings({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Field label={t('stage.field.timeLimit')} value={time} onChange={setTime} />
         <Field label={t('stage.field.energy')} value={energy} onChange={setEnergy} />
+        <p className="col-span-2 text-xs text-slate-500 sm:col-span-3">
+          {t('stage.field.energyHint')}
+        </p>
         <Field label={t('stage.field.skillPtsMax')} value={skillMax} onChange={setSkillMax} />
         <Field label={t('stage.field.shardIndex')} value={shard} onChange={setShard} />
         <Field label={t('stage.field.starMax')} value={starMax} onChange={setStarMax} />
@@ -835,7 +865,7 @@ function StageSettings({
           onClick={() =>
             onSave({
               time_limit_seconds: time,
-              initial_team_energy: energy,
+              energy_per_player: energy,
               skill_pts_max: skillMax,
               map_shard_index: shard,
               star_max: starMax,

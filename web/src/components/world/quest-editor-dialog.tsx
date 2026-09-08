@@ -40,12 +40,15 @@ const DEFAULT_POINTS = 10;
 export function QuestEditorDialog({
   quest,
   locale,
+  stageCode,
   onChanged,
   onReload,
   onClose,
 }: {
   quest: Quest;
   locale: string;
+  /** Mã màn chơi đang mở — bộ chọn câu hỏi lọc sẵn theo nó. */
+  stageCode?: string | null;
   onChanged: (quest: Quest) => void;
   onReload: () => Promise<void>;
   onClose: () => void;
@@ -122,6 +125,27 @@ export function QuestEditorDialog({
         <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[18rem_1fr]">
           {/* ============ CỘT TRÁI: tuỳ chỉnh nhiệm vụ ============ */}
           <div className="space-y-4">
+            {/* MÃ NHIỆM VỤ trong file nội dung. Khác `quest_object_key`: cái
+                kia là tên vật thể trong cảnh do giáo viên đặt, còn cái này là
+                địa chỉ do bộ phận nội dung đặt trong bảng tính, và nó là thứ
+                duy nhất nối một dòng Excel với nhiệm vụ này.
+
+                Xoá trắng ô là gỡ mã — `null` gửi lên có nghĩa "bỏ đi", xem
+                `_apply_optional()` bên router. */}
+            <Field label={t('designer.questCode')} hint={t('designer.questCodeHint')}>
+              <input
+                className="field-input font-mono text-xs"
+                defaultValue={quest.quest_code ?? ''}
+                placeholder="W1-S1-Quest-01"
+                onBlur={(e) => {
+                  const next = e.target.value.trim();
+                  if (next !== (quest.quest_code ?? '')) {
+                    void patch({ quest_code: next || null });
+                  }
+                }}
+              />
+            </Field>
+
             <Field label={t('designer.objectKey')} hint={t('stage.builder.objectHint')}>
               <input
                 className="field-input font-mono text-xs"
@@ -136,27 +160,41 @@ export function QuestEditorDialog({
             </Field>
 
             <Field label={t('designer.phase')}>
+              {/* Nhiệm vụ NPC không đổi giai đoạn được — nó là cổng vào của màn.
+                  Khoá ô chọn chứ không giấu đi: giáo viên vẫn cần đọc được nhiệm
+                  vụ này đang ở giai đoạn nào. */}
               <select
-                className="field-input"
+                className="field-input disabled:opacity-60"
                 value={quest.phase}
+                disabled={quest.phase === 'advisor'}
                 onChange={(e) => void patch({ phase: e.target.value as 'advisor' | 'main' })}
               >
                 <option value="main">{t('stage.phase.main')}</option>
                 <option value="advisor">{t('stage.phase.advisor')}</option>
               </select>
+              {quest.phase === 'advisor' && (
+                <p className="mt-1 text-xs text-slate-500">{t('stage.builder.npcGateNote')}</p>
+              )}
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label={t('stage.builder.passScore')}>
+                {/* Luôn hiện một con số, mặc định là điểm tối đa — giống hệt ô
+                    bên trình soạn màn. Bên dưới vẫn là `pass_score = NULL` khi
+                    con số bằng đúng tổng điểm, để thêm câu hỏi thì ngưỡng tự đi
+                    theo. Xem `PassScoreInput` trong `stage-builder.tsx`. */}
                 <input
+                  key={quest.pass_score_effective}
                   type="number"
                   min={0}
                   className="field-input"
-                  placeholder={String(quest.total_points)}
-                  defaultValue={quest.pass_score ?? ''}
+                  title={t('stage.builder.passScoreHint', { total: quest.total_points })}
+                  defaultValue={quest.pass_score_effective}
                   onBlur={(e) => {
                     const raw = e.target.value.trim();
-                    const next = raw === '' ? null : Number(raw);
+                    const typed = raw === '' ? null : Number(raw);
+                    if (typed !== null && (!Number.isFinite(typed) || typed < 0)) return;
+                    const next = typed === null || typed === quest.total_points ? null : typed;
                     if (next !== quest.pass_score) {
                       void patch({ pass_score: next, clear_pass_score: next === null });
                     }
@@ -264,6 +302,7 @@ export function QuestEditorDialog({
               </h3>
               <div className="min-h-64 flex-1">
                 <QuestionPicker
+                  stageCode={stageCode}
                   selected={new Set(picked.keys())}
                   alreadyIn={alreadyIn}
                   onToggle={(question) =>

@@ -6,6 +6,10 @@ import { useState, type ReactNode } from 'react';
 
 import { GalaxyFrame } from '@/components/world/galaxy-frame';
 import { LobbyContent } from '@/components/world/lobby-content';
+
+import { AmbientPlayer, useAmbientVideoSound } from './ambient-player';
+import { BackgroundLayer } from './background-layer';
+import { MusicControls } from './music-controls';
 import {
   GALAXY,
   isLobbyAction,
@@ -13,6 +17,7 @@ import {
   LOBBY_ELEMENT_KEYS,
   LOBBY_RANK_ROWS,
   lobbyBox,
+  lobbyGroupOf,
   lobbyTextLines,
   type LobbyElementKey,
   type LobbySaved,
@@ -47,17 +52,20 @@ const MOTION = 'transition-transform duration-150 ease-out motion-reduce:transit
  * (`motion-reduce:hover:scale-100`) là xoá sạch tính năng — mà điều người ta
  * xin là bớt thứ nhúc nhích, không phải bớt thứ cho biết chuột đang ở đâu.
  */
-function motionOf(key: LobbyElementKey, pressable: boolean) {
-  // Hàng chương KHÔNG phóng cả khối: người chơi nhắm vào MỘT chương, mà phóng
-  // cả hàng thì bốn chương kia cũng nhúc nhích theo dù không ai chạm tới. Việc
-  // phóng nằm ở từng ô chương, xem `ChapterRow`.
-  if (key === 'chapters') return '';
-
-  // Nút phóng đậm hơn khối: nó nhỏ hơn nhiều, cùng một tỉ lệ thì gần như không
-  // thấy gì.
-  const zoom = isLobbyAction(key) ? 'hover:scale-[1.06]' : 'hover:scale-[1.03]';
-  const press = pressable ? 'active:scale-[0.96] active:duration-75' : '';
-  return `${MOTION} ${zoom} ${press}`;
+/**
+ * Tỉ lệ phóng khi rê chuột vào một khối. `1` = không phóng.
+ *
+ * Nút phóng đậm hơn khối: nó nhỏ hơn nhiều, cùng một tỉ lệ thì gần như không
+ * thấy gì. Hàng chương trả về 1 — người chơi nhắm vào MỘT chương, mà phóng cả
+ * hàng thì bốn chương kia cũng nhúc nhích theo dù không ai chạm tới. Việc phóng
+ * nằm ở từng ô chương, xem `ChapterRow`.
+ *
+ * Trả về SỐ chứ không phải tên lớp CSS: Tailwind dò tên lớp trong mã nguồn, nên
+ * một tên ghép chuỗi kiểu `scale-[${n}]` sẽ không bao giờ được sinh ra.
+ */
+function zoomOf(key: LobbyElementKey): number {
+  if (key === 'chapters') return 1;
+  return isLobbyAction(key) ? 1.06 : 1.03;
 }
 
 /**
@@ -81,46 +89,96 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
   // `ActionButton` dùng để quyết định vẽ liên kết hay vẽ một ô mờ.
   const canPlay = (world.chapters?.flatMap((c) => c.stages) ?? []).some((stage) => stage.unlocked);
 
+  /**
+   * NHÓM khối đang bị rê chuột — không phải khối nào.
+   *
+   * Giữ ở đây chứ không dùng `:hover` của CSS: `:hover` chỉ biết về phần tử
+   * dưới con trỏ, mà cái phải phóng lên là cả nhóm. Không có tổ tiên chung nào
+   * để treo `group-hover` vào — các khối là anh em ruột, mỗi cái đặt theo toạ
+   * độ thế giới của riêng nó.
+   */
+  const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
+  // Xem `GalaxyMap` — cùng một luật, cùng một hook.
+  const videoSound = useAmbientVideoSound(lobby.audio, lobby.background_kind, 'lobby');
+
   return (
     <div
       className="relative w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950"
       style={{ aspectRatio: `${GALAXY.width} / ${GALAXY.height}` }}
     >
-      {lobby.background_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={lobby.background_url}
-          alt=""
-          className="pointer-events-none absolute inset-0 size-full object-cover"
-          draggable={false}
-        />
-      )}
+      <BackgroundLayer
+        url={lobby.background_url}
+        kind={lobby.background_kind}
+        sound={videoSound}
+        className="pointer-events-none absolute inset-0 size-full object-cover"
+      />
+
+      {/* Nhạc riêng của phòng chờ. KHÔNG kế thừa nhạc thiên hà: hai màn này đi
+          liền nhau, và một bản nhạc chạy tiếp qua ranh giới thì không nói được
+          là mình đã sang chỗ khác. Muốn giống thì tải cùng một file lên cả hai. */}
+      <AmbientPlayer
+        surface="lobby"
+        audio={lobby.audio}
+        audioUrls={lobby.audio_urls}
+        backgroundKind={lobby.background_kind}
+      />
+      <MusicControls className="absolute top-3 right-3 z-20" />
 
       {LOBBY_ELEMENT_KEYS.map((key) => {
         const box = lobbyBox(key, layout[key]);
+        const group = lobbyGroupOf(key);
+        const zoom = zoomOf(key);
+        const on = hoveredGroup === group && zoom !== 1;
+        const pressable = key === 'character' || (key === 'play' && canPlay);
         return (
           <div
             key={key}
+            data-lobby-group={group}
+            // Rê vào MỘT khối là cả nhóm phóng. Nghe ở từng khối chứ không bọc
+            // cả nhóm vào một thẻ chung: thẻ chung phải to bằng hộp bao cả nhóm,
+            // và cái khoảng trống giữa các khối con trong hộp đó sẽ nuốt mất cú
+            // rê dành cho thứ nằm bên dưới.
+            onPointerEnter={() => setHoveredGroup(group)}
+            onPointerLeave={(e) => {
+              // Đi từ khối này sang khối anh em thì KHÔNG tắt: `pointerleave`
+              // của cái này chạy trước `pointerenter` của cái kia, nên tắt vô
+              // điều kiện là cả nhóm co lại rồi phồng lên trong một khung hình.
+              const to = e.relatedTarget as Element | null;
+              if (to?.closest?.(`[data-lobby-group="${group}"]`)) return;
+              setHoveredGroup((current) => (current === group ? null : current));
+            }}
             // KHÔNG nâng `z-index` khi rê. Các khối phòng chờ CHỒNG LÊN NHAU
             // theo thiết kế — dòng mô tả nhân vật nằm ngay trên tấm thẻ nhân
             // vật — nên nâng khối đang rê lên trên là lấy ảnh thẻ đè mất dòng
             // chữ, tức rê chuột vào thì chữ biến mất. Thứ tự chồng ở đây do
             // người dựng sắp đặt qua chỗ đứng của từng khối; cú rê chuột không
             // có quyền sắp lại. Ô chương thì khác, xem `ChapterRow`.
-            className="absolute"
+            className={`absolute ${zoom === 1 ? '' : MOTION}`}
             style={{
               left: `${(box.x / GALAXY.width) * 100}%`,
               top: `${(box.y / GALAXY.height) * 100}%`,
               width: `${(box.width / GALAXY.width) * 100}%`,
               height: `${(box.height / GALAXY.height) * 100}%`,
-              transform: 'translate(-50%, -50%)',
+              // Phép phóng nằm TRONG `transform`, và nằm SAU phép căn giữa.
+              //
+              // Không dùng thuộc tính `scale:` riêng của CSS. Thứ tự hợp thành
+              // mà trình duyệt áp là `translate → rotate → scale → transform`,
+              // tức cái `-50%` căn giữa ở đây bị NHÂN với tỉ lệ phóng: khối
+              // phóng 1,03 thì tâm nó trôi lên trái đúng 1,5% kích thước của
+              // chính nó. Trên tấm khung thành tích 193×279 là gần 3×4 điểm ảnh
+              // — đủ để nhìn ra cái khối trượt sang trái thay vì nở ra tại chỗ.
+              // Lỗi này có từ trước, hồi còn dùng lớp `hover:scale-*` của
+              // Tailwind.
+              //
+              // Viết `translate(...) scale(...)` thì phép căn giữa chạy trước và
+              // không bị nhân: khối nở ra ĐỀU quanh tâm của chính nó.
+              transform: `translate(-50%, -50%)` + (on ? ` scale(${zoom})` : ''),
             }}
           >
             <div
-              className={`relative size-full overflow-hidden rounded-xl ${motionOf(
-                key,
-                key === 'character' || (key === 'play' && canPlay),
-              )}`}
+              className={`relative size-full overflow-hidden rounded-xl ${
+                pressable ? `${MOTION} active:scale-[0.96] active:duration-75` : ''
+              }`}
             >
               {lobby.urls?.[key] && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -539,11 +597,20 @@ function ActionButton({
     );
   }
 
-  // Màn mở CUỐI CÙNG, không phải màn đầu tiên: nút này là "chơi tiếp", và chỗ
-  // người chơi đang đứng là mép tiến độ của họ. Ném họ về màn 1 mỗi lần bấm là
-  // bắt chơi lại thứ đã xong để tới được thứ chưa xong.
+  // Đích của nút Chơi ngay, theo thứ tự ưu tiên:
+  //
+  //   1. Màn đang chơi DỞ và còn giờ — `resume_stage_id`. Người chơi đóng nhầm
+  //      tab giữa chừng rồi quay lại thì thứ họ muốn là cái đang làm dở, không
+  //      phải một màn khác. Server quyết chuyện "còn giờ hay không", vì chỉ nó
+  //      biết `started_at`.
+  //   2. Màn mở CUỐI CÙNG. Nút này là "chơi tiếp", và chỗ người chơi đang đứng
+  //      là mép tiến độ của họ. Ném họ về màn 1 mỗi lần bấm là bắt chơi lại thứ
+  //      đã xong để tới được thứ chưa xong.
   const stages = world.chapters?.flatMap((c) => c.stages) ?? [];
-  const last = stages.filter((stage) => stage.unlocked).at(-1);
+  const resuming = world.resume_stage_id
+    ? stages.find((stage) => stage.id === world.resume_stage_id)
+    : undefined;
+  const last = resuming ?? stages.filter((stage) => stage.unlocked).at(-1);
   if (!last) {
     return (
       <span
@@ -558,7 +625,13 @@ function ActionButton({
   return (
     <Link
       href={localizedPath(`/play/stage/${last.id}`, locale)}
-      title={text || name}
+      // Nói rõ nó dẫn đi đâu khi đang có màn dở: cùng một cái nút mà hôm nay
+      // vào màn 7, mai vào màn 3, thì người chơi cần biết vì sao.
+      title={
+        resuming
+          ? t('lobby.play.resume', { stage: pickText(resuming.name_i18n, locale) })
+          : text || name
+      }
       className="flex size-full items-center justify-center rounded-lg text-center no-underline transition hover:brightness-110"
     >
       {label}

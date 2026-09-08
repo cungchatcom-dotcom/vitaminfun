@@ -17,6 +17,34 @@ export const DEFAULT_QUEST_RADIUS = 165;
 export const DEFAULT_ICON_SIZE = 120;
 
 /**
+ * CHỖ XUẤT PHÁT của nhân vật khi màn chưa đặt riêng (`stages.spawn_x/spawn_y`).
+ *
+ * Chếch xuống trái tâm cảnh — chỗ nhìn thấy được cả boong tàu của màn đầu tiên,
+ * và cũng là chỗ cảnh chơi vẫn thả người chơi xuống từ trước khi có cột trong
+ * database. Giữ đúng con số cũ nên mọi màn đã dựng không đổi một chút nào.
+ *
+ * Đây là ĐIỂM VA CHẠM — cùng thứ `canWalk()` xét, cao hơn gót chân
+ * `HERO_FOOT_Y` — chứ không phải tâm tấm ảnh nhân vật.
+ *
+ * Con số ra khỏi `StageScene` vì **trình thiết kế cũng phải biết nó**: nó vẽ
+ * nhân vật ở đúng chỗ này khi màn chưa đặt riêng, và một bản sao thứ hai của
+ * cặp số sẽ lệch đúng vào lúc không ai kịp nhận ra — cùng lý do với
+ * `HERO_FOOT_Y`.
+ */
+export const DEFAULT_SPAWN = {
+  x: WORLD.width / 2 - 100,
+  y: WORLD.height / 2 + 120,
+} as const;
+
+/** Chỗ xuất phát đang có hiệu lực: số đã đặt, không thì chỗ mặc định. */
+export function resolveSpawn(
+  x: number | null | undefined,
+  y: number | null | undefined,
+): { x: number; y: number } {
+  return { x: x ?? DEFAULT_SPAWN.x, y: y ?? DEFAULT_SPAWN.y };
+}
+
+/**
  * Khung BẢN ĐỒ THIÊN HÀ — màn chọn world.
  *
  * Cùng MỘT giá trị với `WORLD`, không phải một bản sao: hai khung thiết kế dùng
@@ -202,6 +230,51 @@ export const LOBBY_PLAIN_KEYS = [
 export function hasContentFrame(key: LobbyElementKey): boolean {
   return !(LOBBY_PLAIN_KEYS as readonly string[]).includes(key);
 }
+
+/**
+ * NHÓM khối: một khối cha và các khối con dính theo nó.
+ *
+ * Chúng nằm rời nhau trong DOM — mỗi khối là một hộp đặt theo toạ độ thế giới,
+ * kéo riêng được ở trình thiết kế — nhưng với người chơi thì chúng là MỘT thứ:
+ *
+ *   - rê chuột vào cái nào thì CẢ NHÓM cùng phóng, cùng một tỉ lệ, mỗi khối nở
+ *     đều quanh tâm của chính nó;
+ *   - kéo KHỐI CHA thì các khối con dời theo đúng bấy nhiêu.
+ *
+ * Khoá của mục chính là KHỐI CHA — cái được kéo và cái mang tấm ảnh khung.
+ */
+export const LOBBY_GROUPS: Partial<Record<LobbyElementKey, readonly LobbyElementKey[]>> = {
+  character: ['character', 'characterInfo'],
+  stats: ['stats', ...LOBBY_STAT_KEYS],
+};
+
+/**
+ * Khối này thuộc nhóm nào. Khối đứng một mình thì nhóm chính là nó.
+ */
+export function lobbyGroupOf(key: LobbyElementKey): LobbyElementKey {
+  for (const [parent, members] of Object.entries(LOBBY_GROUPS)) {
+    if ((members as readonly string[]).includes(key)) return parent as LobbyElementKey;
+  }
+  return key;
+}
+
+/**
+ * ⚠️ Đã bỏ: `lobbyZoomShift()`.
+ *
+ * Có một dạo cả nhóm nở ra như một mảng CỨNG, quanh tâm khối cha — nghe thì hợp
+ * lý, vì con số sẽ dính chặt vào cái ô vẽ trên tấm khung. Nhưng nhìn thì sai:
+ * một khối con nằm lệch sang phải tâm cha sẽ nở ra 0,74 điểm ảnh bên trái và
+ * 1,97 bên phải, còn khối con nằm trên thì mép dưới của nó THỤT VÀO trong lúc
+ * mép trên vọt lên. Nó không đọc ra là "to lên", nó đọc ra là "trượt đi".
+ *
+ * Giờ mỗi khối nở đều quanh tâm CỦA CHÍNH NÓ, cả nhóm cùng một tỉ lệ. Cái giá
+ * phải trả: con số xê dịch so với hoa văn trên tấm khung đúng
+ * `(tỉ lệ − 1) × khoảng cách tới tâm khung` — với một con số cách tâm 200 đơn vị
+ * thì là 6 đơn vị thế giới, cỡ hơn một điểm ảnh trên màn hình. Đổi một điểm ảnh
+ * lệch lấy việc mọi khối đều nở đều là một cuộc đổi chác đáng.
+ */
+
+
 
 /**
  * Chiều cao một dòng chữ, tính theo bội số cỡ chữ. Bằng `leading-snug` của

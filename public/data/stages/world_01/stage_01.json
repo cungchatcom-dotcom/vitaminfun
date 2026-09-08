@@ -1,0 +1,451 @@
+{
+  "id": "stage_01",
+  "worldId": "world_01",
+  "stageNumber": 1,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Cơn bão bất ngờ",
+  "story": "Nhóm bạn điều khiển thuyền vượt qua giông bão. Hãy đến gặp Thuyền trưởng Drake để lấy bí quyết vượt bão, sau đó vận dụng để xử lý buồm, thân tàu, phao cứu sinh và mở hòm báu.",
+  "difficulty": "Easy",
+  "grammarHint": "Imperatives & Present Simple (Khẩu lệnh & Thì hiện tại đơn)",
+  "minCombatPower": 0,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 1,
+  "scene": {
+    "background": "./assets/backgrounds/stage_01_ship_deck.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -820,
+        "y": 390
+      },
+      {
+        "x": -580,
+        "y": 530
+      },
+      {
+        "x": 760,
+        "y": 510
+      },
+      {
+        "x": 860,
+        "y": 250
+      },
+      {
+        "x": 640,
+        "y": -220
+      },
+      {
+        "x": 480,
+        "y": -480
+      },
+      {
+        "x": -260,
+        "y": -490
+      },
+      {
+        "x": -590,
+        "y": -260
+      },
+      {
+        "x": -830,
+        "y": 60
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -100,
+        "y": 120
+      }
+    },
+    "advisorSpawn": {
+      "x": 520,
+      "y": -380
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -280,
+        "y": 60
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 120,
+        "y": 160
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -20,
+        "y": -140
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "Cột Buồm Chính",
+        "icon": "⛵",
+        "color": "#d4af37",
+        "x": 260,
+        "y": -200,
+        "role": "Khu vực điều khiển tời buồm đón bão",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Thân Tàu Rạn Nứt",
+        "icon": "🪵",
+        "color": "#e67e22",
+        "x": -450,
+        "y": 280,
+        "role": "Khu vực gia cố khoang chứa đồ",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Đèn Phao Cứu Sinh",
+        "icon": "🚨",
+        "color": "#e74c3c",
+        "x": 480,
+        "y": 220,
+        "role": "Vị trí định vị tín hiệu khẩn cấp",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Hòm Báu Cổ Atlantis",
+        "icon": "📦",
+        "color": "#3498db",
+        "x": -300,
+        "y": -260,
+        "role": "Hòm bí mật chứa Mảnh bản đồ 1",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "captain",
+    "name": "Captain Drake (Thuyền trưởng)",
+    "role": "NPC Cố vấn trưởng Màn 1",
+    "portrait": "./assets/portraits/captain.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_01_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Greeting & Intro",
+        "question_text": "Ahoy! The tempest is raging! Who are you and what is your role in this expedition?",
+        "text_translation": "Chào nhóc tỳ! Giông bão đang nổi lên dữ dội! Ngươi là ai và đảm nhận vai trò gì trong chuyến hải trình này?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Hello Captain Drake! I am Leo, the Guardian leader of this expedition.",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "I am just a passenger looking for snacks.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Who are you? Stop shouting at me!",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 2,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Purpose & Request",
+        "question_text": "Welcome aboard, Leo! What brings you to my helm in this deadly storm?",
+        "text_translation": "Tốt lắm! Con tàu đang mất lái! Cậu cần ta giúp đỡ điều gì để giữ cho tàu không bị chìm?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "We are trapped in the tempest and need your guidance and secrets to survive!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "I want to watch the lightning from up here.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Give me all the treasure right now!",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 3,
+        "question_type": "text",
+        "answer_type": "",
+        "question_text": "Now, press onward with your journey and receive this handbook. Use its secrets wisely to navigate the perilous challenges ahead—good luck, travelers!",
+        "text_translation": "Giờ thì tiếp tục hành trình đi và nhận lấy cuốn sổ tay này. Hãy dùng những bí quyết trong đó cho khôn ngoan để vượt qua hiểm nguy phía trước — chúc may mắn, các nhà thám hiểm!",
+        "item": "cluebook"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 CAPTAIN DRAKE'S SECRET HANDBOOK",
+      "content": "First, make your way to the Main Mast and shout out loud, Lower the sails immediately! to catch the wind. Next, inspect the Cracked Hull and instruct the mechanic to use a wrench to tighten the loose bolts inside the cargo storage compartment. Once the vessel is secured, check the Lifebuoy Light by locating the radar positioned on the left side (port side). Finally, approach the Ancient Atlantean Treasure Chest and enter the secret passcode of the mythical metal—Orichalcum—to unlock its hidden riches."
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Main Mast",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The storm winds are snapping the halyards! We need the exact English command to lower the sails!",
+          "text_translation": "Hãy hô khẩu lệnh tiếng Anh để hạ buồm lập tức.",
+          "hint": "Captain Drake's secret: Lower the sails immediately!",
+          "options": [
+            {
+              "key": "A",
+              "text": "Lower the sails immediately!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Raise all sails to the top!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Cut the anchor rope!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the command in English to lower the sails right now!",
+          "text_translation": "Gõ khẩu lệnh tiếng Anh để hạ buồm ngay lập tức.",
+          "hint": "Captain Drake's secret: Lower the sails immediately!",
+          "options": [
+            "lower the sails immediately",
+            "lower the sails",
+            "lower sails"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "While the sails come down, the Captain tests your seamanship: which rope raises and lowers a sail?",
+          "text_translation": "Dây nào dùng để kéo buồm lên và hạ buồm xuống?",
+          "hint": "A halyard is the rope that hauls a sail up and down.",
+          "options": [
+            {
+              "key": "A",
+              "text": "The halyard",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "The anchor",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "The rudder",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 2,
+      "title": "Cracked Hull",
+      "skill": "Read & Write",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The hull is cracking and seawater is pouring in! Which tool does the Captain's guidance call for?",
+          "text_translation": "Gõ tên dụng cụ cờ lê (wrench) theo hướng dẫn.",
+          "hint": "Captain Drake's secret: use the 'wrench' to reinforce the hull.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Use the wrench to tighten bolts",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Use a paintbrush",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Use a plastic cup",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "The mechanic cannot hear you over the storm. Type the name of the tool you need!",
+          "text_translation": "Gõ tên dụng cụ cần dùng để siết bu lông thân tàu.",
+          "hint": "Captain Drake's secret: the tool is the 'wrench'.",
+          "options": [
+            "use the wrench",
+            "use wrench",
+            "wrench"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    },
+    {
+      "id": 3,
+      "title": "Lifebuoy Light",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The underwater radar is flashing a signal! Which side is the emergency buoy on?",
+          "text_translation": "Mô tả vị trí phao ở bên trái (left side).",
+          "hint": "Captain Drake's secret: it is on the left side (port side).",
+          "options": [
+            {
+              "key": "A",
+              "text": "The beacon is on the left side (port side)!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "The beacon is on the right side (starboard)!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "The beacon is completely lost!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type your radar report in English: where is the emergency beacon?",
+          "text_translation": "Gõ báo cáo radar: đèn phao khẩn cấp nằm ở bên trái.",
+          "hint": "Captain Drake's secret: it is on the left side (port side).",
+          "options": [
+            "the beacon is on the left side",
+            "on the left side",
+            "left side",
+            "port side"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    },
+    {
+      "id": 4,
+      "title": "Ancient Atlantean Treasure Chest",
+      "skill": "Read & Write",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The ancient Atlantean lock demands the name of the legendary metal to release Map Shard 1!",
+          "text_translation": "Nhập mật mã kim loại Orichalcum.",
+          "hint": "Captain Drake's secret: the passcode is 'Orichalcum'.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Orichalcum (the mythical metal)",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Titanium Alloy",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Stainless Steel",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the passcode of the legendary metal to open the chest!",
+          "text_translation": "Gõ mật mã tên kim loại huyền thoại để mở hòm báu.",
+          "hint": "Captain Drake's secret: the passcode is 'Orichalcum'.",
+          "options": [
+            "orichalcum"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "The chest asks one last thing: type the English word for the broken piece of a map you have just won.",
+          "text_translation": "Gõ từ tiếng Anh chỉ mảnh vỡ của tấm bản đồ vừa nhận được.",
+          "hint": "A broken piece of something is called a 'shard'.",
+          "options": [
+            "shard",
+            "map shard",
+            "a map shard"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    }
+  ]
+}

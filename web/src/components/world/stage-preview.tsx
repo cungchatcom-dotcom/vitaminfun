@@ -79,12 +79,12 @@ export function StagePreview({ stageId }: { stageId: string }) {
       {/* Nói thẳng cái gì chưa có, thay vì để người dùng tự đoán vì sao không
           thấy cảnh 2.5D nào. */}
       <div className="mb-6 rounded-xl border border-orichalcum-500/40 bg-orichalcum-500/10 px-4 py-3 text-sm text-orichalcum-400">
-        🚧 {t('stage.preview.noSceneYet', { scene: stage.scene_key })}
+        🚧 {t('stage.preview.noSceneYet')}
       </div>
 
       <div className="mb-6 flex flex-wrap gap-3 text-sm">
         <Stat label={t('stage.field.timeLimit')} value={`${stage.time_limit_seconds}s`} />
-        <Stat label={t('stage.field.energy')} value={stage.initial_team_energy} />
+        <Stat label={t('stage.field.energy')} value={stage.energy_per_player} />
         <Stat label={t('stage.preview.totalPoints')} value={totalPoints} />
         <Stat
           label={t('stage.field.requiredSkillPts')}

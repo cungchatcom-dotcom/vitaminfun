@@ -1,0 +1,395 @@
+{
+  "id": "stage_02",
+  "worldId": "world_01",
+  "stageNumber": 2,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Hang bong bóng",
+  "story": "Nhóm bạn tỉnh dậy trong hang động ngầm sau vụ chìm tàu. Hãy gặp Tinh linh Coralia để học bí quyết tạo bóng khí thở, sau đó thu thập nhu yếu phẩm và phá lối thoát ngầm.",
+  "difficulty": "Easy",
+  "grammarHint": "Can / Must & Present Simple (Khả năng & Mệnh lệnh sinh tồn)",
+  "minCombatPower": 150,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 2,
+  "scene": {
+    "background": "./assets/backgrounds/stage_02_bubble_cavern.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -750,
+        "y": 350
+      },
+      {
+        "x": -400,
+        "y": 480
+      },
+      {
+        "x": 650,
+        "y": 450
+      },
+      {
+        "x": 800,
+        "y": 200
+      },
+      {
+        "x": 600,
+        "y": -250
+      },
+      {
+        "x": 350,
+        "y": -450
+      },
+      {
+        "x": -250,
+        "y": -450
+      },
+      {
+        "x": -600,
+        "y": -200
+      },
+      {
+        "x": -780,
+        "y": 50
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -120,
+        "y": 100
+      }
+    },
+    "advisorSpawn": {
+      "x": 450,
+      "y": -320
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -250,
+        "y": 50
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 100,
+        "y": 180
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -40,
+        "y": -120
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "Chuỗi San Hô Khí Thở",
+        "icon": "🪸",
+        "color": "#00f0ff",
+        "x": 240,
+        "y": -180,
+        "role": "Khu vực kích hoạt bóng oxy sinh học",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Túi Cứu Thương Trôi Dạt",
+        "icon": "🎒",
+        "color": "#2ecc71",
+        "x": -420,
+        "y": 260,
+        "role": "Túi nhu yếu phẩm trôi dạt từ tàu",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Khớp Đá Phong Tỏa",
+        "icon": "🪨",
+        "color": "#e74c3c",
+        "x": 460,
+        "y": 200,
+        "role": "Khớp đá ngầm chặn lối thoát",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Vách Hang Khắc Thơ Cổ",
+        "icon": "🗿",
+        "color": "#f39c12",
+        "x": -280,
+        "y": -240,
+        "role": "Vách đá linh hồn giữ Mảnh bản đồ 2",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "coralia",
+    "name": "Coralia (Tinh linh bóng khí)",
+    "role": "NPC Cố vấn trưởng Màn 2",
+    "portrait": "./assets/portraits/coralia.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_02_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "title": "1. Chào hỏi & Xác nhận tình trạng sinh tồn (Greeting & Status)",
+        "npcPrompt": "Welcome to the luminous deep, brave travelers! How are you surviving underwater without gills?",
+        "vietnameseTranslation": "Chào mừng đến với vực sâu phát sáng, những lữ khách dũng cảm! Các bạn sống sót dưới nước thế nào khi không có mang cá?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Hello Coralia! We are survivors from the shipwreck, but we are running out of breath!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We are fish who forgot how to swim.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Leave us alone, we want to sleep underwater.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "hello coralia",
+          "survivors",
+          "shipwreck",
+          "running out of breath",
+          "breath"
+        ],
+        "targetPhrase": "Hello Coralia! We are survivors from the shipwreck, but we are running out of breath!"
+      },
+      {
+        "step": 2,
+        "title": "2. Xin chỉ dẫn hít thở & Bí quyết mở lối thoát (Guidance Request)",
+        "npcPrompt": "Do not fear, young mortals! What do you require to navigate and open the stone path ahead?",
+        "vietnameseTranslation": "Đừng sợ hãi! Các bạn cần điều gì để định hướng và mở lối đi bằng đá phía trước?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please teach us how to create air bubbles and give us the secret keys to clear the blocked path!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Can you turn us into real mermaids?",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "We want to build a submarine with sand.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "create air bubbles",
+          "air bubbles",
+          "secret keys",
+          "clear the blocked path",
+          "path"
+        ],
+        "targetPhrase": "Please teach us how to create air bubbles and give us the secret keys to clear the blocked path!"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 SỔ TAY BÍ QUYẾT TINH LINH CORALIA",
+      "summary": "1. San hô: Hô khẩu lệnh 'Breathe the glowing coral bubble!' | 2. Túi cứu thương: Chọn 'bandages and medicine' | 3. Khớp đá: Hô 'Break the stone seal!' | 4. Vách thơ cổ: Đáp án 'Life beneath the waves'!",
+      "items": [
+        {
+          "targetTaskId": 1,
+          "objectName": "Chuỗi San Hô Khí Thở",
+          "clue": "Hô to 'Breathe the glowing coral bubble!' để nạp đầy lượng oxy."
+        },
+        {
+          "targetTaskId": 2,
+          "objectName": "Túi Cứu Thương Trôi Dạt",
+          "clue": "Báo cáo kiểm kê phân loại: 'bandages and medicine' (băng gạc và thuốc)."
+        },
+        {
+          "targetTaskId": 3,
+          "objectName": "Khớp Đá Phong Tỏa",
+          "clue": "Mật lệnh làm suy yếu lực liên kết đá: 'Break the stone seal!'."
+        },
+        {
+          "targetTaskId": 4,
+          "objectName": "Vách Hang Khắc Thơ Cổ",
+          "clue": "Câu giải mã thần thoại: 'Life beneath the waves'."
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Tạo chuỗi bóng khí thở",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô khẩu lệnh kích hoạt chuỗi san hô để nhận bóng khí oxy.",
+      "interactionType": "speak",
+      "npc": "Chuỗi San Hô Khí Thở",
+      "npcDialogue": "San hô phát quang đang chờ tần số giọng nói để nhả bóng khí oxy!",
+      "vietnameseHint": "Hãy hô khẩu lệnh tiếng Anh để kích hoạt bóng khí thở.",
+      "targetPhrase": "Breathe the glowing coral bubble",
+      "targetKeywords": [
+        "breathe",
+        "glowing coral bubble",
+        "coral bubble",
+        "breathe the glowing coral bubble"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Breathe the glowing coral bubble!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Destroy all the coral!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Turn off the lights!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Coralia: Breathe the glowing coral bubble!",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 2,
+      "title": "Nhặt nhu yếu phẩm trôi dạt",
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Gõ tên các vật phẩm y tế cần kiểm kê theo sổ tay.",
+      "interactionType": "write",
+      "npc": "Túi Cứu Thương Trôi Dạt",
+      "npcDialogue": "Túi cứu thương bị ướt, hãy báo cáo loại nhu yếu phẩm quan trọng nhất bên trong!",
+      "vietnameseHint": "Gõ tên băng gạc và thuốc (bandages and medicine).",
+      "targetPhrase": "bandages and medicine",
+      "targetKeywords": [
+        "bandages",
+        "medicine",
+        "bandages and medicine"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "We found bandages and medicine",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "We found ice cream and candy",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "The bag is completely empty",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Coralia: bandages and medicine",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 3,
+      "title": "Dọn lối thoát ngầm",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô mật lệnh giải phóng khớp đá phong tỏa lối đi.",
+      "interactionType": "speak",
+      "npc": "Khớp Đá Phong Tỏa",
+      "npcDialogue": "Khớp đá ngầm đang chịu áp lực, hãy hô mật lệnh để phá vỡ phong ấn!",
+      "vietnameseHint": "Hô khẩu lệnh phá phong ấn đá.",
+      "targetPhrase": "Break the stone seal",
+      "targetKeywords": [
+        "break",
+        "stone seal",
+        "break the stone seal"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Break the stone seal immediately!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Build a bigger wall here!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Sit down and do nothing!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Coralia: Break the stone seal!",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 4,
+      "title": "Thu thập Mảnh bản đồ 2",
+      "skill": "Đọc & Nói (Read & Speak)",
+      "desc": "Đọc câu đố vách hang và nói lời giải mã nhận Mảnh bản đồ 2.",
+      "interactionType": "speak",
+      "npc": "Vách Hang Khắc Thơ Cổ",
+      "npcDialogue": "Linh hồn vách đá: Ngươi tìm kiếm sự sống hay sự lụi tàn dưới làn nước thẳm?",
+      "vietnameseHint": "Nói câu triết lý cổ: Life beneath the waves.",
+      "targetPhrase": "Life beneath the waves",
+      "targetKeywords": [
+        "life",
+        "beneath the waves",
+        "life beneath the waves"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Life beneath the waves will endure forever!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Darkness consumes everything here!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "We want gold and diamonds!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Coralia: Life beneath the waves",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": "map_shard_02",
+      "completed": false
+    }
+  ]
+}

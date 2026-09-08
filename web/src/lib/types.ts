@@ -15,6 +15,8 @@ import type { components } from './api-types';
 export type UserSummary = components['schemas']['UserSummary'];
 export type LoginResponse = components['schemas']['LoginResponse'];
 export type PlayContext = components['schemas']['PlayContext'];
+/** Video mở màn của một màn chơi. `intro_video_url` null = vào thẳng. */
+export type StageIntro = components['schemas']['StageIntroOut'];
 
 export type Role = UserSummary['role'];
 

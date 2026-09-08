@@ -1,0 +1,398 @@
+{
+  "id": "stage_04",
+  "worldId": "world_01",
+  "stageNumber": 4,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Dòng chảy xiết",
+  "story": "Cả nhóm phải bám nhau vượt qua một thác nước ngầm chảy xiết và xoáy nước nguy hiểm. Hãy gặp Hoa tiêu Nami để học cách bắn neo cố định và ngắt van thủy lực.",
+  "difficulty": "Easy",
+  "grammarHint": "Directions, Numbers & Action Verbs (Phương hướng, Số đếm & Động từ hành động)",
+  "minCombatPower": 550,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 4,
+  "scene": {
+    "background": "./assets/backgrounds/stage_04_raging_rapids.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -760,
+        "y": 360
+      },
+      {
+        "x": -420,
+        "y": 500
+      },
+      {
+        "x": 680,
+        "y": 460
+      },
+      {
+        "x": 810,
+        "y": 210
+      },
+      {
+        "x": 610,
+        "y": -230
+      },
+      {
+        "x": 380,
+        "y": -450
+      },
+      {
+        "x": -260,
+        "y": -460
+      },
+      {
+        "x": -610,
+        "y": -210
+      },
+      {
+        "x": -790,
+        "y": 60
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -110,
+        "y": 110
+      }
+    },
+    "advisorSpawn": {
+      "x": 460,
+      "y": -340
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -270,
+        "y": 45
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 105,
+        "y": 160
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -35,
+        "y": -125
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "Súng Bắn Neo Cố Định",
+        "icon": "⚓",
+        "color": "#34495e",
+        "x": 230,
+        "y": -170,
+        "role": "Bệ phóng súng neo vượt thác",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Thác Nước Ngầm Cuộn Xoáy",
+        "icon": "🌊",
+        "color": "#3498db",
+        "x": -430,
+        "y": 250,
+        "role": "Dòng thác cuộn trào nguy hiểm",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Van Xả Áp Thủy Lực",
+        "icon": "🚰",
+        "color": "#e74c3c",
+        "x": 450,
+        "y": 190,
+        "role": "Cụm van điều tiết xoáy nước",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Ngách Đá Thủy Quái",
+        "icon": "🐉",
+        "color": "#2ecc71",
+        "x": -300,
+        "y": -230,
+        "role": "Nơi ẩn sĩ thủy quái giữ Mảnh bản đồ 4",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "nami",
+    "name": "Nami (Hoa tiêu dòng ngầm)",
+    "role": "NPC Cố vấn trưởng Màn 4",
+    "portrait": "./assets/portraits/nami.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_04_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "title": "1. Chào hỏi & Báo cáo tình hình thác nước (Greeting & Rapids Report)",
+        "npcPrompt": "Watch out! The underground torrent will sweep you away! Who is leading this crossing?",
+        "vietnameseTranslation": "Cẩn thận! Dòng thác ngầm sẽ cuốn phăng các bạn đi! Ai đang dẫn đầu chuyến vượt thác này?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Hello Navigator Nami! We are ready and must cross this roaring waterfall.",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We are going to swim against the current with bare hands!",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Good morning, we are looking for a boat ticket.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "hello navigator nami",
+          "nami",
+          "ready",
+          "cross",
+          "waterfall",
+          "roaring waterfall"
+        ],
+        "targetPhrase": "Hello Navigator Nami! We are ready and must cross this roaring waterfall."
+      },
+      {
+        "step": 2,
+        "title": "2. Xin góc bắn neo & Mã ngắt van xoáy nước (Request Navigation Secrets)",
+        "npcPrompt": "Courage alone is not enough! What technical support do you need from my charts?",
+        "vietnameseTranslation": "Dũng cảm thôi là chưa đủ! Các bạn cần sự hỗ trợ kỹ thuật nào từ hải đồ của ta?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please give us the harpoon angle and instructions to shut down the whirlpool valve!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Give us some rubber ducks to float on.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "We do not need any help, we will just jump.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "harpoon angle",
+          "shut down the whirlpool valve",
+          "whirlpool",
+          "valve",
+          "instructions"
+        ],
+        "targetPhrase": "Please give us the harpoon angle and instructions to shut down the whirlpool valve!"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 SỔ TAY HẢI TRÌNH DÒNG NGẦM CỦA NAMI",
+      "summary": "1. Súng neo: Gõ 'Aim forty-five degrees' | 2. Vượt thác: Hô 'Cross together in five seconds!' | 3. Van thủy lực: Chọn 'Turn off valve number two' | 4. Thuyết phục thủy quái: 'We come in peace'!",
+      "items": [
+        {
+          "targetTaskId": 1,
+          "objectName": "Súng Bắn Neo Cố Định",
+          "clue": "Căn góc bắn neo chính xác 45 độ: 'Aim forty-five degrees'."
+        },
+        {
+          "targetTaskId": 2,
+          "objectName": "Thác Nước Ngầm Cuộn Xoáy",
+          "clue": "Đếm nhịp vượt thác: 'Cross together in five seconds!'."
+        },
+        {
+          "targetTaskId": 3,
+          "objectName": "Van Xả Áp Thủy Lực",
+          "clue": "Ngắt van số 2 để giảm áp: 'Turn off valve number two'."
+        },
+        {
+          "targetTaskId": 4,
+          "objectName": "Ngách Đá Thủy Quái",
+          "clue": "Thuyết phục thủy quái: 'We come in peace, please guide us'."
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Bắn neo cố định",
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Gõ góc bắn neo chuẩn xác 45 độ theo sổ tay hoa tiêu.",
+      "interactionType": "write",
+      "npc": "Súng Bắn Neo Cố Định",
+      "npcDialogue": "Kính ngắm đang chờ lệnh điều chỉnh góc bắn của dây cáp neo!",
+      "vietnameseHint": "Gõ: Aim forty-five degrees",
+      "targetPhrase": "Aim forty-five degrees",
+      "targetKeywords": [
+        "forty-five degrees",
+        "45 degrees",
+        "aim forty-five degrees",
+        "aim 45 degrees"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Aim forty-five degrees and shoot the anchor",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Aim ninety degrees straight up",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Aim zero degrees directly down",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Nami: Aim forty-five degrees",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 2,
+      "title": "Vượt thác nước ngầm",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô khẩu lệnh đếm nhịp vượt thác an toàn trong 5 giây.",
+      "interactionType": "speak",
+      "npc": "Thác Nước Ngầm Cuộn Xoáy",
+      "npcDialogue": "Dòng xoáy ngắt quãng trong 5 giây, hãy hô lệnh cho cả đội di chuyển!",
+      "vietnameseHint": "Hô: Cross together in five seconds!",
+      "targetPhrase": "Cross together in five seconds",
+      "targetKeywords": [
+        "cross together",
+        "five seconds",
+        "cross together in five seconds"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Cross together in five seconds, move now!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Wait here until tomorrow morning!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Jump into the whirlpool one by one!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Nami: Cross together in five seconds!",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 3,
+      "title": "Đóng van xoáy nước",
+      "skill": "Đọc & Nói (Read & Speak)",
+      "desc": "Nói lệnh ngắt van số 2 để giảm áp lực dòng chảy.",
+      "interactionType": "speak",
+      "npc": "Van Xả Áp Thủy Lực",
+      "npcDialogue": "Hệ thống thủy lực có 3 van, cần đọc khẩu lệnh ngắt van chính xác!",
+      "vietnameseHint": "Nói: Turn off valve number two.",
+      "targetPhrase": "Turn off valve number two",
+      "targetKeywords": [
+        "turn off",
+        "valve number two",
+        "valve 2",
+        "turn off valve number two"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Turn off valve number two immediately!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Open all valves to maximum power!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Break the pipes with a hammer!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Nami: Turn off valve number two",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 4,
+      "title": "Thu thập Mảnh bản đồ 4",
+      "skill": "Nói & Nghe (Speak & Listen)",
+      "desc": "Nói lời hòa bình thuyết phục Thủy quái trao Mảnh bản đồ 4.",
+      "interactionType": "speak",
+      "npc": "Ngách Đá Thủy Quái",
+      "npcDialogue": "Thủy quái biển sâu gầm nhẹ, chờ xem các bạn mang theo thiện chí hay ác ý!",
+      "vietnameseHint": "Nói: We come in peace, please guide us.",
+      "targetPhrase": "We come in peace, please guide us",
+      "targetKeywords": [
+        "we come in peace",
+        "guide us",
+        "peace",
+        "please guide us"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "We come in peace, please guide us safely!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Prepare to fight, giant monster!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Give us the map or we will hurt you!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Nami: We come in peace, please guide us",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": "map_shard_04",
+      "completed": false
+    }
+  ]
+}

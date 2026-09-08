@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -27,6 +28,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    false,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -40,15 +42,21 @@ class QuestionType:
     Đợt 1 làm 4 mã dưới đây — đúng bốn dạng mà `grading/graders.py` chấm được.
     Thêm dạng mới = thêm hằng số + schema + hàm chấm + test; KHÔNG phải sửa bảng.
 
-    Đợt 2 (Bước 9): SHORT_ANSWER, MATCHING, REORDER, READ_ALOUD.
+    `SHORT_ANSWER` kéo lên sớm vì nội dung Atlantis cần nó: học sinh GÕ câu
+    trả lời, chấm bằng cách khớp một trong các cách viết được chấp nhận. Các
+    nhiệm vụ "nói" của bản thiết kế tạm thời cũng dùng dạng này — chấm phát âm
+    là cả một hệ thống riêng, không phải một dạng câu hỏi.
+
+    Đợt 2 còn lại: MATCHING, REORDER, PASSAGE_WORD_BANK, TRUE_FALSE_NG.
     """
 
     MCQ_SINGLE = "MCQ_SINGLE"
     MCQ_MULTI = "MCQ_MULTI"
     GAP_FILL = "GAP_FILL"
     GAP_DROPDOWN = "GAP_DROPDOWN"
+    SHORT_ANSWER = "SHORT_ANSWER"
 
-    ALL = (MCQ_SINGLE, MCQ_MULTI, GAP_FILL, GAP_DROPDOWN)
+    ALL = (MCQ_SINGLE, MCQ_MULTI, GAP_FILL, GAP_DROPDOWN, SHORT_ANSWER)
 
 
 class QuestionStatus:
@@ -56,6 +64,21 @@ class QuestionStatus:
     PUBLISHED = "published"
 
     ALL = (DRAFT, PUBLISHED)
+
+
+class PromptKind:
+    """CÁCH RA ĐỀ — đề bài đến với học sinh bằng cách nào.
+
+    Một lớp hằng số chứ không phải Enum của database: cùng nếp với
+    `QuestionStatus` và `QuestionType` ngay trên. Thêm một cách ra đề mới (ví dụ
+    `video`) là thêm một dòng ở đây + một dòng trong CHECK của migration + một
+    nhánh vẽ ở giao diện — không phải một kiểu ENUM phải ALTER TYPE.
+    """
+
+    TEXT = "text"
+    AUDIO = "audio"
+
+    ALL = (TEXT, AUDIO)
 
 
 class Question(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -104,7 +127,39 @@ class Question(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     #: Số lần được nghe lại. None = không giới hạn.
     #: Trong game, nghe lại còn tốn năng lượng đội (`balance_json.energyCost.replayAudio`).
+    #: ⚠️ CHƯA NỐI VÀO ĐÂU — cột có từ bản LMS, nhưng chưa có gì đếm số lần nghe.
     audio_max_plays: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    #: CÁCH RA ĐỀ: đề bài đến với học sinh bằng cách nào.
+    #:
+    #: Vuông góc với `type` — `type` nói học sinh TRẢ LỜI bằng cách nào (chọn
+    #: phương án, gõ chữ), còn cột này nói đề bài ĐẾN VỚI HỌ bằng cách nào (đọc,
+    #: nghe). Một câu nghe-rồi-chọn và một câu nghe-rồi-gõ là cùng một cách ra đề
+    #: với hai cách trả lời; nhồi thành `LISTEN_MCQ`/`LISTEN_SHORT` là nhân đôi
+    #: số dạng mỗi lần thêm một cách ra đề.
+    #:
+    #: `'audio'` = trình phát hiện lên trên câu hỏi, và đoạn chữ của đề bị giấu
+    #: sau nút Transcript. Tệp nghe nằm ở `audio_media_id`.
+    #:
+    #: NOT NULL kèm mặc định `'text'`, không nullable: mọi câu đều có một cách ra
+    #: đề, và một câu không có audio LÀ một câu đọc — đó là sự thật, không phải
+    #: "chưa đặt". Xem migration 0032.
+    prompt_kind: Mapped[str] = mapped_column(
+        String(16), default=PromptKind.TEXT, server_default=PromptKind.TEXT, nullable=False
+    )
+
+    #: Đoạn chữ của đề MỞ SẴN cạnh trình phát, hay giấu sau nút Transcript.
+    #:
+    #: Chỉ có nghĩa khi `prompt_kind = 'audio'`. Nút Transcript thì LUÔN có —
+    #: cột này chỉ quyết định trạng thái ban đầu. Mặc định đóng: nghe trước là cả
+    #: điểm của bài nghe; nhưng không khoá hẳn, vì một câu hỏi không giải mã nổi
+    #: thì không đo được gì cả.
+    #:
+    #: KHÔNG có cột transcript riêng: transcript chính là `content_json.prompt`.
+    #: Một bản chép lời thứ hai là một bản sao có thể lệch với thứ đang phát.
+    show_transcript: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
 
     status: Mapped[str] = mapped_column(String(16), default=QuestionStatus.DRAFT, nullable=False)
     #: Trình độ CEFR ("Pre-A1", "A1"...). Dùng để lọc khi gán câu hỏi vào nhiệm vụ.
@@ -112,6 +167,28 @@ class Question(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     topic: Mapped[str | None] = mapped_column(String(128), nullable=True)
     #: ["vocab:atlantis", "grammar:imperatives"] — thành `grammarHint` trong game.
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+
+    # ----------------------------------------------------------------- nhập khẩu
+    #
+    # ĐỊA CHỈ GỐC: câu hỏi này đến từ dòng nào của file .xlsx nội dung.
+    #
+    # Ba cột chứ không phải một khoá ngoại tới `quests`, vì ba lý do:
+    #
+    #   1. Lúc nhập, nhiệm vụ mang mã đó CÓ THỂ CHƯA TỒN TẠI. Không có chỗ ghi
+    #      địa chỉ thì câu hỏi rơi vào kho mà không ai biết nó thuộc màn nào.
+    #   2. Nhập lại cùng một file KHÔNG được sinh ra bản sao. Cặp
+    #      (`quest_code`, `question_order`) chính là danh tính của một dòng
+    #      trong sheet Questions.
+    #   3. Mở một màn chơi thì hiện được ngay mọi câu cùng `stage_code`, kể cả
+    #      câu chưa được lắp vào nhiệm vụ nào.
+    #
+    # Câu hỏi soạn tay trong kho thì cả ba đều NULL, và đó là chuyện bình thường.
+    world_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    stage_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    quest_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    #: Thứ tự trong nhiệm vụ, theo cột `question_order` của file. Cùng với
+    #: `quest_code` thì đây là khoá chống trùng khi nhập lại.
+    question_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     #: Xoá mềm — câu hỏi có thể đã nằm trong lượt chơi mà học sinh đã hoàn thành.
     deleted_at: Mapped[datetime | None] = mapped_column(

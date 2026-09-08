@@ -11,7 +11,8 @@ export type Snapshot = components['schemas']['StageSnapshot'];
 export type SnapshotQuest = components['schemas']['SnapshotQuest'];
 export type SnapshotQuestion = components['schemas']['SnapshotQuestion'];
 export type QuestProgress = components['schemas']['QuestProgress'];
-export type SubmitAnswerOut = components['schemas']['SubmitAnswerOut'];
+export type QuestionProgress = components['schemas']['QuestionProgress'];
+export type SubmitQuestOut = components['schemas']['SubmitQuestOut'];
 export type RunResult = components['schemas']['RunResultOut'];
 export type Review = components['schemas']['ReviewOut'];
 export type PlayCharacter = components['schemas']['PlayCharacterOut'];
@@ -29,22 +30,49 @@ export const getResult = (runId: string) => request<RunResult>(`/play/runs/${run
 export const getReview = (runId: string) => request<Review>(`/play/runs/${runId}/review`);
 
 /**
- * Nộp một câu.
+ * Ghi lại đáp án đang dở của MỘT câu. Không chấm gì cả.
  *
- * ⚠️ Phản hồi CHỈ có 4 trường: `completed`, `quest_completed`, `attempts_left`,
- * `team_energy`. Không điểm, không đáp án — đó là chủ ý, xem GAME_DOMAIN §1.6.
- * Frontend không có gì để tự tính điểm, và đó chính là điều mong muốn.
+ * Gọi mỗi khi người chơi chuyển sang câu khác. Nhờ vậy mất mạng, tắt máy hay
+ * đóng nhầm tab thì vào lại vẫn thấy đúng những gì mình đã chọn — trạng thái
+ * nằm ở server, không ở tab.
+ *
+ * `PUT` chứ không `POST`: gọi hai lần cùng một nội dung cho cùng một kết quả.
  */
-export const submitAnswer = (
+export const saveDraft = (
   runId: string,
   questId: string,
   questionId: string,
   response: Record<string, unknown> | null,
 ) =>
-  request<SubmitAnswerOut>(
-    `/play/runs/${runId}/quests/${questId}/questions/${questionId}/answer`,
-    { method: 'POST', body: { response } },
-  );
+  request<void>(`/play/runs/${runId}/quests/${questId}/questions/${questionId}/draft`, {
+    method: 'PUT',
+    body: { response },
+  });
+
+/**
+ * Ghi chỗ nhân vật đang đứng, để thoát ra vào lại còn ở đúng đó.
+ *
+ * Của RIÊNG người gọi trong lượt chơi này — bốn người cùng phòng thì mỗi người
+ * một chỗ đứng, và server lấy người từ token chứ không từ thân request.
+ *
+ * `PUT`: gọi mười lần cùng một toạ độ cho cùng một kết quả, và đây là thứ được
+ * gọi liên tục trong lúc chơi.
+ */
+export const savePosition = (runId: string, x: number, y: number) =>
+  request<void>(`/play/runs/${runId}/position`, { method: 'PUT', body: { x, y } });
+
+/**
+ * Nộp CẢ MỘT NHIỆM VỤ. Server chấm từ các bản nháp đã lưu.
+ *
+ * ⚠️ Phản hồi CHỈ có 3 trường: `quest_completed`, `attempts_left`, `my_energy`.
+ * Không điểm, không đáp án — đó là chủ ý, xem GAME_DOMAIN §1.6. Frontend không
+ * có gì để tự tính điểm, và đó chính là điều mong muốn.
+ *
+ * Không gửi kèm bài: bài đã ở server rồi. Gửi lại ở đây là mở đường thứ hai vào
+ * cùng một chỗ.
+ */
+export const submitQuest = (runId: string, questId: string) =>
+  request<SubmitQuestOut>(`/play/runs/${runId}/quests/${questId}/submit`, { method: 'POST' });
 
 /**
  * Chọn — hoặc đổi — nhân vật cho một world.

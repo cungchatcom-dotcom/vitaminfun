@@ -1,8 +1,26 @@
 import Phaser from 'phaser';
 
 import { EventBus, GAME_EVENTS } from '../EventBus';
-import { DEFAULT_ACTION } from '../character';
-import { DEFAULT_ICON_SIZE, WORLD, resolvePulse } from '../world';
+import {
+  AUDIO_SLOT_KEYS,
+  DUCK_VOLUME,
+  ambientFromVideo,
+  readAudio,
+  resolveAudio,
+  type AudioMap,
+  type AudioSlot,
+} from '../audio';
+import { DEFAULT_ACTION, HERO_FOOT_Y, HERO_SPEED } from '../character';
+import {
+  bakeGrid,
+  canWalkAt,
+  findPath,
+  nearestWalkable,
+  readCollision,
+  type CollisionMap,
+  type WalkGrid,
+} from '../collision';
+import { DEFAULT_ICON_SIZE, WORLD, resolvePulse, resolveSpawn } from '../world';
 
 /**
  * Cảnh 2.5D isometric của một màn chơi.
@@ -75,12 +93,63 @@ export interface SceneCharacter {
   sprites: SceneSprite[];
 }
 
+/**
+ * Khoá của video nền trong kho của Phaser.
+ *
+ * Khác hẳn khoá `'stage_bg'` của ảnh: ảnh nằm ở kho texture, video nằm ở kho
+ * video, và `create()` hỏi đúng một trong hai kho để biết nền là loại nào.
+ */
+const BG_VIDEO_KEY = 'stage_bg_video';
+
 export interface StageSceneData {
   /** URL ảnh nền. Rỗng = chưa có ảnh, cảnh dùng nền biển mặc định. */
   backgroundUrl: string;
+  /**
+   * Ảnh nền là ảnh TĨNH hay VIDEO — server trả xuống, đã đóng băng vào đề bài.
+   *
+   * Không đoán theo đuôi file trong URL: cảnh này nạp bằng hai đường khác hẳn
+   * nhau (`load.image` và `load.video`), và đoán sai một lần là cả màn mất nền.
+   */
+  backgroundKind?: 'image' | 'video' | null;
   quests: SceneQuest[];
   advisorLabel: string | null | undefined;
   completedQuestIds: string[];
+  /**
+   * Nhiệm vụ đang KHOÁ vì người chơi chưa qua được NPC.
+   *
+   * Danh sách chứ không phải một cờ "đã qua NPC chưa": cảnh chỉ vẽ theo những
+   * gì được bảo, còn ai khoá ai mở là việc của server. Cảnh mà tự suy ra luật
+   * thì sẽ có ngày nó suy khác server, và người chơi thấy một vật thể sáng rực
+   * mà bấm vào thì bị từ chối.
+   */
+  lockedQuestIds: string[];
+  /**
+   * Chiều CAO của nhân vật trong cảnh này, hệ toạ độ thế giới.
+   *
+   * Đến từ đề bài đã đóng băng, và server đã giải xong chuỗi kế thừa (số của
+   * chính màn này, hay của màn đầu world, hay hằng số mặc định). Cảnh không tự
+   * suy — suy ở hai nơi thì hai nơi sẽ có ngày lệch nhau.
+   */
+  characterHeight?: number;
+  /**
+   * Chỗ nhân vật đang đứng, lấy từ lượt chơi. `null` = chưa đi đâu.
+   *
+   * Cảnh chỉ ĐẶT nhân vật vào đây lúc dựng, rồi thôi. Nó không tự nhớ và cũng
+   * không tự lưu — mỗi bước đi phát `PLAYER_MOVED`, còn việc ghi xuống server
+   * là của React. Cảnh biết vẽ, không biết mạng.
+   */
+  startPos?: { x: number; y: number } | null;
+  /**
+   * CHỖ XUẤT PHÁT do giáo viên đặt cho màn này, lấy từ đề bài đã đóng băng.
+   *
+   * Khác `startPos` ở chỗ ai quyết: `startPos` là chỗ NGƯỜI CHƠI đi tới lần
+   * trước, còn đây là chỗ NGƯỜI DỰNG chọn — nên `startPos` thắng khi có cả
+   * hai. Người vào lại một lượt đang dở phải đứng đúng chỗ họ rời đi; nếu
+   * không thì thoát ra vào lại là một cách quay về vạch xuất phát.
+   *
+   * `null` (cả hai trục) = chưa đặt, dùng `DEFAULT_SPAWN`.
+   */
+  spawnPos?: { x: number | null; y: number | null } | null;
   /**
    * Nhân vật người chơi đã chọn ở phòng chờ world.
    *
@@ -89,11 +158,43 @@ export interface StageSceneData {
    * do để một màn chơi không mở được.
    */
   character: SceneCharacter | null;
+  /**
+   * Vùng đi được do giáo viên vẽ, lấy từ đề bài đã đóng băng.
+   *
+   * `null`/bỏ trống = chưa vẽ, và khi đó nhân vật đi được trên CẢ bản đồ, chừa
+   * một lề quanh mép. Đó là mặc định trung thực duy nhất khi ảnh nền là tuỳ ý:
+   * cảnh không biết chỗ nào trong ảnh của giáo viên là "sàn" và chỗ nào là
+   * "tường". Đoán hộ họ bằng một hình viết cứng thì luôn luôn sai.
+   */
+  collision?: unknown;
+  /**
+   * Âm thanh của màn, lấy từ đề bài đã đóng băng.
+   *
+   * Bỏ trống = màn không có tiếng nào, và đó là mặc định: một màn tự bật nhạc
+   * mà người dựng không chủ động chọn là thứ cả lớp phải chịu cùng lúc.
+   */
+  audio?: unknown;
+  /** URL từng khối tiếng, khoá theo tên khối. */
+  audioUrls?: Record<string, string>;
 }
+
+/**
+ * Dấu gắn vào CUỐI nhãn nhiệm vụ đã xong. Có dấu cách ở đầu.
+ *
+ * Cuối chứ không đầu: đầu nhãn đã có `⚓` của NPC và `🔒` của nhiệm vụ đang
+ * khoá, nên nhét thêm dấu thứ ba vào đó là đẩy cái TÊN — thứ người chơi thật sự
+ * đọc — lùi mãi sang phải.
+ */
+const DONE_SUFFIX = ' ✓';
+
+/** Ổ khoá gắn trước nhãn nhiệm vụ đang khoá. Có dấu cách ở cuối. */
+const LOCK_PREFIX = '🔒 ';
 
 const WORLD_WIDTH = WORLD.width;
 const WORLD_HEIGHT = WORLD.height;
-const MOVE_SPEED = 280;
+// Tốc độ đi ở `character.ts`: chế độ đi thử của trình thiết kế phải chạy đúng
+// cùng con số, nếu không thì thứ người dựng vừa kiểm không phải thứ học sinh gặp.
+const MOVE_SPEED = HERO_SPEED;
 
 /**
  * Lề quanh mép bản đồ mà nhân vật không bước vào.
@@ -116,13 +217,8 @@ const WALK_MARGIN = 60;
  */
 const HERO_HEIGHT = 160;
 
-/**
- * Chỗ đặt CHÂN nhân vật so với tâm container.
- *
- * Giữ nguyên con số của cái bóng ở bản cũ, nên nhân vật đứng đúng chỗ ký hiệu
- * tròn từng đứng — mọi phép tính phạm vi nhiệm vụ không phải sửa gì.
- */
-const HERO_FOOT_Y = 22;
+// `HERO_FOOT_Y` ở `character.ts`: trình thiết kế cũng phải biết nó để ướm nhân
+// vật lên vùng vừa vẽ, mà nó thì không được kéo theo Phaser.
 
 /** Ngưỡng coi là "đang đi", pixel mỗi khung hình. */
 const MOVING_EPSILON = 0.5;
@@ -157,9 +253,6 @@ const IDLE_AFTER_STILL_FRAMES = 3;
  */
 const LABEL = { FONT: 40, SCREEN: 11, GAP: 8, STROKE: 8 } as const;
 
-/** Màu xoay vòng cho vật thể nhiệm vụ — số nhiệm vụ mỗi màn không cố định. */
-const PROP_COLORS = [0xd4af37, 0xff7b00, 0x00f0ff, 0x9b51e0, 0x4ade80, 0xf43f5e];
-
 
 interface QuestNode {
   id: string;
@@ -177,10 +270,26 @@ interface QuestNode {
   hitArea: Phaser.GameObjects.Rectangle;
   /** Nhãn tên. Giữ lại để chỉnh cỡ chữ mỗi khi camera đổi zoom. */
   label: Phaser.GameObjects.Text;
+  /**
+   * Thùng bọc quanh nhãn, CHỈ để nhấp nháy.
+   *
+   * Hai hệ cùng muốn ghi vào `scale` của nhãn và chúng sẽ đánh nhau:
+   * `rescaleLabels()` đặt lại tỉ lệ sau MỖI lần camera thu phóng để cỡ chữ trên
+   * màn hình không đổi, còn nhịp thở thì tween chính thuộc tính đó. Tween thẳng
+   * lên nhãn là chữ giật giữa hai giá trị mỗi khi đổi cỡ cửa sổ.
+   *
+   * Tách ra thì mỗi hệ có một thuộc tính của riêng mình: nhãn giữ `scale` cho
+   * cỡ chữ, thùng bọc giữ `scale` cho nhịp thở, và tích của hai cái là thứ hiện
+   * ra. Thùng đặt ĐÚNG chỗ neo nhãn nên nó phình ra tại chỗ, không bị nhấc lên
+   * hạ xuống theo nhịp.
+   */
+  labelWrap: Phaser.GameObjects.Container;
   /** Nửa chiều cao khung ảnh, dùng để đặt nhãn ngay trên đầu ảnh. */
   halfHeight: number;
   container: Phaser.GameObjects.Container;
   completed: boolean;
+  /** Đang khoá vì chưa qua NPC. */
+  locked: boolean;
 }
 
 export class StageScene extends Phaser.Scene {
@@ -201,6 +310,70 @@ export class StageScene extends Phaser.Scene {
    * hợp lệ rồi **kẹt cứng** — không cú bấm hay phím nào ăn nữa.
    */
   private walkArea!: Phaser.Geom.Rectangle;
+  /**
+   * Bản vẽ của giáo viên. `null` = chưa vẽ, và khi đó `walkArea` là tất cả.
+   *
+   * Đọc qua `readCollision()` chứ không nhận thẳng: đề bài đóng băng lưu lại
+   * nguyên văn cái đã lưu từ trước, nên một bản vẽ của phiên bản cũ vẫn có thể
+   * chui tới đây, và một hình thiếu số đo sẽ thành một bức tường vô hình.
+   */
+  private collision: CollisionMap | null = null;
+  /**
+   * Lưới tìm đường, nướng MỘT LẦN lúc vào màn.
+   *
+   * `null` = màn không có vật cản nào, và khi đó mọi đường thẳng đều thông nên
+   * chẳng có gì để tìm.
+   */
+  private grid: WalkGrid | null = null;
+
+  /** Cấu hình tiếng của màn, đã gạn sạch. */
+  private audio: AudioMap = {};
+
+  /**
+   * Video nền, nếu nền là video. Giữ tham chiếu vì nó vừa là HÌNH vừa có thể là
+   * TIẾNG: `setMusicPrefs` phải với tới được để tắt mở và chỉnh âm lượng.
+   */
+  private bgVideo: Phaser.GameObjects.Video | null = null;
+
+  /** Nhạc nền đang lấy từ tiếng của video nền. Chốt một lần trong `preload`. */
+  private ambientFromVideo = false;
+
+  /**
+   * Khổ texture của video nền ở lần căng khung gần nhất.
+   *
+   * Không phải để tối ưu: nó là ĐIỀU KIỆN để biết đã căng đúng chưa. Xem
+   * `fitBgVideo()`.
+   */
+  private bgVideoSize = { w: 0, h: 0 };
+  /** Các bản đã nạp được, khoá theo tên khối. Thiếu = file hỏng hoặc chưa có. */
+  private sounds = new Map<AudioSlot, Phaser.Sound.BaseSound>();
+  /**
+   * Khối tiếng CHUYỂN ĐỘNG đang phát. `null` = chưa phát gì.
+   *
+   * Giữ riêng một biến thay vì hỏi lại `sounds` mỗi khung hình: `update()` chạy
+   * 60 lần một giây, và đổi bài hát 60 lần một giây thì không nghe ra tiếng gì
+   * ngoài tiếng lụp bụp.
+   */
+  private motionSlot: 'walk' | 'idle' | null = null;
+  /**
+   * Tuỳ chọn nhạc CỦA NGƯỜI CHƠI — bật/tắt và âm lượng tổng.
+   *
+   * React đẩy vào qua `setMusicPrefs()`, không đọc `localStorage` ở đây: cảnh
+   * biết vẽ, không biết chỗ lưu tuỳ chọn. Đọc ở hai nơi thì hai nơi phải cùng
+   * biết khoá lưu tên gì, và cùng phải nghe sự kiện đổi.
+   */
+  private musicPrefs = { on: true, master: 1 };
+  /**
+   * Bảng câu hỏi CÓ TIẾNG đang mở → hạ mọi tiếng của màn xuống.
+   *
+   * Hạ CẢ nhạc nền lẫn tiếng đứng/đi, không riêng nhạc nền: cái phải nghe rõ là
+   * đoạn ghi âm trong bảng, và một vòng lặp tiếng thở nền vẫn chồng lên nó đúng
+   * như bản nhạc. Cùng một mục đích thì cùng một cái van.
+   *
+   * Nhân vào âm lượng đang có chứ không thay nó: người chơi vặn nhỏ rồi thì lúc
+   * hạ phải nhỏ hơn nữa, không phải nhảy lên mức của người khác.
+   */
+  private ducked = false;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
 
@@ -259,8 +432,21 @@ export class StageScene extends Phaser.Scene {
     // đúng lỗi "chơi thử không thấy ảnh nền".
     this.load.crossOrigin = 'anonymous';
 
+    // Đọc bộ nhạc TRƯỚC khi xếp hàng tải nền: nếu nhạc nền lấy từ tiếng video
+    // thì tấm nền phải được nạp kèm đường tiếng, và đó là một tham số của chính
+    // lệnh tải.
+    this.audio = readAudio(this.sceneData.audio);
+    this.ambientFromVideo = ambientFromVideo(this.audio, this.sceneData.backgroundKind);
+
     if (this.sceneData.backgroundUrl) {
-      this.load.image('stage_bg', this.sceneData.backgroundUrl);
+      if (this.sceneData.backgroundKind === 'video') {
+        // `noAudio: true` cho Phaser biết video không cần mở khoá âm thanh, nên
+        // nó tự chạy được ngay. Đặt sai thành `false` khi màn không dùng tiếng
+        // video là tự trói HÌNH vào một quyền mà màn này không cần xin.
+        this.load.video(BG_VIDEO_KEY, this.sceneData.backgroundUrl, !this.ambientFromVideo);
+      } else {
+        this.load.image('stage_bg', this.sceneData.backgroundUrl);
+      }
     }
     for (const quest of this.sceneData.quests) {
       if (quest.icon_url) this.load.image(`quest_icon_${quest.id}`, quest.icon_url);
@@ -273,6 +459,17 @@ export class StageScene extends Phaser.Scene {
         frameWidth: sheet.frame_width,
         frameHeight: sheet.frame_height,
       });
+    }
+
+    // Tiếng: nạp theo URL đã đóng băng trong đề bài. Khối nào chưa có file thì
+    // không có gì để nạp, và cảnh vẫn chơi bình thường trong im lặng.
+    for (const slot of AUDIO_SLOT_KEYS) {
+      // Nhạc nền đến từ video thì file nhạc tải riêng KHÔNG được nạp. Nạp rồi
+      // không phát cũng được, nhưng đó là bắt máy học sinh tải một file có thể
+      // vài megabyte để rồi vứt đi.
+      if (slot === 'ambient' && this.ambientFromVideo) continue;
+      const url = this.sceneData.audioUrls?.[slot];
+      if (url && this.audio[slot]?.media_id) this.load.audio(this.audioKey(slot), url);
     }
 
     // Ảnh hỏng thì bỏ qua, không để cả cảnh chết theo. Cảnh vẫn chơi được với
@@ -307,7 +504,35 @@ export class StageScene extends Phaser.Scene {
       WORLD_HEIGHT - WALK_MARGIN * 2,
     );
 
-    if (this.textures.exists('stage_bg')) {
+    this.collision = readCollision(this.sceneData.collision);
+    // Nướng lưới NGAY sau khi có bản vẽ, không nướng lười lúc bấm lần đầu: một
+    // mili giây lúc vào màn thì không ai thấy, còn một mili giây chen vào giữa
+    // cú bấm đầu tiên thì thành một khựng nhẹ đúng lúc người chơi đang nhìn.
+    this.grid = this.collision
+      ? bakeGrid((x, y) => this.canWalk(x, y), { width: WORLD_WIDTH, height: WORLD_HEIGHT })
+      : null;
+
+    if (this.cache.video.exists(BG_VIDEO_KEY)) {
+      // Quên khổ của lần dựng TRƯỚC. Cảnh này dựng lại khi đổi màn hay đổi cỡ
+      // cửa sổ, mà trường này sống lâu hơn thẻ video: giữ lại số cũ thì
+      // `fitBgVideo()` thấy "khổ không đổi" và bỏ qua, trong khi thẻ video mới
+      // đang ở tỉ lệ 1. Cùng một cái bẫy với `this.heroAction = ''` bên
+      // `createPlayer()`.
+      this.bgVideoSize = { w: 0, h: 0 };
+      const bg = this.add.video(centerX, centerY, BG_VIDEO_KEY);
+      bg.setOrigin(0.5).setDepth(0);
+      bg.setLoop(true);
+      // CÂM trước, phát sau. Trình duyệt chỉ chặn tiếng tự phát chứ không chặn
+      // video câm, nên khung hình chạy ngay kể cả khi chưa ai chạm vào trang.
+      // `applyVideoSound()` mới là chỗ mở tiếng, và chỉ khi được phép.
+      bg.setMute(true);
+
+      // Khổ khung KHÔNG đặt ở đây — xem `fitBgVideo()` và chú thích của nó.
+      bg.play(true);
+
+      this.bgVideo = bg;
+      this.applyVideoSound();
+    } else if (this.textures.exists('stage_bg')) {
       const bg = this.add.image(centerX, centerY, 'stage_bg');
       bg.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
       bg.setOrigin(0.5).setDepth(0);
@@ -315,7 +540,23 @@ export class StageScene extends Phaser.Scene {
 
     this.createStorm();
     this.createQuestProps(centerX, centerY);
-    this.createPlayer(centerX - 100, centerY + 120);
+    // Đứng lại đúng chỗ lần trước, nếu lượt chơi có ghi. Không có thì chỗ
+    // XUẤT PHÁT giáo viên đặt cho màn này, và không có nữa thì chỗ mặc định.
+    //
+    // Thứ tự đó có lý do: `startPos` là chỗ người chơi đi tới, `spawnPos` là
+    // chỗ người dựng chọn. Đảo lại thì thoát ra vào lại là một cách quay về
+    // vạch xuất phát, và một lượt chơi dở dang mất hết chỗ đứng của cả đội.
+    //
+    // Chỗ ĐỨNG BAN ĐẦU đi qua cứu hộ trước khi đặt: `startPos` là chỗ lần
+    // trước, mà giáo viên có thể đã vẽ lại vùng đi được kể từ đó — và cả chỗ
+    // xuất phát lẫn chỗ mặc định đều chẳng có gì bảo đảm nằm trong bản vẽ của
+    // họ. Đặt bừa vào rồi mới phát hiện là nhốt người chơi ngay từ giây đầu.
+    const spawn = resolveSpawn(this.sceneData.spawnPos?.x, this.sceneData.spawnPos?.y);
+    const start = this.rescueToWalkable(
+      this.sceneData.startPos?.x ?? spawn.x,
+      this.sceneData.startPos?.y ?? spawn.y,
+    );
+    this.createPlayer(start.x, start.y);
 
     // Camera hiện TOÀN BỘ thế giới, không bám theo nhân vật.
     //
@@ -364,6 +605,11 @@ export class StageScene extends Phaser.Scene {
       },
     );
 
+    // Khoá TRƯỚC rồi mới đánh dấu đã xong: một nhiệm vụ vừa khoá vừa xong là
+    // chuyện không xảy ra, nhưng nếu có thì dấu ✓ phải là cái thắng.
+    this.startAudio();
+
+    for (const questId of this.sceneData.lockedQuestIds) this.markLocked(questId);
     for (const questId of this.sceneData.completedQuestIds) this.markCompleted(questId);
 
     EventBus.on(GAME_EVENTS.QUEST_COMPLETED, ((payload: { questId: string }) => {
@@ -371,13 +617,24 @@ export class StageScene extends Phaser.Scene {
       this.flashAt(payload.questId);
     }) as never);
 
+    EventBus.on(GAME_EVENTS.QUESTS_UNLOCKED, (() => this.unlockAll()) as never);
+
     EventBus.on(GAME_EVENTS.STAGE_WON, (() => this.showShardVfx()) as never);
 
     // Có thể đã đứng sẵn trong một phạm vi ngay lúc vào màn.
     this.settleZone();
+
+    // DÒNG CUỐI của `create()`, có chủ ý: `preload()` đã kéo xong mọi tài sản
+    // và mọi thứ trên đã dựng xong, nên từ đây trở đi màn chơi chạy được thật.
+    // Bắn sớm hơn một dòng là hứa một thứ chưa có.
+    EventBus.emit(GAME_EVENTS.STAGE_READY);
   }
 
   update(_time: number, delta: number) {
+    // TRƯỚC mọi cửa chặn bên dưới: tấm nền phải đúng khổ kể cả lúc bảng câu hỏi
+    // đang mở hay nhân vật chưa dựng xong.
+    this.fitBgVideo();
+
     if (!this.player) return;
 
     // Chọn hoạt ảnh TRƯỚC các cửa chặn bên dưới: bảng câu hỏi mở ra là nhân vật
@@ -471,13 +728,20 @@ export class StageScene extends Phaser.Scene {
 
     for (const node of this.nodes) {
       node.label.setScale(scale);
-      node.label.setY(-node.halfHeight - gapWorld);
+      // Y đặt lên THÙNG BỌC: nhãn phải nằm ở gốc (0,0) của thùng thì nhịp thở
+      // mới phình ra tại chỗ. Để nhãn lệch khỏi gốc là mỗi nhịp phóng to lại
+      // đẩy nó ra xa thêm, và cái tên nhấp nhô lên xuống thay vì to nhỏ.
+      node.labelWrap.setY(-node.halfHeight - gapWorld);
     }
   }
 
   // ------------------------------------------------------------------ di chuyển
 
   private canWalk(x: number, y: number): boolean {
+    // Có bản vẽ thì lề quanh mép KHÔNG áp dụng nữa. Giáo viên đã nói bằng tay
+    // chỗ nào đi được; một cái lề vô hình đè lên trên là công cụ nói dối chính
+    // người vừa dùng nó.
+    if (this.collision) return canWalkAt(this.collision, x, y);
     return Phaser.Geom.Rectangle.Contains(this.walkArea, x, y);
   }
 
@@ -497,19 +761,23 @@ export class StageScene extends Phaser.Scene {
   private clampToWalkArea(x: number, y: number): { x: number; y: number } {
     if (this.canWalk(x, y)) return { x, y };
 
-    const fromX = this.player.x;
-    const fromY = this.player.y;
-
-    // Nhân vật đã ở ngoài vùng (lượt chơi cũ, hoặc vật thể đặt sát mép): kéo
+    // Nhân vật đã ở ngoài vùng (lượt chơi cũ, hoặc giáo viên vừa vẽ lại): kéo
     // thẳng về trong. Trả `null` như trước là để họ kẹt vĩnh viễn — không cú
     // bấm nào cứu được, phải tải lại trang.
-    if (!this.canWalk(fromX, fromY)) {
-      return {
-        x: Phaser.Math.Clamp(x, this.walkArea.left, this.walkArea.right),
-        y: Phaser.Math.Clamp(y, this.walkArea.top, this.walkArea.bottom),
-      };
-    }
+    if (!this.canWalk(this.player.x, this.player.y)) return this.rescueToWalkable(x, y);
 
+    return this.furthestAlong(x, y);
+  }
+
+  /**
+   * Điểm XA NHẤT trên đoạn thẳng từ nhân vật tới `(x, y)` mà vẫn đi được.
+   *
+   * Đường lui khi không tìm được lối đi nào tới đích: nhân vật vẫn nhích đúng
+   * hướng người chơi chỉ rồi dừng ở tường, thay vì đứng im như bấm hụt.
+   */
+  private furthestAlong(x: number, y: number): { x: number; y: number } {
+    const fromX = this.player.x;
+    const fromY = this.player.y;
     const at = (t: number) => ({ x: fromX + (x - fromX) * t, y: fromY + (y - fromY) * t });
 
     // Bước dò ~8px thế giới: đủ mịn để không nhảy qua một mũi nhô hẹp.
@@ -544,6 +812,24 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
+   * Chỗ đi được GẦN `(x, y)` nhất. Trả lại chính nó nếu đã đi được.
+   *
+   * Đây là cái phao, không phải một tính năng — nhưng thiếu nó thì có một cách
+   * chắc chắn để hỏng: giáo viên vẽ lại vùng đi được, một lượt chơi cũ ghi chỗ
+   * đứng nằm ngoài bản vẽ mới, và người chơi vào màn là **kẹt cứng** — không cú
+   * bấm hay phím nào ăn nữa, phải tải lại trang, mà tải lại cũng vẫn thế.
+   *
+   * Phép quét ở `collision.ts`, dùng chung với chế độ đi thử của trình thiết
+   * kế. Truyền vào `canWalk` CỦA CẢNH chứ không phải bản vẽ trần: cảnh còn cộng
+   * cái lề quanh mép khi chưa ai vẽ gì.
+   */
+  private rescueToWalkable(x: number, y: number): { x: number; y: number } {
+    return (
+      nearestWalkable((px, py) => this.canWalk(px, py), x, y, WORLD) ?? { x, y }
+    );
+  }
+
+  /**
    * Gọi sau MỖI bước di chuyển, kể cả giữa đường.
    *
    * Cố ý KHÔNG mở nhiệm vụ ở đây — xem `settleZone()`.
@@ -559,21 +845,63 @@ export class StageScene extends Phaser.Scene {
     }
   }
 
-  private movePlayerTo(x: number, y: number) {
+  /**
+   * Đi theo một chuỗi chặng, mỗi chặng một tween nối đuôi nhau.
+   *
+   * `ease: 'Linear'` chứ không phải `Power1`, và đó là bắt buộc khi có nhiều
+   * chặng: `Power1` giảm tốc ở cuối MỖI tween, nên một con đường vòng qua vật
+   * cản sẽ thành đi-khựng-đi-khựng ở mỗi khúc cua.
+   *
+   * Sàn 250ms chỉ áp cho chặng CUỐI. Áp cho mọi chặng thì một khúc cua dài 30
+   * đơn vị cũng ngốn một phần tư giây, và đường vòng ba khúc đi chậm hơn hẳn
+   * đường thẳng cùng độ dài.
+   */
+  private movePlayerAlong(path: { x: number; y: number }[]) {
     this.tweens.killTweensOf(this.player);
-    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-    this.tweens.add({
-      targets: this.player,
-      x,
-      y,
-      duration: Math.max(250, (distance / MOVE_SPEED) * 1000),
-      ease: 'Power1',
-      // Giữa đường chỉ cập nhật viền và xét việc RỜI phạm vi.
-      onUpdate: () => this.afterMove(),
-      // Tới đích mới xét việc MỞ nhiệm vụ. Tween bị huỷ giữa chừng thì Phaser
-      // không gọi `onComplete`, nên bấm sang chỗ khác không mở nhầm.
-      onComplete: () => this.settleZone(),
-    });
+    if (path.length === 0) return;
+
+    const walkLeg = (index: number) => {
+      const leg = path[index];
+      if (!leg) {
+        // Hết chặng: TỚI NƠI. Chỉ ở đây mới xét việc mở nhiệm vụ.
+        this.settleZone();
+        return;
+      }
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        leg.x,
+        leg.y,
+      );
+      const span = (distance / MOVE_SPEED) * 1000;
+      this.tweens.add({
+        targets: this.player,
+        x: leg.x,
+        y: leg.y,
+        duration: index === path.length - 1 ? Math.max(250, span) : Math.max(16, span),
+        ease: 'Linear',
+        // Giữa đường chỉ cập nhật viền và xét việc RỜI phạm vi.
+        onUpdate: () => this.afterMove(),
+        // Tween bị huỷ giữa chừng thì Phaser không gọi `onComplete`, nên bấm
+        // sang chỗ khác là cả chuỗi chặng còn lại cũng dừng theo.
+        onComplete: () => walkLeg(index + 1),
+      });
+    };
+
+    walkLeg(0);
+  }
+
+  /**
+   * Đường đi tới `(x, y)`: thẳng nếu thông, vòng nếu vướng, tới sát tường nếu
+   * chỗ đó không có đường nào tới được.
+   */
+  private pathTo(x: number, y: number): { x: number; y: number }[] {
+    if (!this.grid) return [{ x, y }];
+    const walkable = (px: number, py: number) => this.canWalk(px, py);
+    const from = { x: this.player.x, y: this.player.y };
+    return (
+      findPath(this.grid, walkable, from, { x, y }) ?? [this.furthestAlong(x, y)]
+    );
   }
 
   /**
@@ -589,12 +917,14 @@ export class StageScene extends Phaser.Scene {
    * Tìm t NHỎ NHẤT mà điểm đã nằm trong khung (ngược với `clampToWalkArea`, vốn
    * tìm t lớn nhất còn nằm ngoài vùng cấm).
    */
-  private stopAtQuestEdge(toX: number, toY: number): { x: number; y: number } {
-    const node = this.nodeAtPoint(toX, toY);
-    if (!node) return { x: toX, y: toY };
-
-    const fromX = this.player.x;
-    const fromY = this.player.y;
+  private stopAtQuestEdge(
+    node: QuestNode,
+    from: { x: number; y: number },
+    toX: number,
+    toY: number,
+  ): { x: number; y: number } {
+    const fromX = from.x;
+    const fromY = from.y;
     // Đã đứng sẵn trong khung thì không phải đi đâu cả.
     if (Phaser.Geom.Rectangle.Contains(node.box, fromX, fromY)) return { x: fromX, y: fromY };
 
@@ -663,8 +993,20 @@ export class StageScene extends Phaser.Scene {
       return;
     }
 
-    const target = this.stopAtQuestEdge(walk.x, walk.y);
-    this.movePlayerTo(target.x, target.y);
+    const path = this.pathTo(walk.x, walk.y);
+
+    // Cắt chặng CUỐI lại ở mép khung nhiệm vụ, và đo từ chặng ÁP CHÓT chứ không
+    // từ chỗ nhân vật đang đứng: đường vòng qua vật cản có thể tới cái rương từ
+    // một hướng hoàn toàn khác hướng nhìn thẳng, và đo nhầm gốc thì điểm dừng
+    // rơi ra ngoài khung.
+    const last = path.length - 1;
+    const end = path[last];
+    if (node && end) {
+      const approach = last > 0 ? path[last - 1]! : { x: this.player.x, y: this.player.y };
+      path[last] = this.stopAtQuestEdge(node, approach, end.x, end.y);
+    }
+
+    this.movePlayerAlong(path);
   }
 
   /**
@@ -780,14 +1122,24 @@ export class StageScene extends Phaser.Scene {
       const y = quest.scene_y ?? centerY + Math.sin(angle) * 300;
 
       const isAdvisor = quest.phase === 'advisor';
-      const color = isAdvisor ? 0xd4af37 : PROP_COLORS[index % PROP_COLORS.length]!;
 
       const container = this.add.container(x, y).setDepth(isAdvisor ? 15 : 10);
 
-      // Có ảnh thì dùng ảnh; không thì vòng sáng mặc định. Ảnh do giáo viên tải
-      // lên ở giao diện thiết kế màn chơi.
+      /**
+       * Ảnh của vật thể — hoặc KHÔNG CÓ GÌ CẢ.
+       *
+       * Chưa tải ảnh thì chỗ này để trống hẳn: chỉ còn cái tên nổi trên nền, và
+       * vùng va chạm vô hình vẫn bấm được, vẫn chặn bước chân như thường.
+       *
+       * Trước đây chỗ này vẽ một vòng sáng màu thay thế. Nó có vẻ hữu ích —
+       * "phải thấy cái gì đó chứ" — nhưng đó là một vật thể MÀ KHÔNG AI CHỌN
+       * ĐẶT VÀO CẢNH: người dựng nền vẽ một cái rương lên boong tàu rồi đặt
+       * vùng va chạm chồng lên đúng cái rương ấy sẽ thấy một quả bóng tím lơ
+       * lửng đè lên nó. Không vẽ gì là câu trả lời đúng cho "chưa có ảnh", vì
+       * ảnh có thể đã nằm sẵn trong nền rồi.
+       */
       const iconKey = `quest_icon_${quest.id}`;
-      const artwork: Phaser.GameObjects.Image | Phaser.GameObjects.Ellipse =
+      const artwork: Phaser.GameObjects.Image | null =
         quest.icon_url && this.textures.exists(iconKey)
           ? (() => {
               const image = this.add.image(0, 0, iconKey);
@@ -797,18 +1149,7 @@ export class StageScene extends Phaser.Scene {
               image.setDisplaySize(width, width * (image.height / image.width));
               return image;
             })()
-          : (() => {
-              const halo = this.add.ellipse(
-                0,
-                18,
-                isAdvisor ? 90 : 75,
-                isAdvisor ? 48 : 38,
-                color,
-                0.32,
-              );
-              halo.setStrokeStyle(2, color, 0.9);
-              return halo;
-            })();
+          : null;
 
       // Cỡ chữ gốc lớn, rồi thu lại ở `rescaleLabels()` cho đúng cỡ màn hình.
       //
@@ -834,13 +1175,16 @@ export class StageScene extends Phaser.Scene {
         // đè lên hình.
         .setOrigin(0.5, 1);
 
+      // Thùng bọc để nhịp thở có chỗ ghi `scale` của riêng nó — xem `QuestNode`.
+      // Nhãn nằm ở GỐC của thùng; chỗ đứng do thùng mang, `rescaleLabels()` đặt.
+      const labelWrap = this.add.container(0, 0, [label]);
+
       // Kích thước khung lấy từ ẢNH THẬT: bề rộng do giáo viên đặt, chiều cao
       // suy ra theo tỉ lệ gốc. Nhờ vậy vùng va chạm luôn khớp cái nhìn thấy.
       const boxWidth = quest.icon_size ?? DEFAULT_ICON_SIZE;
-      const boxHeight =
-        artwork instanceof Phaser.GameObjects.Image
-          ? artwork.displayHeight
-          : boxWidth;
+      // Không có ảnh thì khung VUÔNG theo bề rộng — đúng bằng ô người dựng kéo
+      // trong trình thiết kế, nơi chỗ giữ chỗ cũng là một ô vuông.
+      const boxHeight = artwork ? artwork.displayHeight : boxWidth;
 
       const box = new Phaser.Geom.Rectangle(
         x - boxWidth / 2,
@@ -860,15 +1204,19 @@ export class StageScene extends Phaser.Scene {
         box,
         hitArea,
         label,
+        labelWrap,
         halfHeight: boxHeight / 2,
         container,
         completed: false,
+        locked: false,
       };
 
       // Bấm vào vật thể = RA LỆNH ĐI TỚI, không phải mở câu hỏi.
-      // Cả vòng sáng lẫn nhãn đều bấm được — đích bấm nhỏ là thứ khó chịu nhất
-      // trên màn hình cảm ứng.
-      for (const target of [artwork, label, hitArea]) {
+      // Cả ảnh lẫn nhãn đều bấm được — đích bấm nhỏ là thứ khó chịu nhất trên
+      // màn hình cảm ứng. Không có ảnh thì `hitArea` gánh cả phần đó: nó là một
+      // hình chữ nhật KHÔNG tô nền, vô hình mà vẫn nhận cú bấm trong phạm vi
+      // của mình, nên vật thể "tàng hình" vẫn bấm được đúng chỗ nhìn thấy tên.
+      for (const target of artwork ? [artwork, label, hitArea] : [label, hitArea]) {
         target.setInteractive({ useHandCursor: true });
         target.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
           (pointer.event as Event).stopPropagation();
@@ -886,12 +1234,27 @@ export class StageScene extends Phaser.Scene {
       // Chỉ đổi CÁCH VẼ. `box` và `hitArea` giữ nguyên kích thước gốc — cho
       // vùng bấm phập phồng theo là để đích bấm chạy dưới tay người chơi, và
       // chỗ nhân vật dừng lại đổi theo từng khoảnh khắc.
+      //
+      // ẢNH **VÀ** NHÃN cùng thở, một nhịp chung. Nhãn phải thở vì nó có thể là
+      // thứ DUY NHẤT nhìn thấy: vật thể không có ảnh thì chỉ còn cái tên, và
+      // một cái tên đứng im giữa cảnh trông như chữ chú thích chứ không như một
+      // chỗ bấm được.
+      //
+      // Nhãn thở qua `labelWrap` chứ không thở trực tiếp — xem `QuestNode`, chỗ
+      // giải thích vì sao hai hệ không được dùng chung một `scale`.
       const pulse = resolvePulse(quest.pulse_percent, quest.pulse_period_ms);
       if (pulse) {
+        // MỘT tween cho cả hai, không phải hai tween song song: hai tween rời
+        // bắt đầu cùng lúc nhưng trôi dần khỏi nhau, và tới một lúc nào đó ảnh
+        // đang phình thì chữ đang co.
+        const targets = artwork ? [artwork, labelWrap] : [labelWrap];
         this.tweens.add({
-          targets: artwork,
-          scaleX: artwork.scaleX * pulse.maxScale,
-          scaleY: artwork.scaleY * pulse.maxScale,
+          targets,
+          // Nhân với tỉ lệ ĐANG CÓ của từng đích: ảnh có thể đang ở scale 0,3
+          // sau `setDisplaySize()`, còn thùng bọc thì luôn ở 1. Hàm nhận đích
+          // làm tham số nên mỗi cái tự nhân với số của mình.
+          scaleX: (t: Phaser.GameObjects.Components.Transform) => t.scaleX * pulse.maxScale,
+          scaleY: (t: Phaser.GameObjects.Components.Transform) => t.scaleY * pulse.maxScale,
           duration: pulse.halfCycleMs,
           ease: 'Sine.easeInOut',
           yoyo: true,
@@ -899,9 +1262,9 @@ export class StageScene extends Phaser.Scene {
         });
       }
 
-      container.add([artwork, label]);
+      container.add(artwork ? [artwork, labelWrap] : [labelWrap]);
       // Nhãn vẽ sau ảnh nên luôn nằm trên, không bị hình che.
-      container.bringToTop(label);
+      container.bringToTop(labelWrap);
       return node;
     });
   }
@@ -1010,7 +1373,18 @@ export class StageScene extends Phaser.Scene {
 
     // Chuẩn hoá lại cỡ sau MỖI lần đổi tấm: `walk` và `idle` không bắt buộc
     // cùng khổ khung, mà `scale` thì giữ nguyên qua lần đổi texture.
-    this.hero.setScale(HERO_HEIGHT / this.hero.height);
+    this.hero.setScale(this.heroHeight() / this.hero.height);
+  }
+
+  /**
+   * Chiều cao nhân vật của màn này.
+   *
+   * `HERO_HEIGHT` giờ chỉ còn là đường lùi cho những lượt chơi ĐÃ ĐÓNG BĂNG
+   * trước khi trường này ra đời — đề bài của chúng không có nó, và đóng cửa với
+   * người đang chơi dở là chuyện không làm.
+   */
+  private heroHeight(): number {
+    return this.sceneData.characterHeight ?? HERO_HEIGHT;
   }
 
   /**
@@ -1036,9 +1410,263 @@ export class StageScene extends Phaser.Scene {
     this.stillFrames = moving ? 0 : this.stillFrames + 1;
     if (moving) this.playHeroAction('walk');
     else if (this.stillFrames >= IDLE_AFTER_STILL_FRAMES) this.playHeroAction(DEFAULT_ACTION);
+
+    // Tiếng đi theo ĐÚNG cái ngưỡng đã tính cho hoạt ảnh, không tính lại một
+    // ngưỡng riêng: hình chuyển sang bước mà tiếng còn im — hoặc ngược lại —
+    // thì hai thứ lệch nhau và người chơi nghe ra ngay.
+    if (moving) this.setMotionSound('walk');
+    else if (this.stillFrames >= IDLE_AFTER_STILL_FRAMES) this.setMotionSound('idle');
+  }
+
+
+  // ------------------------------------------------------------------ âm thanh
+
+  private audioKey(slot: AudioSlot): string {
+    return `stage_audio_${slot}`;
+  }
+
+  /**
+   * Bật tiếng của màn.
+   *
+   * **Trình duyệt CHẶN âm thanh tự chạy** khi người dùng chưa chạm vào trang.
+   * Phaser gói việc đó lại thành `sound.locked`: mọi lệnh `play()` trước cú
+   * chạm đầu tiên đều rơi vào im lặng, không báo lỗi. Nên ở đây chỉ dựng sẵn
+   * các bản rồi ĐỢI — cú bấm đầu tiên của người chơi (bấm để đi, hoặc bấm vào
+   * một vật thể) sẽ mở khoá, và lúc đó nhạc mới vào.
+   *
+   * Không tự ý hạ nhạc xuống 0 rồi "mở dần" để lách: cách đó chỉ lách được ở
+   * một số trình duyệt, và ở những chỗ nó không lách được thì kết quả là một
+   * bản nhạc chạy câm suốt màn.
+   */
+  private startAudio() {
+    for (const slot of AUDIO_SLOT_KEYS) {
+      if (!this.cache.audio.exists(this.audioKey(slot))) continue;
+      const spec = resolveAudio(slot, this.audio[slot]);
+      this.sounds.set(
+        slot,
+        this.sound.add(this.audioKey(slot), {
+          volume: this.mixVolume(slot),
+          rate: spec.rate,
+          loop: spec.loop,
+        }),
+      );
+    }
+
+    if (this.sounds.size === 0) return;
+
+    const begin = () => {
+      // Người chơi đã tắt nhạc ở bản đồ hay phòng chờ thì vào đây vẫn tắt.
+      if (!this.musicPrefs.on) return;
+      this.sounds.get('ambient')?.play();
+      // Vào màn là đang đứng, nên tiếng đứng vào trước — nếu màn có đặt.
+      this.setMotionSound('idle');
+    };
+
+    if (this.sound.locked) this.sound.once(Phaser.Sound.Events.UNLOCKED, begin);
+    else begin();
+
+    // DỪNG HẾT khi rời cảnh. Thiếu dòng này thì nhạc nền của màn chơi vẫn chạy
+    // sau khi người chơi đã bấm "Rời màn" và đang đứng ở bản đồ thiên hà — và
+    // không có nút nào tắt được nó ngoài việc tải lại trang.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      for (const sound of this.sounds.values()) sound.destroy();
+      this.sounds.clear();
+      this.motionSlot = null;
+    });
+  }
+
+  /**
+   * Nhận tuỳ chọn nhạc mới từ React. Gọi lúc vào màn và mỗi lần người chơi
+   * chỉnh — kể cả khi họ chỉnh ở một tab khác.
+   */
+  setMusicPrefs(prefs: { on: boolean; master: number }) {
+    const wasOn = this.musicPrefs.on;
+    this.musicPrefs = prefs;
+    this.applyVolumes();
+
+    if (wasOn === prefs.on) return;
+    if (!prefs.on) {
+      for (const sound of this.sounds.values()) sound.stop();
+      // Quên khối chuyển động đang phát, để lúc bật lại nó vào lại từ đầu thay
+      // vì tưởng mình vẫn đang kêu.
+      this.motionSlot = null;
+      return;
+    }
+    this.sounds.get('ambient')?.play();
+    this.setMotionSound('idle');
+  }
+
+  /**
+   * Âm lượng THẬT của một khối tiếng, sau cả ba tầng nhân.
+   *
+   * Ba con số, ba người quyết, và chúng nhân vào nhau chứ không đè lên nhau:
+   *
+   *   1. `spec.volume` — giáo viên cân bản phối của màn.
+   *   2. `musicPrefs.master` — người chơi vặn to nhỏ TẤT CẢ.
+   *   3. `DUCK_VOLUME` — bảng câu hỏi có tiếng đang mở, lùi cả màn ra sau.
+   *
+   * Nhân thì mỗi tầng giữ được ý của tầng dưới: người chơi vặn nhỏ rồi mà mở
+   * câu hỏi nghe thì nhỏ hơn nữa, chứ không nhảy về một mức cố định của ai đó.
+   *
+   * MỘT hàm cho cả ba chỗ đặt âm lượng (`startAudio`, `applyVolumes`,
+   * `applyVideoSound`), vì ba bản chép của cùng một phép nhân sẽ lệch đúng vào
+   * lúc thêm tầng thứ tư — và đây chính là lần thêm tầng thứ ba.
+   */
+  private mixVolume(slot: AudioSlot): number {
+    const spec = resolveAudio(slot, this.audio[slot]);
+    return spec.volume * this.musicPrefs.master * (this.ducked ? DUCK_VOLUME : 1);
+  }
+
+  /** Áp âm lượng hiện tại lên mọi thứ đang kêu. Không đụng tới bật/tắt. */
+  private applyVolumes() {
+    // Video nền TRƯỚC: nó có thể ĐANG LÀ nhạc nền, và lúc đó `this.sounds`
+    // không có khối `ambient` nào để vòng lặp bên dưới chạm tới.
+    this.applyVideoSound();
+
+    for (const [slot, sound] of this.sounds) {
+      // `setVolume` chứ không dựng lại: đổi âm lượng giữa chừng phải mượt, dựng
+      // lại là bản nhạc nhảy về đầu mỗi lần kéo thanh trượt một nấc.
+      //
+      // `BaseSound` không khai báo `setVolume` — nó nằm ở `WebAudioSound` và
+      // `HTML5AudioSound`, tức là ở cả hai bản cài đặt thật. Ép kiểu hẹp đúng
+      // một hàm, thay vì ép cả `sound` thành `any` rồi mất luôn phần còn lại.
+      (sound as unknown as { setVolume?: (v: number) => void }).setVolume?.(this.mixVolume(slot));
+    }
+  }
+
+  /**
+   * Bảng câu hỏi CÓ TIẾNG mở ra / đóng lại.
+   *
+   * Chỉ hạ âm lượng, KHÔNG dừng gì cả: dừng rồi phát lại là bản nhạc nền nhảy
+   * về đầu mỗi lần học sinh mở một câu hỏi nghe, và một màn có sáu câu nghe thì
+   * họ nghe đúng tám giây đầu của bản nhạc sáu lần.
+   *
+   * React quyết định KHI NÀO — cảnh Phaser không biết bảng nào đang mở, cũng
+   * không biết câu hỏi nào có tiếng. Nó chỉ biết vặn cái van.
+   */
+  setMusicDucked(on: boolean) {
+    if (this.ducked === on) return;
+    this.ducked = on;
+    this.applyVolumes();
+  }
+
+  /**
+   * Căng video nền cho vừa thế giới — và căng LẠI mỗi khi khổ texture đổi.
+   *
+   * ## Vì sao không đặt một lần trong `create()`
+   *
+   * `setDisplaySize(w, h)` KHÔNG lưu `w` và `h`. Nó tính `scale = w / width`
+   * ngay lúc gọi rồi chỉ giữ lại cái tỉ lệ ấy. Một thẻ Video vừa dựng thì chưa
+   * có khung hình nào, nên Phaser cho nó mượn tấm texture `__MISSING` 256×256 —
+   * và tỉ lệ tính ra là 3200 / 256 = **12,5**. Đến khi khung hình thật về,
+   * Phaser thay texture bằng khổ thật (1920 chẳng hạn) nhưng GIỮ NGUYÊN 12,5,
+   * nên tấm nền hiện ra rộng 24000 đơn vị trên một thế giới rộng 3200 — phóng
+   * to gấp 7,5 lần. Đây là con số đo được, không phải suy đoán.
+   *
+   * Ảnh tĩnh không dính lỗi này: `load.image` nạp xong texture trước khi
+   * `create()` chạy, nên `width` đã là khổ thật ngay từ đầu.
+   *
+   * ## Vì sao canh theo KHỔ chứ không nghe sự kiện
+   *
+   * Phaser có `textureready` cho đúng việc này, nhưng đo trên máy thật thì nó
+   * KHÔNG bắn — cả `play` và `playing` cũng không. Treo một bản sửa lên một sự
+   * kiện chưa từng thấy chạy là đổi một lỗi chắc chắn lấy một lỗi tuỳ lúc.
+   *
+   * So khổ thì không cần tin ai cả: khổ đổi thì căng lại, đúng một lần cho mỗi
+   * lần đổi. Nó cũng tự đúng với video có khổ đổi giữa chừng, và với cả trường
+   * hợp texture sẵn sàng ngay từ khung hình đầu — thứ đã che lỗi này trong lần
+   * thử trước, khi tôi dùng một video nhỏ đã nằm sẵn trong bộ nhớ đệm.
+   */
+  private fitBgVideo() {
+    const video = this.bgVideo;
+    if (!video) return;
+    if (video.width === this.bgVideoSize.w && video.height === this.bgVideoSize.h) return;
+    video.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
+    this.bgVideoSize = { w: video.width, h: video.height };
+  }
+
+  /**
+   * Đặt tiếng cho VIDEO NỀN theo tuỳ chọn hiện tại của người chơi.
+   *
+   * Tách khỏi `startAudio()` vì nó phải chạy ngay cả khi màn KHÔNG có khối tiếng
+   * nào — trường hợp rất bình thường khi giáo viên bật "dùng tiếng của video":
+   * `this.sounds` rỗng, và `startAudio()` thoát sớm.
+   *
+   * Nền là ảnh tĩnh, hoặc giáo viên không bật cờ, thì video (nếu có) im lặng —
+   * `setMute(true)` chứ không bỏ qua, vì một video có đường tiếng mà không ai
+   * tắt sẽ tự kêu.
+   */
+  private applyVideoSound() {
+    const video = this.bgVideo;
+    if (!video) return;
+    if (!this.ambientFromVideo) {
+      video.setMute(true);
+      return;
+    }
+    video.setVolume(this.mixVolume('ambient'));
+    video.setMute(!this.musicPrefs.on);
+  }
+
+  /**
+   * Đổi giữa tiếng ĐI và tiếng ĐỨNG. Gọi mỗi khung hình, nên phải rẻ và im lặng
+   * khi không có gì đổi.
+   *
+   * Hai khối loại trừ nhau: phát chồng lên nhau thì người chơi nghe thấy tiếng
+   * bước chân và tiếng thở cùng lúc ở mỗi lần dừng lại.
+   */
+  private setMotionSound(slot: 'walk' | 'idle') {
+    if (!this.musicPrefs.on) return;
+    if (this.motionSlot === slot) return;
+    if (this.motionSlot) this.sounds.get(this.motionSlot)?.stop();
+    this.motionSlot = slot;
+    this.sounds.get(slot)?.play();
   }
 
   // ------------------------------------------------------------------ hiệu ứng
+
+  /**
+   * Đóng ổ khoá lên một nhiệm vụ chưa mở.
+   *
+   * CHỈ gắn ổ khoá vào nhãn — không làm mờ hình.
+   *
+   * Làm mờ là cách nói mơ hồ: một vật thể mờ còn đọc được là "đã xong", là "ở
+   * xa", hay chỉ là ảnh giáo viên tải lên vốn đã nhạt. Cái ổ khoá thì nói đúng
+   * một điều và không nói gì khác, nên nó là đủ. Bỏ lớp mờ đi thì tấm ảnh nền
+   * và mấy ảnh vật thể cũng giữ nguyên được cái nhìn mà người dựng đã căn.
+   *
+   * Ổ khoá nằm TRONG nhãn, không phải một ảnh riêng đặt phía trên. Nhãn đã có
+   * sẵn cơ chế giữ cỡ chữ không đổi theo mức thu phóng của camera
+   * (`rescaleLabels`); một ảnh riêng thì không, nên ở mức thu nhỏ nó co lại
+   * thành một chấm.
+   *
+   * Vật thể vẫn BẤM ĐƯỢC. Người chơi đi tới, bảng mở ra và nói phải gặp NPC
+   * trước — chứ không phải bấm mãi mà màn hình im lặng.
+   */
+  private markLocked(questId: string) {
+    const node = this.nodes.find((n) => n.id === questId);
+    if (!node || node.locked) return;
+
+    node.locked = true;
+    node.label.setText(LOCK_PREFIX + node.label.text);
+  }
+
+  /**
+   * Qua NPC rồi — mở hết một lượt.
+   *
+   * Mở HẾT chứ không mở từng cái theo sự kiện riêng: cổng chỉ có một, và qua
+   * được nó thì mọi thứ phía sau mở cùng lúc.
+   */
+  private unlockAll() {
+    for (const node of this.nodes) {
+      if (!node.locked) continue;
+      node.locked = false;
+
+      // `replace` chứ không `startsWith` + `slice`: một nhiệm vụ vừa xong vừa
+      // khoá là chuyện không xảy ra, nhưng nếu có thì dấu ✓ đứng trước và phép
+      // cắt theo vị trí đầu chuỗi sẽ trượt, để lại cái ổ khoá vĩnh viễn.
+      node.label.setText(node.label.text.replace(LOCK_PREFIX, ''));
+    }
+  }
 
   /** Đánh dấu một nhiệm vụ đã xong. Tra theo ID, không theo chỉ số mảng. */
   private markCompleted(questId: string) {
@@ -1046,12 +1674,25 @@ export class StageScene extends Phaser.Scene {
     if (!node || node.completed) return;
 
     node.completed = true;
-    node.container.setAlpha(0.5);
-
-    const check = this.add
-      .text(0, -46, '✓', { fontSize: '22px', color: '#4ade80', fontStyle: 'bold' })
-      .setOrigin(0.5);
-    node.container.add(check);
+    // KHÔNG làm mờ ảnh. Người dựng tải tấm ảnh đó lên và căn nó vào cảnh; hạ
+    // xuống một nửa độ sáng là sửa tác phẩm của họ để nói một điều mà cái dấu ✓
+    // đã nói rõ hơn. Làm mờ cũng là cách nói mơ hồ — mờ còn đọc được là "đang
+    // khoá", là "ở xa", hay chỉ là tấm ảnh vốn đã nhạt.
+    //
+    // Dấu ✓ nằm TRONG nhãn, không phải một chữ riêng đặt lên ảnh. Bản trước đặt
+    // nó thành một `text` 22px trong hệ toạ độ thế giới, mà camera thu về cỡ
+    // 0,3 lần — ra chưa tới bảy điểm ảnh trên màn hình, tức gần như vô hình.
+    // Nhãn thì đã có sẵn cơ chế giữ cỡ chữ không đổi theo mức thu phóng
+    // (`rescaleLabels`). Cùng một lối với ổ khoá, xem `markLocked`.
+    //
+    // ⚠️ Đây là chuyện của RIÊNG người đang ngồi trước màn hình. Danh sách
+    // `completedQuestIds` dựng từ `run.my_progress`, mà server tính nó chỉ từ
+    // bài làm của chính người gọi (`_run_out`: `mine = [... if a.user_id ==
+    // user.id]`). Bốn người cùng một phòng thì mỗi máy thấy đúng dấu ✓ của mình
+    // — luật "kết quả từng người là độc lập" (GAME_DOMAIN §1.5) hiện ra ở đây.
+    // Ai xong nhiệm vụ nào của ĐỒNG ĐỘI là dữ liệu khác (`run.team`), và nó
+    // không được vẽ lên cảnh.
+    node.label.setText(node.label.text + DONE_SUFFIX);
   }
 
   private flashAt(questId: string) {

@@ -2,7 +2,7 @@
 
 > **Giai đoạn 1:** chạy lệnh trực tiếp cho dễ test. Docker để sau (Bước 9).
 > **Máy đích:** Ubuntu Server · **Máy dev:** Windows
-> **Ràng buộc:** deploy = **1 lệnh cho BE, 1 lệnh cho FE**. Migration và seed nằm *trong* lệnh deploy.
+> **Ràng buộc:** mỗi bên **1 lệnh phát hành + 1 lệnh chạy**. Migration và seed nằm trong lệnh PHÁT HÀNH, không nằm trong lệnh chạy — xem §4.
 > Đọc trước: [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
@@ -56,6 +56,22 @@ từ `.env` (`SEED_*`), **không viết cứng trong code**. Cả hai lệnh ch�
 nhiêu lần cũng được: `upgrade head` bỏ qua migration đã chạy, còn seed thấy tài
 khoản đã tồn tại thì không đụng vào mật khẩu.
 
+Nạp nội dung Chương 1 của world Lost in Atlantis (6 màn, 24 nhiệm vụ, 72 câu
+hỏi) từ `public/data/stages/world_01/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.seeds.import_world_01
+```
+
+**Không** nằm trong `seed_all` và không chạy khi triển khai: đây là nội dung
+soạn sẵn của một world cụ thể, còn `seed_all` chỉ dựng cái khung mà mọi bản cài
+đều cần. Chạy lại bao nhiêu lần cũng được — script tìm màn theo
+`(chương, thứ tự)` và nhiệm vụ theo `quest_object_key` rồi ghi đè lên đúng bản
+đang có, không tạo thêm bản sao.
+
+Màn 1 giữ nguyên ảnh nền, ảnh vật thể, toạ độ và chiều cao nhân vật đã dựng tay
+trên giao diện; script chỉ ghi đè phần nhiệm vụ và sổ tay của nó.
+
 Xem trước SQL mà không chạm database:
 
 ```powershell
@@ -75,7 +91,7 @@ Quay lui:
 cd D:\Programs\vitaminfun\api
 .\.venv\Scripts\python.exe -m app --serve
 
-# Cửa sổ 2 — Web (http://localhost:3000)
+# Cửa sổ 2 — Web (http://localhost:5000, theo PORT trong .env)
 cd D:\Programs\vitaminfun\web
 pnpm dev
 ```
@@ -179,67 +195,142 @@ hệ điều hành; trên Windows là cp1252, nên một dấu tiếng Việt tr
 
 ---
 
-## 1. Vì sao chỉ cần 2 lệnh
+## 1. Vì sao chỉ cần 2 tiến trình
 
 ```
-api/   1 process FastAPI  (REST + WebSocket cùng app)   → 1 lệnh
-web/   1 app Next.js      (giáo viên + học sinh + game) → 1 lệnh
+api/   1 process FastAPI  (REST + WebSocket cùng app)   → 1 lệnh chạy
+web/   1 app Next.js      (giáo viên + học sinh + game) → 1 lệnh chạy
 ```
 
 Giao diện giáo viên, giao diện học sinh và màn chơi Phaser đều nằm trong **một** Next.js app, phân biệt bằng route group và vai trò — nên không có app thứ hai để deploy. Phaser chỉ được tải ở route màn chơi nhờ `dynamic(ssr: false)`, không làm nặng phần còn lại.
 
 Không dùng pnpm workspace hay Turborepo: hai thư mục độc lập, mỗi bên tự quản phụ thuộc của mình.
 
+### Trình duyệt KHÔNG bao giờ gọi thẳng API
+
+Đây là điều quyết định hình dạng của cả file cấu hình nginx bên dưới, nên nói rõ ngay:
+
+```
+trình duyệt ──HTTPS──> nginx ──> Next.js (PORT)
+                                    │
+                                    ├─ Server Component  ─┐
+                                    └─ /api/be/*  (proxy) ─┴──> FastAPI (API_PORT, chỉ 127.0.0.1)
+```
+
+Token phiên nằm trong cookie `httpOnly`, nên mã chạy trên trình duyệt không đọc được để tự gắn `Authorization`. Route handler `web/src/app/api/be/[...path]/route.ts` chạy ở server, đọc cookie và gắn hộ. Hệ quả:
+
+- **FastAPI không cần lộ ra Internet.** Nó chỉ cần nghe ở `127.0.0.1`.
+- **`CORS_ORIGINS` chưa được dùng tới**, vì không có cuộc gọi khác origin nào. Vẫn đặt đúng để dành cho Bước 7 (WebSocket nối thẳng từ trình duyệt).
+- **`NEXT_PUBLIC_API_URL` để TRỐNG.** `apiBaseUrl()` ưu tiên `API_INTERNAL_URL`; biến `NEXT_PUBLIC_*` chỉ còn là đường lùi, và đặt nó thành một URL công khai là hứa một cánh cửa không tồn tại.
+
 ---
 
 ## 2. Chuẩn bị server (làm một lần)
 
+### 2.1. Gói hệ thống
+
 ```bash
-# Node 20 + pnpm
+sudo apt update
+sudo apt install -y curl git nginx postgresql
+
+# Node 20 + pnpm  (Next 15 cần Node >= 18.18)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 sudo npm i -g pnpm
-
-# Python 3.12
-sudo apt install -y python3.12 python3.12-venv python3-pip
-
-# PostgreSQL
-sudo apt install -y postgresql
-sudo -u postgres createuser --pwprompt vitaminfun
-sudo -u postgres createdb -O vitaminfun vitaminfun
-
-# Mã nguồn
-git clone <repo> /srv/vitaminfun && cd /srv/vitaminfun
-python3.12 -m venv api/.venv
-cp .env.example .env       # rồi sửa DATABASE_URL, SECRET_KEY, CORS_ORIGINS...
 ```
 
-Redis chưa cần ở giai đoạn này. Chỉ bắt buộc từ **Bước 7** (WebSocket phòng chơi).
+**Python 3.12** — Ubuntu 24.04 đã có sẵn:
+
+```bash
+sudo apt install -y python3.12 python3.12-venv
+```
+
+Ubuntu **22.04** thì mặc định là 3.10 và lệnh trên báo `Unable to locate package`. Thêm PPA trước:
+
+```bash
+sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt update
+sudo apt install -y python3.12 python3.12-venv
+```
+
+Kiểm tra trước khi đi tiếp — sai bản Python thì lỗi nổ ra tận lúc `pip install`:
+
+```bash
+python3.12 --version   # mong đợi 3.12.x
+node --version         # mong đợi v20.x
+pnpm --version
+```
+
+### 2.2. Người dùng chạy dịch vụ
+
+Không chạy bằng `root`. Tài khoản này không cần shell đăng nhập:
+
+```bash
+sudo useradd --system --create-home --shell /usr/sbin/nologin vitaminfun
+```
+
+### 2.3. Database
+
+```bash
+sudo -u postgres createuser --pwprompt vitaminfun     # nhập mật khẩu, nhớ lấy
+sudo -u postgres createdb -O vitaminfun vitaminfun
+```
+
+Không cần superuser: migration chỉ tạo bảng, index và ràng buộc trong schema của chính nó.
+
+### 2.4. Mã nguồn và kho media
+
+```bash
+sudo mkdir -p /srv && cd /srv
+sudo git clone https://github.com/cungchatcom-dotcom/vitaminfun.git
+sudo mkdir -p /srv/vitaminfun-storage
+sudo chown -R vitaminfun:vitaminfun /srv/vitaminfun /srv/vitaminfun-storage
+
+sudo -u vitaminfun python3.12 -m venv /srv/vitaminfun/api/.venv
+```
+
+**`/srv/vitaminfun-storage` nằm NGOÀI thư mục mã nguồn, và đó là bắt buộc.** Để trong repo thì một lần `git clean -xdf` hay một lần checkout nhầm nhánh là mất sạch ảnh, audio và video giáo viên đã tải lên — thứ duy nhất trên server không có bản sao ở đâu khác.
 
 ---
 
 ## 3. Biến môi trường
 
-Một file `.env` duy nhất ở gốc, cả hai app cùng đọc.
+Một file `.env` duy nhất ở gốc repo, cả hai app cùng đọc: FastAPI qua `pydantic-settings`, Next qua `web/scripts/with-root-env.mjs`.
+
+```bash
+sudo -u vitaminfun cp /srv/vitaminfun/.env.example /srv/vitaminfun/.env
+sudo -u vitaminfun nano /srv/vitaminfun/.env
+sudo chmod 600 /srv/vitaminfun/.env          # trong này có mật khẩu database
+```
+
+Sinh khoá JWT (tối thiểu 32 ký tự, app từ chối khởi động nếu ngắn hơn):
+
+```bash
+python3.12 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Nội dung cho production:
 
 ```dotenv
+# --- Chung ---
+APP_ENV=production
+APP_DEBUG=false
+
 # --- Database ---
-DATABASE_URL=postgresql+asyncpg://vitaminfun:***@localhost:5432/vitaminfun
-DATABASE_URL_SYNC=postgresql+psycopg://vitaminfun:***@localhost:5432/vitaminfun
+DATABASE_URL=postgresql+asyncpg://vitaminfun:<mật khẩu>@localhost:5432/vitaminfun
+DATABASE_URL_SYNC=postgresql+psycopg://vitaminfun:<mật khẩu>@localhost:5432/vitaminfun
 
 # --- API ---
-API_HOST=0.0.0.0
+API_HOST=127.0.0.1
 API_PORT=8000
 API_WORKERS=4
+API_RELOAD=false
 API_PREFIX=/api/v1
-SECRET_KEY=<đổi, đừng dùng giá trị mặc định>
+JWT_SECRET_KEY=<chuỗi vừa sinh ở trên>
 CORS_ORIGINS=https://<tên-miền>
 
 # --- Web ---
-# Tên biến PORT do Next quy định, không đổi được. Nạp vào tiến trình bởi
-# web/scripts/with-root-env.mjs TRƯỚC khi Next khởi động — xem §0.4.
-PORT=3000
-NEXT_PUBLIC_API_URL=https://<tên-miền>/api/v1
+PORT=5000
+NEXT_PUBLIC_API_URL=
 API_INTERNAL_URL=http://127.0.0.1:8000/api/v1
 
 # --- Lưu trữ media ---
@@ -247,79 +338,85 @@ STORAGE_BACKEND=local
 STORAGE_LOCAL_PATH=/srv/vitaminfun-storage
 STORAGE_PUBLIC_URL=https://<tên-miền>/media
 
-# --- Cache / Realtime (Bước 7) ---
+# --- Realtime (Bước 7) ---
 CACHE_USE_REDIS=false
 REDIS_URL=redis://localhost:6379/0
+
+# --- Tài khoản mẫu ---
+SEED_ADMIN_EMAIL=admin@<tên-miền>
+SEED_TEACHER_EMAIL=teacher@<tên-miền>
+SEED_STUDENT_EMAIL=student@<tên-miền>
+SEED_DEFAULT_PASSWORD=<mật khẩu mạnh, KHÔNG phải vitaminfun123>
 ```
 
-Hai điều quan trọng:
+### Năm dòng dễ sai nhất
 
-- **`STORAGE_LOCAL_PATH` phải nằm ngoài thư mục mã nguồn.** Để trong repo thì một lần `git clean` hoặc `git pull` là mất hết ảnh giáo viên đã upload.
-- **Không có giá trị cấu hình nào trong lệnh deploy.** Cổng, số worker, đường dẫn — tất cả ở đây. Có mặc định trong lệnh nghĩa là cổng thật nằm ở hai nơi và sẽ có ngày chúng lệch nhau.
+| Biến | Cái bẫy |
+|---|---|
+| `JWT_SECRET_KEY` | Tên là **`JWT_SECRET_KEY`**, không phải `SECRET_KEY`. Đặt sai tên thì app vẫn chạy — bằng khoá mặc định — cho tới khi `APP_ENV=production` bắt được và từ chối khởi động. Đó là cái lưới, không phải chỗ để dựa vào. |
+| `SEED_DEFAULT_PASSWORD` | `APP_ENV=production` mà vẫn để `vitaminfun123` thì **app không khởi động**, kèm đúng câu giải thích. Cố ý: mật khẩu mẫu là thứ đầu tiên phải đổi khi lên server thật. |
+| `API_HOST` | `127.0.0.1`, không phải `0.0.0.0`. Không có lý do gì để FastAPI nghe ra Internet — mọi thứ đi qua Next (§1). `0.0.0.0` là mở cổng 8000 ra ngoài mà không ai để ý. |
+| `STORAGE_PUBLIC_URL` | Giá trị này bị **ĐÓNG BĂNG vào từng hàng `media_assets.url` lúc tải file lên**. Đổi nó về sau **không sửa được các file đã tải** — chúng giữ nguyên URL cũ và hỏng hết. Đặt đúng ngay từ đầu, kể cả khi chưa gắn HTTPS. |
+| `API_RELOAD` | Phải `false`. `true` thì uvicorn chạy hai tầng tiến trình, bỏ qua `API_WORKERS`, và để lại tiến trình mồ côi ôm cổng mỗi lần khởi động lại. |
 
 ---
 
-## 4. Chạy — tập lệnh từng bước
+## 4. Deploy
+
+Hai bước, và **chúng là hai thứ khác nhau** — trộn vào nhau là cái sai đắt nhất trong file này:
+
+- **Phát hành** — cài thư viện, migration, seed, build. Chạy **một lần** mỗi lần deploy.
+- **Chạy** — `python -m app --serve` và `pnpm start`. systemd giữ chúng sống và khởi động lại khi chết.
+
+Gộp phát hành vào lệnh chạy thì `Restart=always` biến thành: cứ mỗi lần API chết là `pip install` và `alembic upgrade` chạy lại — và một vòng lặp chết sẽ chạy migration hàng chục lần một phút.
+
+### 4.1. Phát hành
 
 ```bash
 cd /srv/vitaminfun
-set -a && . ./.env && set +a          # nạp .env vào môi trường shell
+sudo -u vitaminfun git pull
+sudo -u vitaminfun ./scripts/deploy-api.sh      # pip + alembic + seed
+sudo -u vitaminfun ./scripts/deploy-web.sh      # pnpm install + build
 ```
 
-### BACKEND
+Hai script chỉ là cái vỏ gọi đúng những lệnh dưới đây; muốn chạy tay thì:
 
 ```bash
-# 1. Thư viện Python
-api/.venv/bin/pip install -r api/requirements.txt
+# BACKEND
+api/.venv/bin/python -m pip install -r api/requirements.txt
+cd api && .venv/bin/alembic upgrade head && .venv/bin/python -m app.seeds.seed_all && cd ..
 
-# 2. Migration
-cd api && .venv/bin/alembic upgrade head && cd ..
-
-# 3. Seed (idempotent — chạy lại bao nhiêu lần cũng ra kết quả như nhau)
-cd api && .venv/bin/python -m app.seeds.seed_all && cd ..
-
-# 4. Chạy API
-cd api && .venv/bin/python -m app --serve
+# FRONTEND
+cd web && pnpm install --frozen-lockfile && pnpm build && cd ..
 ```
 
-Bước 4 không truyền `--host/--port/--workers`: `python -m app --serve` đọc chúng từ `settings`, tức là từ `.env`.
+Cả hai chạy lại bao nhiêu lần cũng được: `upgrade head` bỏ qua migration đã chạy, seed thấy tài khoản đã tồn tại thì không đụng vào mật khẩu.
 
-### FRONTEND
+**Nội dung world 1** (6 màn, 24 nhiệm vụ, 72 câu hỏi) **không** nằm trong `seed_all` và không chạy khi deploy — `seed_all` chỉ dựng cái khung mà mọi bản cài đều cần. Muốn có thì gọi riêng, và cũng chạy lại được:
 
 ```bash
-# 1. Thư viện Node
-cd web && pnpm install --frozen-lockfile
-
-# 2. Build
-pnpm build
-
-# 3. Chạy
-pnpm start
+cd api && .venv/bin/python -m app.seeds.import_world_01
 ```
 
-`pnpm start` không truyền `-p`: Next đọc `PORT` từ môi trường.
-
-### Kiểm tra
+### 4.2. Chạy
 
 ```bash
-curl -s  "http://localhost:$API_PORT$API_PREFIX/health"
-curl -sI "http://localhost:$PORT" | head -1
+cd /srv/vitaminfun/api && .venv/bin/python -m app --serve     # đọc API_HOST/PORT/WORKERS từ .env
+cd /srv/vitaminfun/web && pnpm start                          # đọc PORT từ .env
 ```
 
-### Gói lại thành 1 lệnh mỗi bên
+Không lệnh nào nhận `--host` / `--port` / `-p`. Có tham số dòng lệnh nghĩa là cổng thật nằm ở hai nơi, và sẽ có ngày chúng lệch nhau.
 
-Khi đã chạy ổn, thêm vào `package.json` ở gốc:
+Ở tiền cảnh thì đăng xuất SSH là tắt — §6 dựng systemd. Muốn thử nhanh trước thì `tmux new -s api` / `tmux new -s web`, thoát bằng `Ctrl+B` rồi `D`.
 
-```json
-{
-  "scripts": {
-    "deploy:api": "api/.venv/bin/pip install -r api/requirements.txt && cd api && .venv/bin/alembic upgrade head && .venv/bin/python -m app.seeds.seed_all && .venv/bin/python -m app --serve",
-    "deploy:web": "cd web && pnpm install --frozen-lockfile && pnpm build && pnpm start"
-  }
-}
+### 4.3. Kiểm tra
+
+```bash
+curl -s  http://127.0.0.1:8000/health          # {"status":"ok", ...}
+curl -sI http://127.0.0.1:5000 | head -1       # HTTP/1.1 200 OK
 ```
 
-Script chỉ là cái vỏ gọi đúng những lệnh ở trên — tập lệnh từng bước mới là bản gốc.
+`status: degraded` kèm `db: error` = sai chuỗi kết nối hoặc database chưa tạo. Đó là câu trả lời cho gần hết mọi sự cố lần đầu.
 
 ---
 
@@ -334,104 +431,201 @@ Script chỉ là cái vỏ gọi đúng những lệnh ở trên — tập lện
 
 Lệnh deploy ở §4 dùng `bin/` vì chỉ chạy trên Ubuntu. Nếu sau này viết script tiện ích chạy được cả hai bên thì phải phân giải theo `process.platform` / `sys.platform`, **đừng viết cứng một trong hai**.
 
-### 5.2. Ubuntu phân biệt hoa/thường và không ưa tên file lạ
+### 5.2. Ubuntu phân biệt hoa/thường
 
-Windows coi `GameState.ts` và `gamestate.ts` là một; Ubuntu thì không. Import sai hoa/thường chạy tốt trên máy dev và **gãy khi build trên server**.
+Windows coi `GameState.ts` và `gamestate.ts` là một; Ubuntu thì không. Import sai hoa/thường chạy tốt trên máy dev và **gãy khi `pnpm build` trên server**.
 
 - Giữ `"forceConsistentCasingInFileNames": true` trong `tsconfig.json` (Next đặt sẵn — đừng tắt).
-- **Tên file asset chỉ dùng `a-z0-9-_`**, không dấu tiếng Việt, không khoảng trắng. Asset hiện tại đang vi phạm (`Màn chơi 1 - bg.jpg`) — đổi tên ở Bước 5.
+- **Tên file asset chỉ dùng `a-z0-9-_`**, không dấu tiếng Việt, không khoảng trắng.
 
-Thêm `.gitattributes` ở gốc repo để tránh `bad interpreter: /bin/bash^M`:
-
-```gitattributes
-* text=auto eol=lf
-*.sh   text eol=lf
-*.png  binary
-*.jpg  binary
-*.webp binary
-*.mp3  binary
-```
+`.gitattributes` ở gốc repo đã ép `eol=lf` cho `*.sh` và `*.py`, nên script checkout ra không dính `bad interpreter: /bin/bash^M`. Đừng gỡ nó.
 
 ---
 
-## 6. Chạy nền
+## 6. systemd
 
-`python -m app --serve` chạy ở tiền cảnh, đăng xuất SSH là tắt.
-
-**Đang test:** `tmux`
-```bash
-tmux new -s api   → chạy lệnh backend  → Ctrl+B rồi D
-tmux new -s web   → chạy lệnh frontend → Ctrl+B rồi D
-```
-
-**Khi ổn định:** systemd, vẫn giữ đúng 1 lệnh mỗi bên
+Hai unit, mỗi unit **chỉ chạy**, không cài đặt gì. Không dùng `EnvironmentFile`: `.env` là định dạng dotenv với chú thích tiếng Việt, còn systemd đọc nó theo luật riêng và sẽ hiểu sai — mà cũng không cần, vì cả hai app tự nạp `.env` từ gốc repo.
 
 `/etc/systemd/system/vitaminfun-api.service`
+
 ```ini
 [Unit]
 Description=Vitaminfun API
 After=network.target postgresql.service
+Requires=postgresql.service
 
 [Service]
-WorkingDirectory=/srv/vitaminfun
-ExecStart=/usr/bin/pnpm deploy:api
-EnvironmentFile=/srv/vitaminfun/.env
-Restart=always
+Type=exec
 User=vitaminfun
+WorkingDirectory=/srv/vitaminfun/api
+ExecStart=/srv/vitaminfun/api/.venv/bin/python -m app --serve
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Từ đó: `sudo systemctl restart vitaminfun-api`.
+`/etc/systemd/system/vitaminfun-web.service`
+
+```ini
+[Unit]
+Description=Vitaminfun Web
+After=network.target vitaminfun-api.service
+
+[Service]
+Type=exec
+User=vitaminfun
+WorkingDirectory=/srv/vitaminfun/web
+ExecStart=/usr/bin/pnpm start
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`ExecStart` phải là **đường dẫn tuyệt đối** — systemd không tra `PATH`. Kiểm trước khi dán:
+
+```bash
+command -v pnpm      # thường là /usr/bin/pnpm khi cài qua npm của NodeSource
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now vitaminfun-api vitaminfun-web
+sudo systemctl status vitaminfun-api
+sudo journalctl -u vitaminfun-api -f
+```
+
+Từ lần deploy sau:
+
+```bash
+cd /srv/vitaminfun && sudo -u vitaminfun git pull
+sudo -u vitaminfun ./scripts/deploy-api.sh && sudo -u vitaminfun ./scripts/deploy-web.sh
+sudo systemctl restart vitaminfun-api vitaminfun-web
+```
 
 ---
 
 ## 7. Nginx
 
-Các giá trị `<...>` phải khớp `.env`.
-
 ```nginx
 server {
   listen 80;
   server_name <tên-miền>;
-  client_max_body_size 32M;                        # giáo viên upload audio/ảnh
 
-  location /api/   { proxy_pass http://127.0.0.1:<API_PORT>; }
-  location /media/ { alias <STORAGE_LOCAL_PATH>/; }
+  # Trần upload của API là 32MB (media/service.py MAX_BYTES). Để đúng 32M thì
+  # phần bọc multipart đẩy request qua ngưỡng và nginx trả 413 TRƯỚC khi
+  # FastAPI kịp nói gì — giáo viên thấy "lỗi" mà không có mã lỗi nào.
+  client_max_body_size 40M;
+  client_body_timeout 300s;
+
+  # File media phục vụ THẲNG TỪ ĐĨA, không đi qua Python.
+  # Dấu `/` cuối ở cả `location` lẫn `alias` là bắt buộc.
+  location /media/ {
+    alias /srv/vitaminfun-storage/;
+    access_log off;
+    expires 30d;
+  }
+
   location / {
-    proxy_pass http://127.0.0.1:<PORT>;
+    proxy_pass http://127.0.0.1:5000;
     proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     # BẮT BUỘC. Next đứng sau nginx chỉ thấy HTTP thường, nên không có header
     # này thì cookie phiên bị đặt thiếu cờ `Secure` dù trình duyệt đang dùng
     # HTTPS. Xem web/src/lib/secure-cookie.ts.
     proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
-  }
-
-  # Bắt buộc từ Bước 7 — WebSocket phòng chơi
-  location /ws/ {
-    proxy_pass http://127.0.0.1:<API_PORT>;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_read_timeout 3600s;
   }
 }
 ```
 
-`proxy_read_timeout 3600s` ở block `/ws/`: mặc định nginx đóng kết nối im lặng sau 60s, biểu hiện ra là "đang chơi tự nhiên mất kết nối sau đúng một phút".
+### KHÔNG có `location /api/`
 
-`client_max_body_size 32M`: mặc định nginx chặn upload >1MB, biểu hiện ra là giáo viên upload file audio bị lỗi 413 mà không rõ vì sao.
+Đây là chỗ dễ sai nhất, và nó hỏng một cách khó đoán. `/api/` trông như "đường của backend", nhưng ba thứ khác nhau cùng bắt đầu bằng nó:
+
+| Đường | Ai phục vụ |
+|---|---|
+| `/api/be/*` | **Next** — proxy gắn token (§1) |
+| `/api/auth/*` | **Next** — đăng nhập, đăng xuất |
+| `/api/v1/*` | FastAPI — nhưng trình duyệt không bao giờ gọi tới |
+
+Thêm `location /api/ { proxy_pass http://127.0.0.1:8000; }` là ném cả `/api/be/*` lẫn `/api/auth/*` sang FastAPI, nơi không có route nào như vậy. Triệu chứng: **đăng nhập được, nhưng mọi thao tác trong trang đều lỗi 404** — và không có gì trong log Next để nhìn, vì Next không hề nhận được request.
+
+Cứ để `location /` nhận tất cả. FastAPI ở `127.0.0.1` là đủ.
+
+Từ **Bước 7** sẽ cần thêm đúng một block, vì WebSocket nối thẳng từ trình duyệt:
+
+```nginx
+  location /ws/ {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;      # mặc định 60s = "đang chơi thì mất kết nối sau đúng một phút"
+  }
+```
+
+### HTTPS
+
+```bash
+sudo ln -s /etc/nginx/sites-available/vitaminfun /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d <tên-miền>
+```
+
+Certbot tự sửa file trên thành `listen 443 ssl` và thêm block chuyển hướng 80 → 443. **Sau đó `STORAGE_PUBLIC_URL` phải là `https://`** — nếu lúc đó đã có file tải lên bằng `http://` thì xem §9.
 
 ---
 
-## 8. Ràng buộc phải giữ để deploy luôn là 2 lệnh
+## 8. Ràng buộc phải giữ để deploy luôn đơn giản
 
 | Ràng buộc | Vì sao |
 |---|---|
-| Seed **idempotent** | Deploy lần 2 không được nhân đôi 30 màn chơi. Phải có test "chạy 2 lần cho kết quả giống hệt" |
+| Seed **idempotent** | Deploy lần 2 không được nhân đôi 30 màn chơi |
 | Không có bước thủ công sau deploy | Tạo thư mục, copy asset, chạy SQL tay — tất cả phải nằm trong migration hoặc seed |
-| Asset **không** vào bundle Next | Ảnh/audio qua `media_assets` + `STORAGE_*`. Nhét vào bundle thì mỗi lần đổi ảnh phải build lại |
+| Asset **không** vào bundle Next | Ảnh/audio/video qua `media_assets` + `STORAGE_*`. Nhét vào bundle thì mỗi lần đổi ảnh phải build lại |
 | Mọi cấu hình qua `.env`, có trong `.env.example` | Deploy không được phải sửa code |
-| Giáo viên + học sinh + game chung **một** Next.js app | Đây là lý do FE chỉ cần 1 lệnh |
+| Giáo viên + học sinh + game chung **một** Next.js app | Đây là lý do FE chỉ cần 1 tiến trình |
+| Phát hành tách khỏi chạy | `Restart=always` không được kéo theo `pip install` và migration |
+
+---
+
+## 9. Mang dữ liệu từ máy dev sang (tuỳ chọn)
+
+Bản cài mới bắt đầu **rỗng**: database chỉ có ba tài khoản mẫu, kho media không có file nào. Muốn giữ world và nội dung đã dựng trên máy dev thì phải chuyển **cả hai**, và phải sửa một cột.
+
+```powershell
+# Trên máy dev
+& "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -U postgres -h localhost -p 5433 -Fc vitaminfun -f vitaminfun.dump
+```
+
+```bash
+# Chép sang server rồi nạp
+pg_restore -U vitaminfun -h localhost -d vitaminfun --clean --if-exists vitaminfun.dump
+
+# Kho media đi RIÊNG — nó không nằm trong database và cũng không nằm trong git
+rsync -av <máy-dev>/vitaminfun-storage/ /srv/vitaminfun-storage/
+sudo chown -R vitaminfun:vitaminfun /srv/vitaminfun-storage
+```
+
+Rồi **bắt buộc** sửa URL đã đóng băng — xem bảng ở §3:
+
+```sql
+UPDATE media_assets
+   SET url = replace(url, 'http://localhost:8000/media', 'https://<tên-miền>/media')
+ WHERE url LIKE 'http://localhost:8000/media%';
+```
+
+Bỏ qua bước này thì mọi ảnh nền, ảnh vật thể, audio và video mở màn trên server đều trỏ về `localhost` của chính máy học sinh — và hỏng lặng lẽ: trang vẫn dựng, chỉ là không có ảnh nào hiện ra.
+
+Kiểm lại:
+
+```sql
+SELECT DISTINCT substring(url from '^https?://[^/]+') FROM media_assets;
+```

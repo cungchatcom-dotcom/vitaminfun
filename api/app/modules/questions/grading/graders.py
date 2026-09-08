@@ -124,11 +124,34 @@ Grader = Callable[[dict, dict, dict | None, int], GradeResult]
 
 #: Thêm dạng bài mới = thêm một dòng ở đây + một hàm ở trên + test.
 #: Không phải sửa router, không phải sửa service.
+def grade_short_answer(
+    content: dict, answer: dict, response: dict | None, points: int
+) -> GradeResult:
+    """Khớp câu người học gõ với một trong các cách viết được chấp nhận.
+
+    Được ăn cả, ngã về không — không có điểm lẻ. Một câu trả lời ngắn thì hoặc
+    nói đúng ý hoặc không; chấm nửa vời ở đây sẽ thành đoán xem "gần đúng" là
+    gần đến đâu, mà không có thang nào đo được điều đó.
+
+    Cách viết được chấp nhận do người soạn liệt kê. `TextMatchRule` lo phần hoa
+    thường, dấu câu, khoảng trắng — xem `normalize.py`.
+    """
+    accepted = [str(a) for a in (answer.get("accepted") or []) if str(a).strip()]
+    if not accepted:
+        return _result(0.0, points, {"ok": False})
+
+    rule = TextMatchRule.from_json(answer.get("match"))
+    text = str((response or {}).get("text") or "")
+    ok = matches(text, accepted, rule)
+    return _result(1.0 if ok else 0.0, points, {"ok": ok})
+
+
 GRADERS: dict[str, Grader] = {
     "MCQ_SINGLE": grade_mcq_single,
     "MCQ_MULTI": grade_mcq_multi,
     "GAP_FILL": grade_gap_fill,
     "GAP_DROPDOWN": grade_gap_dropdown,
+    "SHORT_ANSWER": grade_short_answer,
 }
 
 

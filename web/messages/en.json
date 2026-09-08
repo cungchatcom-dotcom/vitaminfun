@@ -42,21 +42,10 @@
   },
   "play": {
     "title": "Galaxy map",
-    "welcome": "Hello {name}",
-    "skillPts": "Skill points",
-    "mapShards": "Map shards",
     "noWorlds": "No worlds have been published yet.",
     "noWorldsHint": "Check back later, or ask your teacher.",
-    "noStagesYet": "No stages published yet.",
-    "play": "Play",
-    "playAgain": "Play again",
-    "completed": "Completed",
     "locked": "Locked",
-    "quests": "Quests",
-    "shard": "Shard",
-    "bestScore": "Best score",
-    "gateReady": "You have every map shard — the Gate of Time is ready!",
-    "enterWorld": "Play / enter world"
+    "gateReady": "You have every map shard — the Gate of Time is ready!"
   },
   "admin": {
     "title": "Administration",
@@ -107,7 +96,14 @@
     "TIMEOUT": "The server did not respond. Check whether the API is running.",
     "QUESTION_IN_USE": "This question is used by a stage. Remove it from the stage before deleting.",
     "CHAPTER_HAS_STAGES": "This chapter still has {stageCount} stages. Delete them first.",
-    "STAGE_HAS_RUNS": "This stage already has {runCount} play sessions. Deleting loses that history."
+    "STAGE_HAS_RUNS": "This stage already has {runCount} play sessions. Deleting loses that history.",
+    "ADVISOR_QUEST_REQUIRED": "Every stage keeps exactly one NPC quest. You can rename it or change its questions, but not remove it.",
+    "ADVISOR_LOCKED": "You have to clear the NPC quest before this one opens.",
+    "ADVISOR_QUEST_EXISTS": "This stage already has an NPC quest. A stage keeps exactly one.",
+    "IMPORT_FILE_UNREADABLE": "Could not open the file. It must be a real .xlsx and not password-protected.",
+    "IMPORT_SHEET_MISSING": "The file has no Questions sheet.",
+    "IMPORT_HEADER_MISSING": "No header row found carrying quest_code, question_order, answer_type and question_content.",
+    "IMPORT_NO_ROWS": "No valid rows were found."
   },
   "common": {
     "loading": "Loading…",
@@ -125,6 +121,23 @@
     "close": "Close"
   },
   "question": {
+    "transcript": "Transcript",
+    "player": {
+      "play": "Play",
+      "pause": "Pause",
+      "seek": "Jump to a point in the audio"
+    },
+    "promptKind": {
+      "label": "How the question is asked",
+      "text": "Read",
+      "audio": "Listen",
+      "textHint": "The question text is shown as usual.",
+      "audioHint": "Students hear an audio clip. The question text becomes the transcript, hidden behind a button.",
+      "noAudio": "No audio file yet. Until you upload one, students will simply read the question text.",
+      "removeAudio": "Remove audio",
+      "showTranscript": "Show the transcript straight away",
+      "showTranscriptHint": "Off by default — listening first is the whole point. The button is always there either way, so a student who cannot make it out can still read along."
+    },
     "new": {
       "title": "Start a new exercise",
       "subtitle": "Pick the question type that fits what you want to ask.",
@@ -139,7 +152,9 @@
       "gapFill": "Gap fill",
       "gapFillDesc": "Students type the missing word into the blank",
       "dropdown": "Dropdown",
-      "dropdownDesc": "Students choose the right word from a dropdown"
+      "dropdownDesc": "Students choose the right word from a dropdown",
+      "shortAnswer": "Type the answer",
+      "shortAnswerDesc": "The learner types a sentence; graded against a list of accepted wordings."
     },
     "bank": {
       "title": "Question bank",
@@ -147,9 +162,16 @@
       "count": "{count} questions in the bank",
       "search": "Search prompts and topics",
       "allTypes": "All types",
+      "byStageCode": "Filter by stage code",
+      "allStageCodes": "All stages",
+      "byQuestCode": "Filter by quest code",
+      "allQuestCodes": "All quests",
+      "thisStage": "(this stage)",
       "allStatus": "All statuses",
       "empty": "The bank is empty",
-      "emptyHint": "Use “New question” to add the first one."
+      "emptyHint": "Use “New question” to add the first one.",
+      "code": "Code",
+      "stageCode": "Stage code"
     },
     "editor": {
       "newTitle": "New question",
@@ -184,13 +206,28 @@
       "blank": "Blank",
       "noBlank": "No blanks yet.",
       "acceptedAnswers": "Accepted spellings",
-      "acceptedHint": "One spelling per line. For example “seven” and “7”.",
+      "acceptedHint": "List every wording that should count as right. Capitals, punctuation and extra spaces are ignored — no need to list those variants.",
       "typoTolerance": "Allow 1 typo (long words only)",
       "correctAnswer": "Correct answer",
       "wrongAnswers": "Wrong answers",
       "addWrong": "Add wrong answer",
       "shuffleNote": "Students will see the answers shuffled.",
-      "sentencePlaceholder": "For example: hello there, my name is Nam"
+      "sentencePlaceholder": "For example: hello there, my name is Nam",
+      "accepted": "Accepted wordings (one per line)",
+      "placeholder": "Placeholder in the box",
+      "maxWords": "Word limit (optional)"
+    },
+    "import": {
+      "title": "Import questions from a spreadsheet",
+      "hint": "An .xlsx file from the content team, with a Questions sheet. Rows matching an existing quest code are attached to that quest; the rest stay in the bank, keeping their codes.",
+      "running": "Reading the file…",
+      "created": "Created",
+      "updated": "Overwritten",
+      "linked": "Attached to a quest",
+      "alreadyLinked": "Already attached",
+      "inBank": "Left in the bank",
+      "missingQuests": "No quest carries these codes yet. Put the code on a quest in the designer, import again, and they attach themselves:",
+      "skipped": "{count} rows skipped:"
     }
   },
   "field": {
@@ -278,12 +315,10 @@
     "detail": {
       "summary": "{chapters} chapters · {stages} stages ({published} published) · {shards} map shards",
       "addStage": "+ Add stage",
-      "createStage": "Create stage",
       "noStage": "This chapter has no stages yet.",
       "noChapter": "This world has no chapters",
       "noChapterHint": "Run the seed to create the 5 chapters of Lost in Atlantis.",
       "questCount": "{count} quests",
-      "newStageHint": "Stage {order}, grants map shard #{shard}. You can change this later.",
       "backToWorld": "Chapters & stages",
       "addChapter": "+ Add chapter",
       "createChapter": "Create chapter",
@@ -294,7 +329,9 @@
       "confirmDeleteChapter": "Delete this chapter? Only possible when it is empty.",
       "publishWorld": "Publish world",
       "unpublishWorld": "Back to draft",
-      "publishWorldHint": "Students only see a world once it is published."
+      "publishWorldHint": "Students only see a world once it is published.",
+      "worldCode": "World code",
+      "worldCodeHint": "For future content files. No file uses it yet, so empty is correct."
     },
     "characters": {
       "title": "Characters ({count})",
@@ -311,17 +348,16 @@
   "stage": {
     "field": {
       "name": "Stage name",
-      "sceneKey": "Phaser scene key",
-      "advisor": "Advisor NPC",
       "timeLimit": "Time limit (s)",
-      "energy": "Team energy",
+      "energy": "Energy per player",
       "skillPtsMax": "Max skill points",
       "shardIndex": "Map shard #",
       "requiredSkillPts": "Skill points to unlock",
       "requiredFromBalance": "(derived from the world balance config)",
       "starMax": "Max stars",
       "starScorePcts": "Star thresholds (%)",
-      "starScorePctsHint": "Percent of the stage's max score for each star, e.g. 40, 70, 90. Empty = no stars yet."
+      "starScorePctsHint": "Percent of the stage's max score for each star, e.g. 40, 70, 90. Empty = no stars yet.",
+      "energyHint": "Each player receives this much energy after they personally clear the NPC quest. It pays for hints — every hint costs 2, so the default 10 buys five. Running out never loses the stage, and wrong answers cost nothing. 0 means this stage has no hints."
     },
     "phase": {
       "advisor": "NPC dialogue",
@@ -365,22 +401,31 @@
       "pointsShort": "pts",
       "removeQuestion": "Remove question from quest",
       "viewQuestion": "View",
-      "renameHint": "Click to rename the object. Enter or click away to save."
+      "renameHint": "Click to rename the object. Enter or click away to save.",
+      "npcGateNote": "Every stage opens at the NPC. All other quests stay locked until the player clears it — so everyone completes at least one quest, which is what earns the team its map shard.",
+      "questRequired": "Required",
+      "renameStage": "Click to rename this stage",
+      "renameNpc": "Click to rename the NPC — this is the name students see",
+      "passScoreHint": "Points needed to clear this quest. Defaults to the quest total ({total}) — leave it at the total and it follows along when you add or remove questions."
     },
     "preview": {
       "subtitle": "Content preview. Complete every quest to earn Map Shard #{shard}.",
-      "noSceneYet": "The 2.5D scene “{scene}” does not exist yet — graphics arrive in Step 5. Below is the exact quest and question order students will face.",
+      "noSceneYet": "This page lists content, not graphics. Below is the exact quest and question order students will face — use “Play test” to see the real 2.5D scene.",
       "totalPoints": "Total points"
     },
     "viewer": {
       "title": "Question preview",
       "close": "Close"
-    }
+    },
+    "quest": {
+      "npcDefault": "NPC"
+    },
+    "defaultName": "Stage {order}"
   },
   "stageBlocker": {
     "STAGE_TOO_FEW_QUESTS": "A stage needs at least {required} quests; it has {actual}.",
     "STAGE_QUEST_QUESTION_DRAFT": "Quest #{questOrder} ({questObject}) uses a question that is unpublished or deleted.",
-    "STAGE_NO_ADVISOR": "The stage declares NPC “{npc}” but has no dialogue step.",
+    "STAGE_NO_ADVISOR": "This stage has no NPC quest. Every stage needs exactly one — it is the gate that unlocks the rest.",
     "STAGE_SHARD_INDEX_TAKEN": "Map shard #{shardIndex} is already granted by another stage.",
     "STAGE_QUEST_EMPTY": "Quest #{questOrder} ({questObject}) has no questions.",
     "STAGE_QUEST_PASS_SCORE_TOO_HIGH": "Quest #{questOrder} ({questObject}) needs {passScore} points to pass but only totals {totalPoints} — nobody can pass it."
@@ -392,13 +437,17 @@
     "nextQuestion": "Next →",
     "missionComplete": "MISSION COMPLETE",
     "notComplete": "NOT COMPLETE",
-    "energyLost": "The team lost energy",
     "triesLeft": "{count} tries left",
     "unlimitedTries": "Unlimited tries",
     "alreadyCorrect": "Already answered correctly",
     "questDone": "Completed",
-    "questAllDone": "Quest complete!",
     "questionOf": "Question {current}/{total}",
+    "intro": {
+      "skip": "Skip ▸",
+      "loading": "Entering the stage…",
+      "unmute": "🔊 Sound on",
+      "label": "Intro video"
+    },
     "questsDone": "Quests {done}/{total}",
     "leave": "Leave",
     "review": "Review my answers",
@@ -419,7 +468,23 @@
       "walkToQuest": "Click an object to walk straight to it.",
       "enterZone": "A quest opens when your character touches an object's frame and stops there. Walking past it does not open anything.",
       "boundary": "Click past the edge of the map and your character walks that way until they reach the edge, then stops.",
-      "energy": "A wrong answer drains the team's energy. Running out of energy or time loses the stage."
+      "energy": "Energy is yours alone, granted once you clear the NPC quest. Spend it on hints."
+    },
+    "advisorLocked": "Locked. Go and clear “{npc}” first — the NPC hands out the clue you need here.",
+    "energyMine": "Your energy — personal, not shared with the team",
+    "next": "Next →",
+    "stepOf": "Step {current}/{total}",
+    "wrongAnswer": "Not quite. Try again.",
+    "claim": "CLAIM CLUE BOOK",
+    "claimBody": "Tap the 📖 icon in the corner to open it any time.",
+    "cluebook": {
+      "title": "Clue book",
+      "locked": "Clear the NPC quest to receive the clue book"
+    },
+    "music": {
+      "mute": "Mute music",
+      "unmute": "Play music",
+      "volume": "Volume"
     }
   },
   "designer": {
@@ -430,6 +495,15 @@
     "background": "Stage background",
     "uploadBackground": "Choose a background",
     "noBackground": "No background yet — upload one on the right",
+    "introVideo": {
+      "title": "Intro video",
+      "hint": "Plays while the stage loads in the background, then goes straight in. Leave it empty and students enter immediately, exactly as before.",
+      "empty": "No video — students go straight in, exactly as today. This is a valid choice.",
+      "remove": "Remove video",
+      "duration": "{seconds} seconds long",
+      "clock": "The stage timer RUNS while it plays — it cannot be deferred, because one run belongs to the whole room. Keep it to 5–10 seconds.",
+      "tooLong": "{seconds} seconds long, so that is how much answering time students lose. Consider trimming it to 5–10 seconds."
+    },
     "quests": "Quests ({count})",
     "addQuest": "+ New quest",
     "newQuestName": "Quest {n}",
@@ -456,7 +530,127 @@
     "pulsePercent": "Pulse strength",
     "pulsePeriod": "Pulse speed",
     "pulseOff": "off",
-    "pulseHint": "The object grows and shrinks so players can tell it is interactive. Drag strength to 0 to stop it."
+    "pulseHint": "The object grows and shrinks so players can tell it is interactive. Drag strength to 0 to stop it.",
+    "characterSize": "Character size",
+    "characterHeight": "Height (world units)",
+    "characterHint": "Drag the corner to fit the character to this map",
+    "characterInherited": "Inherited from the world's first stage. Resize here and this stage gets its own.",
+    "characterOwn": "Set for this stage only.",
+    "characterReset": "Back to inherited",
+    "characterNone": "This world has no character with an uploaded sprite sheet yet, so there is nothing to size against.",
+      "cluebook": {
+        "title": "Clue book & NPC farewell",
+        "intro": "One moment in the game: the student answers the NPC's last question, and the conversation reaches its final step — the step that asks nothing.",
+        "outro": "What the NPC says while handing it over",
+        "outroPlaceholder": "Now, press onward with your journey and receive this handbook…",
+        "outroHint": "Shown on the final panel, right above the button. Leave it empty and the panel is just an icon and a button.",
+        "outroAudio": "Recording of the farewell",
+        "outroTranscript": "Show the text next to the player",
+        "outroTranscriptHint": "On by default — the opposite of a listening question. A listening question hides the text because reading it defeats the exercise; the NPC is not an exercise, and reading along while listening is how the words stick.",
+        "bookTitle": "Clue book name",
+        "bookTitlePlaceholder": "CAPTAIN DRAKE'S SECRET HANDBOOK",
+        "bookTitleHint": "Says whose handbook this is. Leave it empty and every stage falls back to the same generic label.",
+        "body": "Clue book contents",
+        "bodyPlaceholder": "The secrets the NPC hands over. Line breaks are kept exactly as you type them.",
+        "bodyHint": "Students reopen this from the 📖 icon any time after claiming it.",
+        "bodyEmpty": "No contents yet, so the 📖 icon will not appear at all. A button that never shows anything is worse than no button.",
+        "notTranslated": "Not translated into this language yet. Students reading in it will see whichever language does have text."
+      },
+    "spawn": "Spawn point",
+    "spawnHint": "Drag to set where players appear",
+    "spawnDefault": "Not set — players appear at the scene's default spot. Drag the character on the board and this stage gets its own.",
+    "spawnOwn": "Set for this stage only. Every stage has its own spawn point.",
+    "spawnStuck": "This spot is outside the walkable area. Players will be moved to the nearest walkable tile instead of appearing here.",
+    "spawnReset": "Back to default spot",
+    "walkarea": {
+      "title": "Walkable area",
+      "open": "✏️ Draw",
+      "close": "✓ Done",
+      "empty": "Nothing drawn — the character can walk anywhere on the map.",
+      "summary": "{count} shapes drawn. Outlines show faintly on the board.",
+      "boardHint": "Drawing the walkable area — dragging quests is paused. Press “Done” to go back.",
+      "tool": "Tool",
+      "tools": {
+        "rect": "Box",
+        "ellipse": "Oval",
+        "poly": "Polygon",
+        "pick": "Select"
+      },
+      "hints": {
+        "rect": "Press and drag out a box.",
+        "ellipse": "Press and drag — the oval fits the box you drag.",
+        "poly": "Click each point. Return to the first point (the large dot) to close the shape.",
+        "pick": "Click a shape to select it, drag to move it."
+      },
+      "mode": {
+        "allow": "Walkable",
+        "block": "Blocked"
+      },
+      "kinds": {
+        "rect": "Box",
+        "ellipse": "Oval",
+        "poly": "Polygon"
+      },
+      "raise": "Bring up",
+      "lower": "Send down",
+      "remove": "Delete shape",
+      "undo": "Undo",
+      "redo": "Redo",
+      "clear": "Clear all",
+      "outside": "Outside every shape",
+      "warnAllow": "Outside every shape is still walkable, so a “walkable” shape changes nothing. Switch the toggle above to “Blocked”.",
+      "keys": "Ctrl+Z undo · Ctrl+Shift+Z redo · Backspace drops the last point · Esc deselects or cancels the shape being drawn · Delete removes the selected shape · hold Alt to leave the 20-unit grid",
+      "test": "Test walk",
+      "testReset": "Back to start",
+      "testHint": "Press the arrow keys or W A S D to walk. The ring at the feet is the COLLISION POINT — the exact point the game checks, not the middle of the body.",
+      "testStuck": "Standing outside the walkable area. Press a movement key and it will jump to the nearest spot.",
+      "testNoRoom": "Nowhere is walkable. Students entering this stage will be stuck where they stand.",
+      "modeOfNext": "The NEXT shape will be",
+      "modeOfSelected": "Selected {kind}",
+      "shapes": "Shapes ({count})",
+      "topWins": "the top shape wins",
+      "recipe": "To add more: pick a tool and drag again on the board — draw as many shapes as you like. A path around a lake = one “Walkable” oval covering the area, then a small “Blocked” oval on top of the lake itself."
+    },
+    "audio": {
+      "title": "Audio",
+      "intro": "Silent by default. A block only makes sound once you upload a file to it.",
+      "slots": {
+        "ambient": "Background music",
+        "walk": "Walking sound",
+        "idle": "Standing sound"
+      },
+      "hints": {
+        "ambient": "Plays throughout the stage. Almost always wants looping — silence halfway through reads as broken audio.",
+        "walk": "Plays while the character moves, stops the moment they halt.",
+        "idle": "Plays while the character stands still. Leave empty for silence when standing."
+      },
+      "file": "Audio file",
+      "empty": "No file — this block is silent.",
+      "remove": "Remove file",
+      "preview": "Preview",
+      "stop": "Stop",
+      "volume": "Volume",
+      "muted": "muted",
+      "rate": "Speed",
+      "loop": "Loop when it ends",
+      "loopDefaultOn": "(on by default)",
+      "loopDefaultOff": "(off by default)",
+      "unnamed": "(file name unknown)",
+      "fromVideo": "Use the background video's sound",
+      "fromVideoHint": "Shown only when the background is a video. Turn it on to take the music straight from that video's audio track.",
+      "fromVideoOn": "Background music is coming from the background video.",
+      "fromVideoUnused": "This file is NOT in use. Clear the checkbox above and it plays again.",
+      "fromVideoNoRate": "Speed and looping are decided by the video itself.",
+      "confirmTitle": "Use the video's sound as background music?",
+      "confirmBody": "The background video's sound will be used as the background music. The uploaded audio file will NOT be used — it stays right here, and clearing the checkbox brings it back.",
+      "confirmOk": "Use it",
+      "confirmCancel": "Cancel"
+    },
+    "noIconHint": "Leaving this empty is fine: the dashed box still drags and resizes to set the collision area. Students will see only the quest name, no artwork.",
+    "stageCode": "Stage code",
+    "stageCodeHint": "The code from the content file, e.g. W1-S1. Fill it in and this stage's imported questions surface automatically when you build a quest. Leaving it empty is fine.",
+    "questCode": "Quest code",
+    "questCodeHint": "The code in the Questions sheet, e.g. W1-S1-Quest-01. Imported rows carrying it attach themselves here."
   },
   "galaxy": {
     "designer": {
@@ -465,7 +659,6 @@
       "subtitle": "Lay out the world selection screen students see.",
       "scene": "Galaxy scene",
       "background": "Background image",
-      "music": "Background music",
       "removeMedia": "Remove",
       "noBackground": "No background yet — upload one on the right",
       "worlds": "Worlds ({count})",
@@ -590,6 +783,9 @@
       "prev": "Previous stages",
       "next": "More stages",
       "open": "Open the stage list"
+    },
+    "play": {
+      "resume": "Continue “{stage}” — you have a run in progress"
     }
   },
   "character": {

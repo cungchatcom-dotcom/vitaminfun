@@ -108,6 +108,17 @@ export const QUESTION_TYPE_META: Record<QuestionType, QuestionTypeMeta> = {
     progress: tienDoOTrong,
     defaults: () => ({ content: { template: "", gaps: {} }, answer: { gaps: {} } }),
   },
+  SHORT_ANSWER: {
+    type: "SHORT_ANSWER",
+    labelKey: "question.type.shortAnswer",
+    descKey: "question.type.shortAnswerDesc",
+    icon: "⌨️",
+    inPicker: true,
+    // Một ô chữ: hoặc có chữ hoặc không, không có nấc giữa.
+    progress: (_content, response) =>
+      ((response as { text?: string }).text ?? "").trim() ? "full" : "empty",
+    defaults: () => ({ content: { prompt: "" }, answer: { accepted: [] } }),
+  },
 };
 
 export const PICKER_TYPES = Object.values(QUESTION_TYPE_META).filter((meta) => meta.inPicker);

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Modal } from '@/components/ui/modal';
+import { BackgroundLayer } from './background-layer';
 import { pickText } from '@/lib/i18n-text';
 import { localizedPath } from '@/lib/routes';
 
@@ -35,6 +36,13 @@ export function ChapterMinimap({
   const [page, setPage] = useState(0);
 
   const name = pickText(chapter.name_i18n, locale);
+
+  /* Chưa tải ảnh minimap thì MƯỢN ảnh chương.
+     Hai ảnh có khuôn hình khác nhau — ô nhỏ trên hàng chương so với cả tấm nền
+     trải rộng — nên chúng vẫn là hai cột riêng, và người dựng tải riêng vẫn cho
+     ra kết quả đẹp hơn. Nhưng một tấm ảnh hơi bị kéo giãn vẫn hơn hẳn một mảng
+     đen trống, và ảnh chương thì luôn nói đúng về chương này. */
+  const background = chapter.minimap_url || chapter.cover_url;
   const stages = chapter.stages ?? [];
   const pages = Math.max(1, Math.ceil(stages.length / PER_PAGE));
   const shown = stages.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
@@ -42,11 +50,11 @@ export function ChapterMinimap({
   return (
     <Modal label={t('lobby.minimap.title', { chapter: name })} onClose={onClose}>
       <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-900 shadow-2xl">
-        {chapter.minimap_url && (
+        {background && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={chapter.minimap_url}
+              src={background}
               alt=""
               className="pointer-events-none absolute inset-0 size-full object-cover"
               draggable={false}
@@ -121,6 +129,16 @@ export function ChapterMinimap({
 /**
  * Một màn chơi trên minimap.
  *
+ * Mặt của vòng tròn là ẢNH NỀN CỦA CHÍNH MÀN ĐÓ — đúng tấm ảnh sẽ hiện ra khi
+ * người chơi bấm vào. Minimap nhờ vậy trở thành một lời hứa xem trước được: cái
+ * hang xanh trên bản đồ chính là cái hang xanh lát nữa mình bước vào. Sáu vòng
+ * tròn rỗng giống hệt nhau thì không hứa được gì, và người chơi chỉ còn cách
+ * đọc tên để đoán.
+ *
+ * Màn khoá cũng đeo ảnh, nhưng XÁM và tối hơn hẳn: thấy được nơi mình sắp tới
+ * là một phần của động lực đi tiếp, còn xám thì nói rõ "chưa phải bây giờ" mà
+ * không cần thêm chữ nào.
+ *
  * Màn khoá KHÔNG phải một liên kết — một thẻ `<a>` bị làm mờ vẫn bấm được bằng
  * bàn phím. Cùng luật với world khoá trên bản đồ thiên hà và chương khoá ở hàng
  * chương.
@@ -138,18 +156,46 @@ function StageDot({
 
   const dot = (
     <span
-      className={`flex aspect-square w-full items-center justify-center rounded-full border-2 p-2 text-center ${
+      className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-full border-2 p-2 text-center ${
         stage.unlocked
-          ? 'border-orichalcum-400 bg-abyss-950/70 transition hover:bg-orichalcum-500/25'
+          ? 'group border-orichalcum-400 bg-abyss-950/70 transition hover:bg-orichalcum-500/25'
           : 'border-white/30 bg-abyss-950/70'
       }`}
     >
+      {stage.background_url && (
+        <>
+          {/* `still`: nền của màn có thể là VIDEO, và minimap vẽ nhiều màn cùng
+              lúc. Ở đây nó được ghim ở khung hình đầu — cho tất cả chạy vòng lặp
+              là bắt máy học sinh nuôi N bộ giải mã để vẽ mấy vòng tròn nhỏ. */}
+          <BackgroundLayer
+            url={stage.background_url}
+            kind={stage.background_kind}
+            still
+            className={`pointer-events-none absolute inset-0 size-full object-cover ${
+              stage.unlocked ? '' : 'grayscale'
+            }`}
+          />
+          {/* Lớp phủ tối: ảnh nền do người dựng tải lên, sáng tối tuỳ ý, mà tên
+              màn thì phải đọc được trên bất kỳ ảnh nào. Rê chuột vào thì lớp phủ
+              mỏng đi — ảnh sáng lên đúng lúc người chơi đang nhìn nó. */}
+          <span
+            className={`pointer-events-none absolute inset-0 transition ${
+              stage.unlocked ? 'bg-abyss-950/55 group-hover:bg-abyss-950/25' : 'bg-abyss-950/75'
+            }`}
+          />
+        </>
+      )}
+
       {stage.unlocked ? (
-        <span className="line-clamp-3 text-[11px] leading-tight font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+        <span className="relative line-clamp-3 text-[11px] leading-tight font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
           {name || stage.order_index}
         </span>
       ) : (
-        <span aria-label={lockedLabel} title={lockedLabel} className="text-lg">
+        <span
+          aria-label={lockedLabel}
+          title={lockedLabel}
+          className="relative text-lg drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"
+        >
           🔒
         </span>
       )}

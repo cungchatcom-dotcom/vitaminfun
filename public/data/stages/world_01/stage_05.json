@@ -1,0 +1,444 @@
+{
+  "id": "stage_05",
+  "worldId": "world_01",
+  "stageNumber": 5,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Quái thú canh cửa",
+  "story": "Né tránh một con lươn điện khổng lồ đang ngủ say để lẻn qua hang tối. Hãy gặp Giáo sư Thatch để học sơ đồ rễ điện sinh học và giai điệu ru ngủ quái thú.",
+  "difficulty": "Easy",
+  "grammarHint": "Adverbs of Manner & Quiet Imperatives (Trạng từ chỉ cách thức & Khẩu lệnh thì thầm)",
+  "minCombatPower": 800,
+  "rewardCombatPower": 200,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 5,
+  "scene": {
+    "background": "./assets/backgrounds/stage_05_sleeping_leviathan.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -770,
+        "y": 370
+      },
+      {
+        "x": -430,
+        "y": 510
+      },
+      {
+        "x": 690,
+        "y": 470
+      },
+      {
+        "x": 820,
+        "y": 220
+      },
+      {
+        "x": 620,
+        "y": -230
+      },
+      {
+        "x": 390,
+        "y": -450
+      },
+      {
+        "x": -270,
+        "y": -460
+      },
+      {
+        "x": -610,
+        "y": -220
+      },
+      {
+        "x": -800,
+        "y": 70
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -105,
+        "y": 105
+      }
+    },
+    "advisorSpawn": {
+      "x": 470,
+      "y": -345
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -265,
+        "y": 42
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 108,
+        "y": 155
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -32,
+        "y": -128
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "Đoạn Đường Lẻn Qua",
+        "icon": "👣",
+        "color": "#7f8c8d",
+        "x": 235,
+        "y": -175,
+        "role": "Hành lang rải đá dăm nhạy cảm âm thanh",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Rễ Điện Sinh Học",
+        "icon": "⚡",
+        "color": "#f1c40f",
+        "x": -435,
+        "y": 255,
+        "role": "Mạng lưới dây thần kinh phóng điện",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Đèn Mồi Phát Quang",
+        "icon": "💡",
+        "color": "#e67e22",
+        "x": 455,
+        "y": 195,
+        "role": "Thiết bị tạo ảo ảnh mồi nhử",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Bệ Ru Cổ Ngữ",
+        "icon": "🪕",
+        "color": "#9b59b6",
+        "x": -295,
+        "y": -235,
+        "role": "Bệ đá ru ngủ chứa Mảnh bản đồ 5",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "thatch",
+    "name": "Professor Thatch (Nhà sinh vật học biển)",
+    "role": "NPC Cố vấn trưởng Màn 5",
+    "portrait": "./assets/portraits/thatch.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_05_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Stealth Briefing",
+        "question_text": "Shh! Speak in whispers! The electric Leviathan stirs in its sleep! Are you prepared to move quietly?",
+        "text_translation": "Suỵt! Hãy nói thì thầm! Con lươn điện khổng lồ đang cựa mình trong giấc ngủ! Các bạn đã sẵn sàng di chuyển lén lút chưa?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Greetings Professor Thatch! We understand and will advance quietly without making a sound.",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "HELLO PROFESSOR! WE HAVE LOUD MEGAPHONES!",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Let us poke the beast with a stick!",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 2,
+        "question_type": "text",
+        "answer_type": "select",
+        "title": "Biological Keys Request",
+        "question_text": "Splendid discipline! What biological knowledge do you need to bypass its electrical barrier?",
+        "text_translation": "Kỷ luật tuyệt vời! Các bạn cần kiến thức sinh học nào để vượt qua rào cản điện áp của nó?",
+        "audio": "",
+        "audio_transcript": "",
+        "audio_transcript_translation": "",
+        "options": [
+          {
+            "key": "A",
+            "text": "Please share your research on which neural roots to cut and the ancient lullaby phrases!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "Give us an electric guitar to wake it up.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "We want to catch it in a small fishnet.",
+            "isCorrect": false
+          }
+        ],
+        "wrong_answer_message": "That is incorrect. Please try again to continue the conversation"
+      },
+      {
+        "step": 3,
+        "question_type": "text",
+        "answer_type": "",
+        "question_text": "Take my field notes, quiet ones. Study them before you move—one careless sound and the Leviathan wakes.",
+        "text_translation": "Cầm lấy sổ ghi chép thực địa của tôi, những kẻ lặng lẽ. Hãy đọc kỹ trước khi cử động — chỉ một tiếng động bất cẩn là Leviathan sẽ tỉnh giấc.",
+        "item": "cluebook"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 PROFESSOR THATCH'S FIELD NOTES",
+      "content": "First, along the Sneaking Passage, signal an emergency halt with, Freeze and stay silent. Next, at the Bioelectric Neural Roots, cut the correct blue one: Cut the blue neural root. Then flash the Glowing Lure Lamp to starboard: Flash the lure to the right. Finally, at the Ancient Lullaby Pedestal, soothe the beast with the sleeping spell—Sleep peacefully, ancient guardian."
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Sneaking Passage",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The beast is wheezing in its sleep. Whisper the command to stop everyone!",
+          "text_translation": "Thì thầm: Freeze and stay silent.",
+          "hint": "Professor Thatch's secret: Freeze and stay silent.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Freeze and stay silent immediately!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Stomp your feet and dance!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Shout loudly into the cave!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the whispered command that stops everyone at once!",
+          "text_translation": "Gõ khẩu lệnh thì thầm bắt cả đội đứng yên.",
+          "hint": "Professor Thatch's secret: Freeze and stay silent.",
+          "options": [
+            "freeze and stay silent"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "Professor Thatch signals you: how should the team move past a sleeping beast?",
+          "text_translation": "Nên đi qua chỗ quái thú đang ngủ như thế nào?",
+          "hint": "Silence keeps you alive - move quietly and slowly.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Quietly and slowly",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Loudly and quickly",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Singing all together",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 2,
+      "title": "Bioelectric Neural Roots",
+      "skill": "Read & Write",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The scanner shows three conducting roots. Point out exactly which one to cut!",
+          "text_translation": "Gõ: Cut the blue neural root",
+          "hint": "Professor Thatch's secret: Cut the blue neural root.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Cut the blue neural root carefully",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Cut all red dangerous roots",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Touch the spark with metal wires",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type which root the team must cut!",
+          "text_translation": "Gõ tên chiếc rễ mà cả đội phải cắt.",
+          "hint": "Professor Thatch's secret: Cut the blue neural root.",
+          "options": [
+            "cut the blue neural root",
+            "cut the blue root"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Before you cut, say the colour: type the English name of the colour of the right root.",
+          "text_translation": "Gõ tên tiếng Anh màu của chiếc rễ cần cắt.",
+          "hint": "Cut the 'blue' neural root.",
+          "options": [
+            "blue"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 30
+    },
+    {
+      "id": 3,
+      "title": "Glowing Lure Lamp",
+      "skill": "Listen & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The optical lure is ready. It needs a command to aim the beam!",
+          "text_translation": "Hô: Flash the lure to the right.",
+          "hint": "Professor Thatch's secret: Flash the lure to the right.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Flash the lure to the right, now!",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Throw rocks at the sleeping beast!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "Turn off everything and run backward!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the command that aims the lure beam!",
+          "text_translation": "Gõ khẩu lệnh định hướng chùm sáng đèn mồi.",
+          "hint": "Professor Thatch's secret: Flash the lure to the right.",
+          "options": [
+            "flash the lure to the right"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    },
+    {
+      "id": 4,
+      "title": "Ancient Lullaby Pedestal",
+      "skill": "Read & Speak",
+      "questions": [
+        {
+          "question_type": "text",
+          "answer_type": "select",
+          "question_text": "The ancient lullaby pedestal is ringing with a pure melody. Hum the sleeping spell!",
+          "text_translation": "Nói nhẹ nhàng: Sleep peacefully, ancient guardian.",
+          "hint": "Professor Thatch's secret: Sleep peacefully, ancient guardian.",
+          "options": [
+            {
+              "key": "A",
+              "text": "Sleep peacefully, ancient guardian of the deep.",
+              "isCorrect": true
+            },
+            {
+              "key": "B",
+              "text": "Wake up and roar with thunder!",
+              "isCorrect": false
+            },
+            {
+              "key": "C",
+              "text": "We are taking your treasure away!",
+              "isCorrect": false
+            }
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        },
+        {
+          "question_type": "text",
+          "answer_type": "text",
+          "question_text": "Type the sleeping spell for the ancient guardian!",
+          "text_translation": "Gõ câu thần chú ru ngủ quái thú cổ.",
+          "hint": "Professor Thatch's secret: Sleep peacefully, ancient guardian.",
+          "options": [
+            "sleep peacefully, ancient guardian",
+            "sleep peacefully ancient guardian"
+          ],
+          "energy_penalty": 2,
+          "score": 10
+        }
+      ],
+      "pass_score": 20
+    }
+  ]
+}

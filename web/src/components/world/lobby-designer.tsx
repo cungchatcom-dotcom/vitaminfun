@@ -15,7 +15,9 @@ import {
   isLobbyAction,
   LOBBY_ELEMENTS,
   LOBBY_ELEMENT_KEYS,
+  LOBBY_GROUPS,
   lobbyBox,
+  lobbyGroupOf,
   lobbyContentBox,
   lobbyTextLines,
   type FrameKind,
@@ -26,7 +28,7 @@ import {
 import { ApiError } from '@/lib/api-error';
 import { listGalaxies, type Galaxy } from '@/lib/galaxies';
 import { ownText, pickText } from '@/lib/i18n-text';
-import { IMAGE_ACCEPT, uploadMedia } from '@/lib/media';
+import { BACKGROUND_ACCEPT, IMAGE_ACCEPT, uploadMedia } from '@/lib/media';
 import { localizedPath } from '@/lib/routes';
 import {
   getWorld,
@@ -37,6 +39,8 @@ import {
   type World,
 } from '@/lib/worlds';
 
+import { AudioPanel } from './audio-panel';
+import { BackgroundLayer } from '@/components/game/background-layer';
 import { FrameTextFields, MediaPicker } from './designer-fields';
 import { GalaxyFrame } from './galaxy-frame';
 import { LobbyBlock } from './lobby-block';
@@ -202,7 +206,20 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
       }
 
       const key = blockKeyOf(id);
-      if (key) void patchBlock(key, { x, y });
+      if (!key) return;
+
+      // Kéo khối CHA thì các khối con đi theo đúng bấy nhiêu.
+      //
+      // Khối cha là tấm ảnh khung, khối con là những con số nằm đúng vào các ô
+      // vẽ sẵn trên tấm ảnh đó. Dời khung mà bỏ con số lại là người dựng phải
+      // căn lại năm cái một lần nữa — mà họ vừa căn xong.
+      const members = LOBBY_GROUPS[key];
+      if (members) {
+        const before = lobbyBox(key, world?.lobby_json?.[key] as LobbySaved | undefined);
+        return void moveGroup(members, x - before.x, y - before.y);
+      }
+
+      void patchBlock(key, { x, y });
     },
     // Chỉ ghi lại chiều THỰC SỰ được kéo. Kéo cạnh phải mà cũng ghi chiều cao
     // là ghi đè một con số người dùng không đụng tới.
@@ -233,6 +250,63 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
       if (key) void patchBlock(key, change);
     },
   });
+
+  /**
+   * Dời cả một nhóm khối đi cùng một khoảng, trong MỘT lần gửi.
+   *
+   * Một lần gửi chứ không sáu: server gộp theo từng khối nên nhận được nhiều
+   * khối một lúc, còn gửi sáu request nối nhau thì mỗi cái đọc `world` ở một
+   * thời điểm khác nhau và cái sau ghi đè cái trước.
+   *
+   * Toạ độ kẹp lại trong khung 3200×1800 — đó là khoảng server nhận. Kéo khung
+   * ra sát mép mà một con số văng ra ngoài thì cả lần lưu bị từ chối, và người
+   * dựng thấy thao tác vừa rồi "không ăn" mà không hiểu vì sao.
+   */
+  async function moveGroup(
+    members: readonly LobbyElementKey[],
+    dx: number,
+    dy: number,
+    also?: { key: LobbyElementKey; change: Partial<LobbySaved> },
+  ) {
+    const next: Record<string, LobbySaved> = {};
+    for (const member of members) {
+      const current = (world?.lobby_json?.[member] ?? {}) as LobbySaved;
+      const box = lobbyBox(member, current);
+      next[member] = {
+        ...current,
+        x: Math.round(Math.min(GALAXY.width, Math.max(0, box.x + dx))),
+        y: Math.round(Math.min(GALAXY.height, Math.max(0, box.y + dy))),
+      };
+    }
+    if (also) next[also.key] = { ...next[also.key], ...also.change };
+    await patch({ lobby_json: next });
+  }
+
+  /**
+   * Sửa một khối từ BẢNG THUỘC TÍNH — gõ toạ độ bằng ô số.
+   *
+   * Đi qua cùng một cửa với cú kéo: gõ `x` cho khối cha thì các khối con cũng
+   * dời theo. Không có chỗ này thì kéo chuột và gõ số cho ra hai kết quả khác
+   * nhau, mà người dùng thì không có cách nào đoán được là hai.
+   *
+   * Đổi KÍCH THƯỚC (`w`, `h`) chỉ đổi của riêng khối cha: khung to ra thì các
+   * con số bên trong vẫn ở đúng chỗ chúng được căn, đó là điều người dựng mong
+   * đợi khi kéo một cái tay cầm ở góc.
+   */
+  async function changeBlock(key: LobbyElementKey, change: Partial<LobbySaved>) {
+    const members = LOBBY_GROUPS[key];
+    const moved = change.x !== undefined || change.y !== undefined;
+    if (!members || !moved) return void patchBlock(key, change);
+
+    const before = lobbyBox(key, world?.lobby_json?.[key] as LobbySaved | undefined);
+    const { x, y, ...rest } = change;
+    await moveGroup(
+      members,
+      (x ?? before.x) - before.x,
+      (y ?? before.y) - before.y,
+      Object.keys(rest).length ? { key, change: rest } : undefined,
+    );
+  }
 
   /**
    * Sửa MỘT khối của bố cục.
@@ -327,6 +401,10 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
   }
 
   const background = world.lobby_url ?? galaxy?.background_url ?? null;
+  // Loại nền phải đi theo ĐÚNG cái nguồn vừa chọn ở trên. Tính riêng hai vế là
+  // mở cửa cho việc phòng chờ thừa một video của thiên hà mà vẫn bị vẽ bằng
+  // `<img>` — nền trắng, không lỗi nào, không ai hiểu vì sao.
+  const backgroundKind = world.lobby_url ? world.lobby_kind : (galaxy?.background_kind ?? null);
   const selectedBlock = selectedId ? blockKeyOf(selectedId) : null;
 
   // Hàng chương trong khung xem trước vẽ bằng chương THẬT của world, không phải
@@ -393,12 +471,10 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               }}
             >
               {background ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={background}
-                  alt=""
+                <BackgroundLayer
+                  url={background}
+                  kind={backgroundKind}
                   className="pointer-events-none absolute inset-0 size-full object-cover"
-                  draggable={false}
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-linear-to-b from-abyss-950 to-abyss-800 text-sm text-slate-500">
@@ -414,8 +490,22 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                 const saved = world.lobby_json?.[key] as LobbySaved | undefined;
                 const base = lobbyBox(key, saved);
                 const live = board.ghost?.id === id ? board.ghost : null;
-                const x = live?.x ?? base.x;
-                const y = live?.y ?? base.y;
+
+                // Cha đang bị kéo thì con chạy theo NGAY, không đợi thả tay.
+                // Đợi thả tay thì trong suốt lúc kéo, người dựng nhìn thấy một
+                // tấm khung rỗng đi một đằng và năm con số đứng lại một nẻo —
+                // tức là không nhìn thấy được thứ mình đang căn.
+                const parentKey = lobbyGroupOf(key);
+                const parentGhost =
+                  parentKey === key ? null : board.ghost?.id === BLOCK_PREFIX + parentKey
+                    ? board.ghost
+                    : null;
+                const parentBase = parentGhost
+                  ? lobbyBox(parentKey, world.lobby_json?.[parentKey] as LobbySaved | undefined)
+                  : null;
+
+                const x = live?.x ?? base.x + (parentGhost && parentBase ? parentGhost.x - parentBase.x : 0);
+                const y = live?.y ?? base.y + (parentGhost && parentBase ? parentGhost.y - parentBase.y : 0);
                 const draft = board.sizeDraft?.id === id ? board.sizeDraft : null;
                 const width = draft?.w ?? base.width;
                 const height = draft?.h ?? base.height;
@@ -646,7 +736,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               busy={uploading === selectedBlock}
               onUpload={(file) => void uploadBlock(selectedBlock, file)}
               onClear={() => void patchBlock(selectedBlock, { media_id: null })}
-              onChange={(change) => void patchBlock(selectedBlock, change)}
+              onChange={(change) => void changeBlock(selectedBlock, change)}
               onContentChange={(change) => void patchContent(selectedBlock, change)}
               onTextPreview={(color) => setTint(color ? { id: BLOCK_PREFIX + selectedBlock, color } : null)}
               onTextColor={(color) =>
@@ -663,7 +753,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
 
             <MediaPicker
               label={t('galaxy.designer.background')}
-              accept={IMAGE_ACCEPT}
+              accept={BACKGROUND_ACCEPT}
               busy={uploading === 'lobby'}
               hasValue={Boolean(world.lobby_media_id)}
               onPick={(file) => void uploadFor('lobby', file)}
@@ -671,10 +761,10 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               clearLabel={t('lobby.designer.useGalaxy')}
               preview={
                 background ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={background}
-                    alt=""
+                  <BackgroundLayer
+                    url={background}
+                    kind={backgroundKind}
+                    still
                     className="mb-2 h-20 w-full rounded-lg border border-abyss-700 object-cover"
                   />
                 ) : null
@@ -730,6 +820,16 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               />
             </label>
           </Card>
+
+          <AudioPanel
+            backgroundKind={backgroundKind}
+            surface="lobby"
+            audio={world.audio ?? {}}
+            audioUrls={world.audio_urls ?? {}}
+            audioNames={world.audio_names ?? {}}
+            onSave={(slot, track) => patch({ audio: { [slot]: track } })}
+            onError={setErrorKey}
+          />
 
           <Card>
             <SectionTitle>{t('galaxy.designer.frames')}</SectionTitle>

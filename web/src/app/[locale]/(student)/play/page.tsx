@@ -1,7 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 
 import { AuthProvider } from '@/components/auth-context';
-import { GalaxyHeader, GalaxyMap } from '@/components/game/galaxy-map';
+import { GalaxyMap } from '@/components/game/galaxy-map';
 import { PreviewBanner } from '@/components/preview-banner';
 import { TopBar } from '@/components/top-bar';
 import { apiFetch } from '@/lib/api-client';
@@ -35,8 +35,12 @@ export default async function GalaxyMapPage({ params }: { params: Promise<{ loca
         {context.is_preview && <PreviewBanner />}
         <TopBar accent="student" />
 
+        {/* Không có tiêu đề trang phía trên tấm bản đồ.
+            "Galaxy map" thì chính tấm bản đồ đã nói rõ hơn mọi dòng chữ, còn
+            "Chào <tên>" thì thanh trên cùng đã có sẵn tên người đang đăng nhập.
+            Hai dòng đó chỉ đẩy bản đồ tụt xuống và ăn mất chiều cao màn hình —
+            thứ mà một bức tranh 3200×1800 cần hơn cả. */}
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-          <GalaxyHeader name={user.display_name} />
           <GalaxyMap galaxy={galaxy} />
         </main>
       </div>

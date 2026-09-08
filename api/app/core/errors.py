@@ -73,11 +73,27 @@ class ErrorCode:
     #: Câu hỏi đang được một màn chơi dùng — không cho xoá.
     QUESTION_IN_USE = "QUESTION_IN_USE"
 
+    # --- Nhap khau tu file .xlsx cua bo phan noi dung ---
+    #: File khong mo duoc: khong phai .xlsx, hong, hoac duoc bao ve bang mat khau.
+    IMPORT_FILE_UNREADABLE = "IMPORT_FILE_UNREADABLE"
+    #: Thieu han mot sheet bat buoc. Bao kem danh sach sheet tim thay, vi nguyen
+    #: nhan thuong gap nhat la nguoi dung doi ten sheet hoac gui nham file.
+    IMPORT_SHEET_MISSING = "IMPORT_SHEET_MISSING"
+    #: Co sheet nhung khong tim thay hang tieu de mang du cac cot bat buoc.
+    IMPORT_HEADER_MISSING = "IMPORT_HEADER_MISSING"
+    #: Khong dong nao dung dinh dang. Bao rieng vi "nhap 0 cau" trong nhu thanh
+    #: cong, va nguoi dung se ngoi doi mot thu khong bao gio toi.
+    IMPORT_NO_ROWS = "IMPORT_NO_ROWS"
+
     # --- Dựng nội dung game ---
     #: Chương còn màn chơi bên trong — xoá màn trước đã.
     CHAPTER_HAS_STAGES = "CHAPTER_HAS_STAGES"
     #: Màn đã có người chơi — xoá là mất lịch sử chơi và mọi báo cáo dựa trên nó.
     STAGE_HAS_RUNS = "STAGE_HAS_RUNS"
+    #: Mỗi màn phải giữ đúng một nhiệm vụ NPC — không xoá, không hạ xuống thường.
+    ADVISOR_QUEST_REQUIRED = "ADVISOR_QUEST_REQUIRED"
+    #: Màn đã có nhiệm vụ NPC rồi — không nâng thêm cái thứ hai lên.
+    ADVISOR_QUEST_EXISTS = "ADVISOR_QUEST_EXISTS"
 
     # --- Media ---
     MEDIA_KIND_NOT_ALLOWED = "MEDIA_KIND_NOT_ALLOWED"

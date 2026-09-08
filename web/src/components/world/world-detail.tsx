@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -28,12 +29,12 @@ import {
 export function WorldDetail({ worldId }: { worldId: string }) {
   const t = useTranslations();
   const locale = useLocale();
+  const router = useRouter();
 
   const [world, setWorld] = useState<World | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorKey, setErrorKey] = useState<string | null>(null);
-  const [addingTo, setAddingTo] = useState<string | null>(null);
   const [addingChapter, setAddingChapter] = useState(false);
   const [editingChapter, setEditingChapter] = useState<string | null>(null);
 
@@ -63,6 +64,38 @@ export function WorldDetail({ worldId }: { worldId: string }) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
     }
   }
+
+
+  /**
+   * Thêm màn chơi: tạo NGAY rồi đi thẳng vào màn chỉnh sửa.
+   *
+   * Không còn cái hộp hỏi ba ô nữa. Ba ô đó hỏi tên màn, `scene_key` và tên NPC
+   * — mà `scene_key` thì không chỗ nào đọc tới, tên NPC đã có chỗ đặt bên trong
+   * màn chỉnh sửa, còn cái tên thì đằng nào người dựng cũng đổi sau khi nhìn
+   * thấy màn chơi thật. Bắt trả lời ba câu trước khi được nhìn thấy thứ mình
+   * vừa tạo là dựng một cái cổng không canh gì cả.
+   *
+   * Tên mặc định lấy theo SỐ THỨ TỰ ("Stage 5") và sửa tại chỗ ở màn chỉnh sửa.
+   * Chuỗi nằm ở `messages/` chứ không sinh ở server: nó là chữ hiển thị, và
+   * server thì không biết người dựng đang xem bằng ngôn ngữ nào.
+   */
+  const { run: addStage, pending: addingStage } = useAsyncAction(
+    async (chapter: Chapter) => {
+      const order = Math.max(0, ...chapter.stages.map((s) => s.order_index)) + 1;
+      try {
+        const stage = await createStage(chapter.id, {
+          name_i18n: { [locale]: t('stage.defaultName', { order }) },
+          order_index: order,
+          map_shard_index: (world?.stage_count ?? 0) + 1,
+        });
+        router.push(
+          localizedPath(`/teacher/worlds/${worldId}/stages/${stage.id}`, locale),
+        );
+      } catch (error) {
+        setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
+      }
+    },
+  );
 
   if (loading) return <p className="p-8 text-slate-400">{t('common.loading')}</p>;
   if (!world) {
@@ -129,6 +162,27 @@ export function WorldDetail({ worldId }: { worldId: string }) {
 
       <p className="mb-4 text-xs text-slate-500">{t('world.detail.publishWorldHint')}</p>
 
+      {/* MÃ WORLD trong file nội dung.
+          Hôm nay các file chưa có cột `world_code`, nên ô này bình thường sẽ để
+          trống — và đó là trạng thái ĐÚNG, không phải một việc còn dang dở. Có
+          sẵn ô thì world thứ hai chỉ cần điền vào, không phải chờ một migration
+          và một lần triển khai nữa. */}
+      <label className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="field-label mb-0">{t('world.detail.worldCode')}</span>
+        <input
+          className="field-input w-40 font-mono text-xs"
+          defaultValue={world.world_code ?? ''}
+          placeholder="W1"
+          onBlur={(event) => {
+            const next = event.target.value.trim();
+            if (next !== (world.world_code ?? '')) {
+              void withError(() => updateWorld(world.id, { world_code: next || null }));
+            }
+          }}
+        />
+        <span className="text-xs text-slate-500">{t('world.detail.worldCodeHint')}</span>
+      </label>
+
       {errorKey && (
         <p role="alert" className="mb-4 rounded-lg bg-coral-500/15 px-4 py-2 text-sm text-coral-500">
           {t(errorKey)}
@@ -146,7 +200,8 @@ export function WorldDetail({ worldId }: { worldId: string }) {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setAddingTo(addingTo === chapter.id ? null : chapter.id)}
+                  loading={addingStage}
+                  onClick={() => addStage(chapter)}
                 >
                   {t('world.detail.addStage')}
                 </Button>
@@ -226,18 +281,6 @@ export function WorldDetail({ worldId }: { worldId: string }) {
               </ul>
             )}
 
-            {addingTo === chapter.id && (
-              <NewStageForm
-                chapterId={chapter.id}
-                nextOrder={Math.max(0, ...chapter.stages.map((s) => s.order_index)) + 1}
-                nextShard={world.stage_count + 1}
-                onDone={async () => {
-                  setAddingTo(null);
-                  await reload();
-                }}
-                onError={setErrorKey}
-              />
-            )}
           </Card>
         ))}
 
@@ -307,86 +350,6 @@ function ChapterForm({
       </label>
       <Button variant="primary" loading={pending} disabled={!name.trim()} onClick={submit}>
         {submitLabel}
-      </Button>
-    </div>
-  );
-}
-
-function NewStageForm({
-  chapterId,
-  nextOrder,
-  nextShard,
-  onDone,
-  onError,
-}: {
-  chapterId: string;
-  nextOrder: number;
-  nextShard: number;
-  onDone: () => Promise<void>;
-  onError: (key: string) => void;
-}) {
-  const t = useTranslations();
-  const [nameVi, setNameVi] = useState('');
-  const [sceneKey, setSceneKey] = useState('');
-  const [advisor, setAdvisor] = useState('');
-
-  const { run: submit, pending } = useAsyncAction(async () => {
-    if (!nameVi.trim() || !sceneKey.trim()) return;
-    try {
-      await createStage(chapterId, {
-        name_i18n: { vi: nameVi.trim() },
-        order_index: nextOrder,
-        scene_key: sceneKey.trim(),
-        map_shard_index: nextShard,
-        advisor_npc_key: advisor.trim() || null,
-      });
-      await onDone();
-    } catch (error) {
-      onError(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
-    }
-  });
-
-  return (
-    <div className="mt-3 space-y-3 rounded-xl border border-dashed border-abyss-700 p-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block">
-          <span className="field-label">{t('stage.field.name')}</span>
-          <input
-            className="field-input"
-            value={nameVi}
-            onChange={(e) => setNameVi(e.target.value)}
-          />
-        </label>
-        <label className="block">
-          <span className="field-label">{t('stage.field.sceneKey')}</span>
-          <input
-            className="field-input"
-            placeholder="ship_deck_01"
-            value={sceneKey}
-            onChange={(e) => setSceneKey(e.target.value)}
-          />
-        </label>
-        <label className="block">
-          <span className="field-label">{t('stage.field.advisor')}</span>
-          <input
-            className="field-input"
-            placeholder="captain_drake"
-            value={advisor}
-            onChange={(e) => setAdvisor(e.target.value)}
-          />
-        </label>
-      </div>
-      <p className="text-xs text-slate-500">
-        {t('world.detail.newStageHint', { order: nextOrder, shard: nextShard })}
-      </p>
-      <Button
-        variant="primary"
-        size="sm"
-        loading={pending}
-        disabled={!nameVi.trim() || !sceneKey.trim()}
-        onClick={submit}
-      >
-        {t('world.detail.createStage')}
       </Button>
     </div>
   );

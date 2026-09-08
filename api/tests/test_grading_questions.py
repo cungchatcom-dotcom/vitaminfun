@@ -338,3 +338,64 @@ class TestChung:
         """Dot 1 toan dang tu cham duoc. ESSAY/SPEAK moi can nguoi cham."""
         r = grade(qtype, content, answer, None, 1)
         assert not r.needs_manual
+
+
+# --------------------------------------------------------------------------
+# SHORT_ANSWER - hoc sinh GO cau tra loi
+# --------------------------------------------------------------------------
+
+SHORT_CONTENT = {"prompt": "Ho khau lenh ha buom."}
+SHORT_ANSWER_KEY = {
+    "accepted": ["lower the sails", "lower sails", "lower the sails immediately"]
+}
+
+
+class TestShortAnswer:
+    """Duoc an ca nga ve khong: mot cau tra loi ngan thi hoac dung y hoac khong.
+
+    Cham nua voi o day se thanh doan xem "gan dung" la gan den dau, ma khong co
+    thang nao do duoc dieu do.
+    """
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "lower the sails",
+            "Lower The Sails",           # hoa thuong
+            "  lower the sails  ",       # khoang trang thua
+            "Lower the sails!",          # dau cau
+            "lower   the    sails",      # khoang trang kep
+            "lower sails",               # cach viet thu hai trong `accepted`
+        ],
+    )
+    def test_cac_cach_viet_duoc_chap_nhan(self, text: str) -> None:
+        r = grade("SHORT_ANSWER", SHORT_CONTENT, SHORT_ANSWER_KEY, {"text": text}, 10)
+        assert r.score == 10.0
+        assert r.is_correct is True
+
+    @pytest.mark.parametrize(
+        "text",
+        ["raise the sails", "lower", "sails", "ha buom", "xyz"],
+    )
+    def test_go_sai_thi_khong_co_diem(self, text: str) -> None:
+        r = grade("SHORT_ANSWER", SHORT_CONTENT, SHORT_ANSWER_KEY, {"text": text}, 10)
+        assert r.score == 0.0
+        assert r.is_correct is False
+
+    @pytest.mark.parametrize("response", [None, {}, {"text": ""}, {"text": "   "}])
+    def test_bo_trong_la_khong_diem_khong_no(self, response: object) -> None:
+        r = grade("SHORT_ANSWER", SHORT_CONTENT, SHORT_ANSWER_KEY, response, 10)
+        assert r.score == 0.0
+        assert r.is_correct is False
+
+    def test_du_lieu_bia_tu_client_khong_lam_no_server(self) -> None:
+        # Kieu sai hoan toan: `text` la so, la list, la dict long nhau.
+        for bad in [{"text": 123}, {"text": ["a"]}, {"text": {"x": 1}}, {"khac": "a"}]:
+            r = grade("SHORT_ANSWER", SHORT_CONTENT, SHORT_ANSWER_KEY, bad, 10)
+            assert r.score == 0.0
+
+    def test_khong_co_dap_an_nao_thi_go_gi_cung_sai(self) -> None:
+        # Truong hop nay bi chan tu luc LUU (xem `_validate_short_answer`), nhung
+        # grader van phai chiu duoc du lieu cu chua qua vong kiem do.
+        r = grade("SHORT_ANSWER", SHORT_CONTENT, {"accepted": []}, {"text": "gi do"}, 10)
+        assert r.score == 0.0

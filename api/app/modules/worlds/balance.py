@@ -40,12 +40,18 @@ DEFAULT_BALANCE: dict[str, Any] = {
     "replayCapMultiplier": None,
     # --- Phòng chờ ---
     "lobbyCountdownSeconds": 30,
-    # --- Năng lượng đội ---
+    # --- Năng lượng ---
+    #
+    # MỘT giá cho MỌI loại gợi ý, không phải bảng giá theo từng loại.
+    #
+    # Bảng giá cũ (`translate: 5`, `showSubtitle: 3`, `replayAudio: 1`) bắt học
+    # sinh nhẩm xem cái nào đắt cái nào rẻ giữa lúc đang bí một câu tiếng Anh —
+    # một phép tính phụ không dạy được gì. Một giá thì luật chỉ có một câu: "mỗi
+    # lần xin giúp tốn 2".
+    #
+    # `wrongAnswer` bị bỏ: trả lời sai không còn trừ năng lượng (Bước 6v).
     "energyCost": {
-        "wrongAnswer": 2,
-        "replayAudio": 1,
-        "showSubtitle": 3,
-        "translate": 5,
+        "hint": 2,
     },
 }
 

@@ -36,23 +36,25 @@ from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 class RunStatus:
     PLAYING = "playing"
     WON = "won"
-    LOST_ENERGY = "lost_energy"  # hết năng lượng đội
-    LOST_TIME = "lost_time"  # hết giờ
+    LOST_TIME = "lost_time"  # hết giờ — cách THUA duy nhất
     ABANDONED = "abandoned"
 
-    ALL = (PLAYING, WON, LOST_ENERGY, LOST_TIME, ABANDONED)
+    # Không còn `lost_energy`. Năng lượng giờ chỉ trả cho các hành động trợ giúp
+    # và là của riêng từng người; hết thì mất quyền dùng trợ giúp, không thua
+    # màn. Để một người tiêu hết năng lượng làm cả đội thua là đúng thứ mà luật
+    # "kết quả từng người độc lập" sinh ra để loại trừ.
+    ALL = (PLAYING, WON, LOST_TIME, ABANDONED)
     #: Đã kết thúc — điều kiện để mở màn xem lại bài (S6b).
-    ENDED = (WON, LOST_ENERGY, LOST_TIME, ABANDONED)
+    ENDED = (WON, LOST_TIME, ABANDONED)
 
 
 class StageRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "stage_runs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('playing', 'won', 'lost_energy', 'lost_time', 'abandoned')",
+            "status IN ('playing', 'won', 'lost_time', 'abandoned')",
             name="status_valid",
         ),
-        CheckConstraint("team_energy_remaining >= 0", name="energy_non_negative"),
     )
 
     stage_id: Mapped[uuid.UUID] = mapped_column(
@@ -72,10 +74,9 @@ class StageRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: sau khi lượt chơi kết thúc — xem docs/GAME_DOMAIN.md §1.6.
     answer_key_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
-    team_energy_initial: Mapped[int] = mapped_column(Integer, nullable=False)
-    #: MỘT con số duy nhất cho cả đội. Đây là chỗ luật "năng lượng dùng chung"
-    #: được cưỡng chế — không có bản sao nào khác để lệch nhau.
-    team_energy_remaining: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Không còn cột năng lượng nào ở ĐÂY. Năng lượng là của từng người và nằm ở
+    # `stage_run_players` — giữ thêm một con số cho cả đội ở đây là tạo ra một
+    # nguồn thứ hai có thể lệch với tổng của các nguồn kia.
 
     status: Mapped[str] = mapped_column(
         String(16), default=RunStatus.PLAYING, nullable=False, index=True
@@ -91,7 +92,7 @@ class StageRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_trial: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     def __repr__(self) -> str:
-        return f"<StageRun {self.status} energy={self.team_energy_remaining}>"
+        return f"<StageRun {self.status}>"
 
 
 class StageRunPlayer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -113,6 +114,8 @@ class StageRunPlayer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "(is_bot AND user_id IS NULL) OR (NOT is_bot AND user_id IS NOT NULL)",
             name="bot_has_no_user",
         ),
+        CheckConstraint("energy_granted >= 0", name="energy_granted_non_negative"),
+        CheckConstraint("energy_remaining >= 0", name="energy_remaining_non_negative"),
     )
 
     stage_run_id: Mapped[uuid.UUID] = mapped_column(
@@ -126,6 +129,25 @@ class StageRunPlayer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     hero_key: Mapped[str] = mapped_column(String(16), nullable=False)
     is_bot: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    #: Năng lượng đã cấp cho người này trong lượt chơi này.
+    #:
+    #: 0 = CHƯA CẤP — họ chưa qua nhiệm vụ NPC. Đây cũng là cờ chống cấp hai lần:
+    #: qua NPC là chuyện một chiều, nên "đã cấp" và "> 0" là cùng một điều.
+    energy_granted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    #: Còn lại bao nhiêu sau khi tiêu cho các hành động trợ giúp.
+    energy_remaining: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    #: Chỗ nhân vật đang đứng, hệ toạ độ thế giới 3200×1800.
+    #:
+    #: `NULL` = chưa đi đâu cả; cảnh đặt nhân vật ở chỗ xuất phát mặc định.
+    #:
+    #: Ở ĐÂY chứ không ở `stage_progress`: một vị trí chỉ có nghĩa trong CẢNH của
+    #: một lượt chơi. Lượt mới là một ván mới và nhân vật phải đứng lại ở vạch
+    #: xuất phát — đúng nếp với mọi thứ khác của lượt chơi (bài đã chấm, bài
+    #: nháp, năng lượng) đều reset theo lượt.
+    pos_x: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pos_y: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     quests_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
@@ -227,3 +249,46 @@ class QuestAnswer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<QuestAnswer attempt={self.attempt_no} correct={self.is_correct}>"
+
+
+class QuestDraft(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Đáp án NHÁP — người chơi đã chọn nhưng chưa nộp.
+
+    Sinh ra để một lượt chơi dở dang không biến mất. Người chơi làm tới câu ba
+    của một nhiệm vụ bốn câu rồi mất mạng, tắt máy, hay đóng nhầm tab; vào lại
+    mà còn giờ thì phải thấy đúng những gì mình đã chọn. Giữ ở máy (localStorage)
+    thì đổi máy là mất, và cũng không có cách nào tin được nó.
+
+    **Đây là bảng NHÁP, không phải bảng điểm.** Không có `score`, không có
+    `is_correct`, không có `attempt_no`. Chấm điểm vẫn là việc của
+    `quest_answers` — nhật ký từng lần thử, không ghi đè. Gộp hai thứ vào một
+    bảng thì mất lịch sử số lần thử, mà đó là thứ cả công thức tính điểm dựa vào.
+
+    `UNIQUE(stage_run_id, user_id, question_id)` — KHÔNG có `quest_id` trong
+    khoá: một câu hỏi chỉ thuộc một nhiệm vụ trong cùng một đề bài đã đóng băng,
+    nên thêm `quest_id` vào khoá là mở đường cho hai bản nháp của cùng một câu.
+    Cột `quest_id` vẫn có, để đọc cả nhiệm vụ bằng một câu truy vấn.
+    """
+
+    __tablename__ = "quest_drafts"
+    __table_args__ = (
+        UniqueConstraint(
+            "stage_run_id", "user_id", "question_id", name="uq_quest_drafts_question"
+        ),
+        Index("ix_quest_drafts_run_user", "stage_run_id", "user_id"),
+    )
+
+    stage_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stage_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    quest_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    question_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+
+    #: Bài làm đang dở, đúng dạng mà `grade()` nhận. `NULL` = đã xoá lựa chọn.
+    response_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<QuestDraft q={self.question_id}>"

@@ -62,7 +62,8 @@ export interface QuestionDraft {
 export type QuestionResponse =
   | { selectedOptionId: string | null }
   | { selectedOptionIds: string[] }
-  | { gaps: Record<string, string | null> };
+  | { gaps: Record<string, string | null> }
+  | { text: string };
 
 /**
  * Câu đã được trả lời tới đâu.

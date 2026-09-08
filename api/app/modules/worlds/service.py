@@ -17,9 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ErrorCode, NotFoundError
 from app.db.models import (
+    QUEST_OBJECT_NPC,
     Chapter,
     PublishStatus,
     Quest,
+    QuestPhase,
     QuestQuestion,
     Question,
     QuestionStatus,
@@ -159,7 +161,61 @@ def effective_required_skill_pts(stage: Stage, world: World) -> int:
 # --------------------------------------------------------------------------
 
 #: Số nhiệm vụ tối thiểu mỗi màn. Luật của tài liệu thiết kế Atlantis.
+#:
+#: Nhiệm vụ NPC ĐƯỢC TÍNH vào con số này. Nó là một nhiệm vụ thật — có câu hỏi,
+#: có điểm qua ải, học sinh phải làm xong mới đi tiếp — chứ không phải một bước
+#: thủ tục, nên đếm nó ra ngoài là tự bịa thêm một khái niệm thứ hai.
 MIN_QUESTS_PER_STAGE = 4
+
+#: Thứ tự của nhiệm vụ NPC. Số 0 để nó luôn đứng đầu danh sách, và để `max()+1`
+#: của các nhiệm vụ do giáo viên thêm không bao giờ đụng vào nó.
+ADVISOR_ORDER_INDEX = 0
+
+#: Giá trị điền vào `stages.scene_key` khi người tạo màn không nói gì.
+#:
+#: ⚠️ Cột này hiện KHÔNG ĐIỀU KHIỂN GÌ CẢ. Nó có từ thời mỗi màn là một lớp cảnh
+#: Phaser viết tay riêng và khoá này chọn lớp nào; giờ cả trò chơi chạy trên MỘT
+#: lớp cảnh dựng hoàn toàn từ dữ liệu — ảnh nền lấy từ `background_media_id`,
+#: vật thể lấy từ bảng `quests`.
+#:
+#: Vì không ai đọc nó, một màn từng bị gõ nhầm thành `ship_desk_01` (desk, chứ
+#: không phải deck) mà không ai phát hiện ra. Nên nó thôi là ô bắt buộc: bắt
+#: người dựng gõ một chuỗi kỹ thuật vô nghĩa mới tạo được màn chơi là thu phí mà
+#: không bán gì.
+#:
+#: Cột vẫn giữ, không xoá: nếu sau này có loại cảnh thứ hai (bản đồ nhìn từ trên
+#: xuống, màn chỉ hội thoại...) thì đây đúng là chỗ đánh dấu, và thêm lại một cột
+#: đã xoá đắt hơn nhiều so với để nó nằm im.
+DEFAULT_SCENE_KEY = "default"
+
+#: Chiều cao nhân vật khi chưa ai đặt gì, theo hệ toạ độ thế giới 3200×1800.
+#:
+#: Phải khớp `HERO_HEIGHT` trong `web/src/game/scenes/StageScene.ts` — đó là
+#: đường lùi cuối cùng của cảnh khi đề bài đóng băng cũ chưa có trường này.
+DEFAULT_CHARACTER_HEIGHT = 160
+
+
+def new_advisor_quest(stage_id: uuid.UUID) -> Quest:
+    """Nhiệm vụ NPC bắt buộc của một màn chơi.
+
+    Mọi màn đều có đúng một cái, tạo tự động cùng lúc với màn — giáo viên không
+    bấm gì cả. Nó vừa là cổng mở khoá các nhiệm vụ còn lại, vừa là cái bảo đảm
+    luật "mỗi thành viên phải hoàn thành ít nhất một nhiệm vụ thì cả đội mới
+    được chia mảnh bản đồ": ai cũng phải qua NPC nên ai cũng có ít nhất một.
+
+    `name_i18n` để RỖNG có chủ ý. Đặt sẵn chữ tiếng Việt ở đây là chôn phần
+    hiển thị vào database, mà database thì không dịch được sang ngôn ngữ khác.
+    Giao diện tự lùi về nhãn dịch của nó; giáo viên đặt tên riêng thì tên đó
+    thắng.
+    """
+    return Quest(
+        stage_id=stage_id,
+        order_index=ADVISOR_ORDER_INDEX,
+        phase=QuestPhase.ADVISOR,
+        quest_object_key=QUEST_OBJECT_NPC,
+        name_i18n={},
+        energy_cost=0,
+    )
 
 
 class StageBlocker:
@@ -171,8 +227,41 @@ class StageBlocker:
     QUEST_QUESTION_DRAFT = "STAGE_QUEST_QUESTION_DRAFT"
     #: `pass_score` lớn hơn tổng điểm mọi câu trong nhiệm vụ — không ai qua nổi.
     QUEST_PASS_SCORE_TOO_HIGH = "STAGE_QUEST_PASS_SCORE_TOO_HIGH"
+    #: Không có nhiệm vụ NPC. Về nguyên tắc không xảy ra — nó được tạo cùng màn
+    #: và không xoá được — nhưng vẫn kiểm, vì đây là điều kiện mà cả cổng mở
+    #: khoá lẫn luật chia mảnh bản đồ dựa vào.
     NO_ADVISOR = "STAGE_NO_ADVISOR"
     SHARD_INDEX_TAKEN = "STAGE_SHARD_INDEX_TAKEN"
+
+
+async def effective_character_height(db: AsyncSession, stage: Stage) -> int:
+    """Chiều cao nhân vật THẬT SỰ dùng cho màn này.
+
+    Ba nấc, dừng ở nấc đầu tiên có giá trị:
+
+      1. số của chính màn này,
+      2. số của màn ĐẦU TIÊN trong world (chương nhỏ nhất, thứ tự nhỏ nhất),
+      3. `DEFAULT_CHARACTER_HEIGHT`.
+
+    Nấc thứ hai là chỗ luật "màn 1 làm mặc định cho cả world" thành mã. Đọc LÚC
+    CẦN chứ không sao chép sẵn xuống từng màn: sao chép thì sửa lại màn 1 sau đó
+    không lan xuống đâu nữa, mà lan xuống mới là điều người dựng muốn.
+    """
+    if stage.character_height is not None:
+        return stage.character_height
+
+    world_id = await db.scalar(select(Chapter.world_id).where(Chapter.id == stage.chapter_id))
+    if world_id is None:
+        return DEFAULT_CHARACTER_HEIGHT
+
+    first = await db.scalar(
+        select(Stage.character_height)
+        .join(Chapter, Chapter.id == Stage.chapter_id)
+        .where(Chapter.world_id == world_id)
+        .order_by(Chapter.order_index, Stage.order_index)
+        .limit(1)
+    )
+    return first or DEFAULT_CHARACTER_HEIGHT
 
 
 async def publish_blockers(db: AsyncSession, stage: Stage, world: World) -> list[dict[str, Any]]:
@@ -266,10 +355,14 @@ async def publish_blockers(db: AsyncSession, stage: Stage, world: World) -> list
                 }
             )
 
-    # NPC cố vấn phải có ít nhất một bước hội thoại — nếu màn có khai báo NPC.
-    if stage.advisor_npc_key and not any(q.phase == "advisor" for q in quests):
+    # Nhiệm vụ NPC là BẮT BUỘC, không còn phụ thuộc việc màn có khai báo
+    # `advisor_npc_key` hay không. Trước đây nó chỉ bị đòi khi giáo viên đã gõ
+    # tên NPC vào ô cấu hình — tức là quên gõ thì xuất bản được một màn không có
+    # cổng vào, và khi đó không người chơi nào chắc chắn hoàn thành nổi một
+    # nhiệm vụ để cả đội được chia mảnh bản đồ.
+    if not any(q.phase == QuestPhase.ADVISOR for q in quests):
         blockers.append(
-            {"code": StageBlocker.NO_ADVISOR, "params": {"npc": stage.advisor_npc_key}}
+            {"code": StageBlocker.NO_ADVISOR, "params": {"npc": stage.advisor_npc_key or ""}}
         )
 
     # Hai màn cùng world không được trao cùng một số mảnh bản đồ: luật "đủ 30

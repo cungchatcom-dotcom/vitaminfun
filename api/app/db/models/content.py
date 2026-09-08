@@ -25,6 +25,8 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -67,6 +69,14 @@ class QuestPhase:
     ALL = (ADVISOR, MAIN)
 
 
+#: Khoá vật thể của nhiệm vụ NPC được tạo tự động cùng màn chơi.
+#:
+#: Là hằng số chứ không phải chữ rải rác: migration, `create_stage` và cảnh
+#: Phaser đều phải gọi đúng một cái tên, và gõ lệch một chữ thì màn chơi có hai
+#: nhiệm vụ NPC hoặc không có cái nào.
+QUEST_OBJECT_NPC = "npc"
+
+
 _STATUS_CHECK = "status IN ('draft', 'published')"
 
 
@@ -101,9 +111,13 @@ class Galaxy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     background_media_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
     )
-    music_media_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
-    )
+    #: ÂM THANH của màn chọn world. CÙNG hình dạng với `stages.audio_json`.
+    #:
+    #: Thay cho `music_media_id` cũ — một cột chỉ chứa ID file, không có âm
+    #: lượng, không có tốc độ, không có cờ lặp. Hai cách lưu cùng một thứ sẽ
+    #: lệch nhau đúng vào lúc ai đó sửa một bên, nên nhạc thiên hà giờ đi chung
+    #: một hình dạng, một bảng điều khiển, một hàm quy đổi với mọi màn khác.
+    audio_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
     #: KHUNG TIÊU ĐỀ và KHUNG MÔ TẢ — hai tấm ảnh trang trí nằm trên bản đồ.
     #:
@@ -246,6 +260,12 @@ class World(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # chỉ phải động vào những chỗ họ thực sự muốn khác. Chép sẵn giá trị của
     # thiên hà xuống lúc tạo thì đổi nền thiên hà sau này không lan xuống được
     # world nào nữa.
+    #: MA DINH DANH do bo phan noi dung dat, khop cot `world_code` trong file .xlsx.
+    #:
+    #: Day la thu duy nhat noi mot dong trong bang tinh voi ban ghi nay. NULL
+    #: duoc: world dung tay khong bat buoc phai co ma. Duy nhat khi khac NULL - xem migration 0030.
+    world_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     lobby_media_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
     )
@@ -283,6 +303,15 @@ class World(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: kiểm — xem `LobbyElement`. Khoá thiếu thì giao diện dùng mặc định của sổ
     #: đăng ký, y như `null` ở các cột kia.
     lobby_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+
+    #: ÂM THANH của phòng chờ world. CÙNG hình dạng với `stages.audio_json`.
+    #:
+    #: Object rỗng = phòng chờ im lặng, và nó KHÔNG kế thừa nhạc của thiên hà:
+    #: hai màn hình này người chơi đi qua liên tiếp nhau, và một bản nhạc chạy
+    #: tiếp qua ranh giới đó thì không nói được là mình đã sang chỗ khác. Muốn
+    #: giống nhau thì tải cùng một file lên cả hai — một cú bấm, và nó nhìn
+    #: thấy được.
+    audio_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
     #: TOÀN BỘ hằng số cân bằng game. Xem docs/GAME_DOMAIN.md §6.
     #: Đây là chỗ luật "không hardcode giá trị cân bằng" được thực thi: chỉnh
@@ -342,7 +371,11 @@ class Stage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         CheckConstraint("min_players >= 1", name="min_players_positive"),
         CheckConstraint("max_players >= min_players", name="max_players_gte_min"),
         CheckConstraint("time_limit_seconds > 0", name="time_limit_positive"),
-        CheckConstraint("initial_team_energy > 0", name="energy_positive"),
+        CheckConstraint("energy_per_player >= 0", name="energy_per_player_non_negative"),
+        CheckConstraint(
+            "character_height IS NULL OR character_height > 0",
+            name="character_height_positive",
+        ),
         CheckConstraint("map_shard_index >= 1", name="shard_index_positive"),
     )
 
@@ -357,12 +390,82 @@ class Stage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     #: Khoá cảnh Phaser: "ship_deck_01". `web/src/game/` tra khoá này ra scene.
     scene_key: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    #: Chiều CAO của nhân vật trong cảnh, theo hệ toạ độ thế giới 3200×1800.
+    #:
+    #: Cao chứ không rộng: mỗi nhân vật một khổ spritesheet khác nhau, nhưng thứ
+    #: người chơi so sánh là "cao bằng chừng nào so với vật thể quanh mình". Ghim
+    #: bề rộng thì nhân vật gầy cao vống lên còn nhân vật mập thì lùn tịt.
+    #:
+    #: `NULL` = KẾ THỪA từ màn đầu tiên của world — xem
+    #: `effective_character_height()`. Kế thừa chứ không sao chép: người dựng căn
+    #: nhân vật ở màn 1 một lần rồi 29 màn còn lại theo luôn, và sửa lại màn 1
+    #: sau đó vẫn lan xuống. Sao chép giá trị xuống từng màn lúc tạo thì mất đúng
+    #: cái đó.
+    character_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    #: CHỖ XUẤT PHÁT của nhân vật trong màn này, hệ toạ độ thế giới 3200×1800.
+    #:
+    #: Là ĐIỂM VA CHẠM — cùng thứ `canWalk()` xét, tức cao hơn gót chân
+    #: `HERO_FOOT_Y` — chứ không phải tâm tấm ảnh. Cùng hệ quy chiếu với
+    #: `stage_run_players.pos_x/pos_y`, nên `StageScene` đọc hai nguồn đó bằng
+    #: đúng một phép toán.
+    #:
+    #: `NULL` = chỗ mặc định của cảnh (`DEFAULT_SPAWN` bên
+    #: `web/src/game/world.ts`). Không điền sẵn một cặp số: "chưa đặt" và "đặt
+    #: đúng vào chỗ mặc định" là hai chuyện khác nhau, và trình thiết kế cần
+    #: phân biệt để biết có nên hiện nút gỡ hay không — cùng nếp với
+    #: `character_height`.
+    #:
+    #: Không kèm ràng buộc khoảng: cùng nếp với `quests.scene_x/scene_y`, và
+    #: hệ toạ độ thế giới là hằng số của phía giao diện chứ không của database.
+    #: Cảnh chơi vẫn cứu hộ về ô đi được gần nhất (`rescueToWalkable`), nên một
+    #: chỗ nằm ngoài vùng đi được là chuyện cảnh biết xử lý.
+    spawn_x: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    spawn_y: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    #: MA DINH DANH do bo phan noi dung dat, khop cot `stage_code` trong file .xlsx.
+    #:
+    #: Day la thu duy nhat noi mot dong trong bang tinh voi ban ghi nay. NULL
+    #: duoc: man dung tay khong bat buoc phai co ma. Duy nhat khi khac NULL - xem migration 0030.
+    stage_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     background_media_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
     )
 
+    #: VIDEO MỞ MÀN — tấm màn che đúng lúc màn chơi đang nạp.
+    #:
+    #: `NULL` = vào thẳng, y như trước khi có cột này. Đó là mặc định, và phải
+    #: là mặc định: màn đã dựng không được tự dưng mọc thêm một bước bấm.
+    #:
+    #: Không phải một tính năng kể chuyện gắn thêm. Gói Phaser gần một megabyte,
+    #: ảnh nền có khi là video, spritesheet bốn hướng — khoảng chờ đó có thật và
+    #: không bỏ đi được. Thứ bỏ đi được là cái màn hình trống trong lúc chờ, nên
+    #: video chạy Ở TRÊN còn cảnh dựng Ở DƯỚI, và cửa mở khi cả hai xong.
+    #:
+    #: KHÔNG vào `snapshot_json`: nó chạy trước khi lượt chơi tồn tại, nên phải
+    #: đọc được trước cả cái request tạo ra snapshot. Xem GAME_DOMAIN §3e.
+    intro_video_media_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
+    )
+
     time_limit_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)
-    initial_team_energy: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    #: Năng lượng cấp cho MỖI người chơi, sau khi chính họ qua được nhiệm vụ NPC.
+    #:
+    #: Của từng người, không phải một quỹ chung: bài làm của một người không được
+    #: rút cạn tài nguyên của đồng đội. Xem `PROJECT OVERVIEW.md` mục Hệ thống điểm.
+    #:
+    #: Cấp SAU khi qua NPC chứ không phải lúc vào màn — NPC là cổng vào của màn,
+    #: và cấp trước thì người chơi tiêu hết vào các hành động trợ giúp ngay ở cửa
+    #: rồi bước vào phần chính với hai bàn tay trắng, mà phần chính mới là chỗ
+    #: cần trợ giúp.
+    #:
+    #: 0 là hợp lệ và có nghĩa: "màn này không có trợ giúp".
+    #:
+    #: Mặc định 10, tức NĂM lần xin gợi ý cho cả màn (mỗi lần 2). Con số nhỏ có
+    #: chủ ý: gợi ý phải là thứ người chơi cân nhắc, không phải thứ bấm bừa.
+    energy_per_player: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
 
     #: Điểm chiến lực cần có để mở màn này. NULL = suy ra từ
     #: `balance_json.skillPtsStep × (order − 1)`. Đặt số cụ thể để ghi đè.
@@ -393,10 +496,74 @@ class Stage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     advisor_portrait_media_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
     )
+    #: Lời NPC nói lúc TRAO sổ tay — bước cuối của chuỗi hội thoại, bước không
+    #: hỏi gì cả. Hiện trên màn Claim, ngay trước nút nhận.
+    #:
+    #: Cột riêng chứ không nhét vào `cluebook_i18n`: đây là lời NPC nói MỘT LẦN
+    #: lúc trao, còn sổ tay là thứ người chơi mở ra đọc lại suốt màn. Gộp làm một
+    #: thì mỗi lần mở sổ tay lại phải đọc lại câu chia tay của thuyền trưởng.
+    advisor_outro_i18n: Mapped[dict[str, str]] = mapped_column(
+        TranslatableText, default=dict, nullable=False
+    )
+    #: Đoạn ghi âm NPC nói lời chia tay. `NULL` = chỉ có chữ.
+    #:
+    #: Tự phát khi bảng hiện ra, đúng cơ chế của câu hỏi nghe (§3c) và dùng
+    #: chung đúng một component vẽ.
+    advisor_outro_audio_media_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
+    )
+    #: Đoạn chữ MỞ SẴN cạnh trình phát. Mặc định `True` — NGƯỢC với
+    #: `questions.show_transcript`, và sự khác nhau đó có lý do:
+    #:
+    #: Câu hỏi nghe giấu chữ vì đọc được đề thì bài nghe không còn đo gì nữa —
+    #: chữ ở đó là đáp án của chính bài tập. Lời NPC thì không phải bài tập: nó
+    #: là một nhân vật đang nói, và vừa nghe vừa đọc theo là cách học từ mới
+    #: nhanh nhất. Xem migration 0033.
+    advisor_outro_show_transcript: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
+    #: Tên sổ tay: "📜 CAPTAIN DRAKE'S SECRET HANDBOOK". Hiện ở đầu bảng sổ tay.
+    cluebook_title_i18n: Mapped[dict[str, str]] = mapped_column(
+        TranslatableText, default=dict, nullable=False
+    )
     #: Sổ tay bí quyết NPC trao sau khi xong giai đoạn hội thoại.
     cluebook_i18n: Mapped[dict[str, str]] = mapped_column(
         TranslatableText, default=dict, nullable=False
     )
+
+    #: VÙNG ĐI ĐƯỢC — bản đồ va chạm do giáo viên vẽ trong trình thiết kế.
+    #:
+    #: `NULL` = chưa vẽ, và có nghĩa là **cả bản đồ đi được** — đúng y hệt hành
+    #: vi trước khi có cột này. Nhờ vậy mọi màn đã dựng không đổi một chút nào.
+    #:
+    #: Hình dạng dữ liệu (xem `web/src/game/collision.ts` — đó là bản mô tả
+    #: chính, cả hai đầu đọc chung một luật):
+    #:
+    #:     { "version": 1,
+    #:       "default": "blocked",              // ngoài MỌI hình
+    #:       "shapes": [ { "id", "mode", "kind", ... } ] }
+    #:
+    #: **Hình khớp CUỐI CÙNG thắng.** Một câu, và nhờ nó mà ghép được các vùng
+    #: lồng nhau mà không cần phép toán tập hợp: lối đi quanh một cái hồ là một
+    #: oval `allow` rộng, rồi một oval `block` nhỏ đặt đè lên trên.
+    collision_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    #: ÂM THANH của màn — nhạc nền, tiếng đi, tiếng đứng.
+    #:
+    #: Object RỖNG = màn không có tiếng nào, và đó là mặc định đúng: một màn tự
+    #: bật nhạc mà người dựng không chủ động chọn là thứ cả lớp phải chịu cùng lúc.
+    #:
+    #: Một cột JSONB chứ không phải mười hai cột riêng, cùng khuôn với
+    #: `worlds.lobby_json`: thêm một khối tiếng mới là thêm MỘT DÒNG trong sổ
+    #: đăng ký `AUDIO_SLOTS` ở `web/src/game/audio.ts` — không migration, không
+    #: sửa trình thiết kế, không sửa cảnh chơi.
+    #:
+    #:     { "ambient": { "media_id", "volume", "rate", "loop" },
+    #:       "walk":    { ... },
+    #:       "idle":    { ... } }
+    #:
+    #: `volume` và `rate` tính bằng PHẦN TRĂM — xem `resolveAudio()`.
+    audio_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
     status: Mapped[str] = mapped_column(String(16), default=PublishStatus.DRAFT, nullable=False)
 
@@ -424,6 +591,18 @@ class Quest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         # Một vật thể trong cảnh chỉ mang một nhiệm vụ.
         UniqueConstraint("stage_id", "quest_object_key", name="uq_quests_stage_object"),
         CheckConstraint("phase IN ('advisor', 'main')", name="phase_valid"),
+        # ĐÚNG MỘT nhiệm vụ NPC cho mỗi màn. Chỉ số một phần (`WHERE`) chứ không
+        # phải UNIQUE thường: các nhiệm vụ `main` thì bao nhiêu cái cũng được.
+        #
+        # Ràng buộc ở database chứ không chỉ ở tầng ứng dụng, vì cả cổng mở khoá
+        # lẫn luật "ai cũng hoàn thành được ít nhất một nhiệm vụ" đều dựa vào
+        # việc cái NPC này CÓ và CHỈ CÓ MỘT. Hai cái thì người chơi qua cái nào?
+        Index(
+            "uq_quests_stage_advisor",
+            "stage_id",
+            unique=True,
+            postgresql_where=text("phase = 'advisor'"),
+        ),
         CheckConstraint("energy_cost >= 0", name="energy_cost_non_negative"),
         CheckConstraint("pass_score IS NULL OR pass_score >= 0", name="pass_score_non_negative"),
         CheckConstraint(
@@ -448,7 +627,16 @@ class Quest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     phase: Mapped[str] = mapped_column(String(16), default=QuestPhase.MAIN, nullable=False)
 
     #: Vật thể trong cảnh: "mast" | "hull" | "buoy" | "chest" | "npc".
+    #: Nhiệm vụ NPC bắt buộc dùng khoá `QUEST_OBJECT_NPC`.
     #: Khoá KỸ THUẬT — Phaser dùng để biết gắn nhiệm vụ vào sprite nào.
+    #: MA DINH DANH do bo phan noi dung dat, khop cot `quest_code` trong sheet
+    #: Questions cua file .xlsx.
+    #:
+    #: Day la thu ma trinh nhap khau dua vao de biet mot cau hoi thuoc nhiem vu
+    #: nao. NULL duoc: nhiem vu dung tay khong bat buoc phai co ma. Duy nhat khi
+    #: khac NULL - hai nhiem vu cung ma thi luc nhap khong biet lap vao cai nao.
+    quest_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     quest_object_key: Mapped[str] = mapped_column(String(64), nullable=False)
 
     #: Tên hiển thị cho người chơi: {"vi": "Cột buồm chính"}.
@@ -484,8 +672,13 @@ class Quest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: của cảnh. Sàn 400ms: nhanh hơn nữa thì thành nhấp nháy tần số cao.
     pulse_period_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    #: Năng lượng ĐỘI bị trừ khi bắt đầu nhiệm vụ này. Trả lời sai còn tốn thêm
-    #: `balance_json.energyCost.wrongAnswer`.
+    #: Năng lượng bị trừ khi bắt đầu nhiệm vụ này.
+    #:
+    #: ⚠️ CHƯA ĐƯỢC DÙNG. Cột có từ trước, lưu và hiển thị được, nhưng không chỗ
+    #: nào trừ nó cả. Để nguyên chứ không xoá vì hai lẽ: xoá rồi cần lại thì đắt
+    #: hơn nhiều so với để nó nằm im, và nếu bật nó lên thì phải nhớ MIỄN cho
+    #: nhiệm vụ NPC — người chơi chỉ có năng lượng SAU khi qua NPC, nên một cái
+    #: cổng đòi năng lượng để đi qua là cái cổng không mở được.
     energy_cost: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     #: Điểm tối thiểu để HOÀN THÀNH nhiệm vụ.

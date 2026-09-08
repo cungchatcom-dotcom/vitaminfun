@@ -86,6 +86,7 @@ vitaminfun/
 | Đường dẫn | `/teacher/worlds/{w}/stages/{s}/design` | `/teacher/worlds/design` |
 | Kéo cái gì | vật thể nhiệm vụ trong cảnh | world trên bản đồ chọn world |
 | Nền | `stages.background_media_id` | `galaxies.background_media_id` (+ nhạc) |
+| | ảnh **hoặc video** — xem GAME_DOMAIN §Nền động | ảnh **hoặc video** |
 | Toạ độ | `quests.scene_x/scene_y/icon_size` | `worlds.scene_x/scene_y/icon_size` |
 
 Dùng chung, không phải chép:

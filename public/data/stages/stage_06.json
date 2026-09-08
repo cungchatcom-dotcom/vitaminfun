@@ -1,0 +1,398 @@
+{
+  "id": "stage_06",
+  "worldId": "world_01",
+  "stageNumber": 6,
+  "chapterId": 1,
+  "chapterName": "Sự cố dưới đáy biển",
+  "title": "Cổng chào Atlantis",
+  "story": "Kích hoạt đại bửu thạch Orichalcum, cánh cổng dẫn vào thành phố chìm Atlantis chính thức mở ra. Hãy gặp Người canh cổng vĩ đại Thalor để vượt qua bài sát hạch và mở khóa lối vào hoàng cung.",
+  "difficulty": "Easy",
+  "grammarHint": "Modals of Necessity & Formal Declarations (Động từ khuyết thiếu & Tuyên thệ trang trọng)",
+  "minCombatPower": 1100,
+  "rewardCombatPower": 250,
+  "timeLimitSeconds": 300,
+  "initialEnergy": 10,
+  "shardRewardId": 6,
+  "scene": {
+    "background": "./assets/backgrounds/stage_06_grand_gate.jpg",
+    "mapSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "walkableArea": [
+      {
+        "x": -780,
+        "y": 380
+      },
+      {
+        "x": -440,
+        "y": 520
+      },
+      {
+        "x": 700,
+        "y": 480
+      },
+      {
+        "x": 830,
+        "y": 230
+      },
+      {
+        "x": 630,
+        "y": -220
+      },
+      {
+        "x": 400,
+        "y": -440
+      },
+      {
+        "x": -280,
+        "y": -450
+      },
+      {
+        "x": -620,
+        "y": -210
+      },
+      {
+        "x": -810,
+        "y": 80
+      }
+    ],
+    "player": {
+      "spawn": {
+        "x": -100,
+        "y": 100
+      }
+    },
+    "advisorSpawn": {
+      "x": 480,
+      "y": -340
+    },
+    "teammates": [
+      {
+        "id": "maya",
+        "name": "Maya (Khảo cổ)",
+        "icon": "📜",
+        "color": "#9b51e0",
+        "x": -260,
+        "y": 40
+      },
+      {
+        "id": "sam",
+        "name": "Sam (Kỹ sư)",
+        "icon": "🔧",
+        "color": "#ff7b00",
+        "x": 110,
+        "y": 150
+      },
+      {
+        "id": "jade",
+        "name": "Jade (Tiên phong)",
+        "icon": "🗡️",
+        "color": "#27ae60",
+        "x": -30,
+        "y": -130
+      }
+    ],
+    "questObjects": [
+      {
+        "taskId": 1,
+        "name": "3 Bệ Đá Đại Bửu Thạch",
+        "icon": "💎",
+        "color": "#f1c40f",
+        "x": 240,
+        "y": -170,
+        "role": "3 ổ khóa đá khảm ngọc Orichalcum",
+        "portrait": "./assets/portraits/leo.jpg"
+      },
+      {
+        "taskId": 2,
+        "name": "Vòm Cổng Khắc Danh Ngôn",
+        "icon": "🏛️",
+        "color": "#3498db",
+        "x": -440,
+        "y": 260,
+        "role": "Vòm đá khắc văn bia Atlantis cổ",
+        "portrait": "./assets/portraits/sam.jpg"
+      },
+      {
+        "taskId": 3,
+        "name": "Trục Xoay Khớp Đá",
+        "icon": "⚙️",
+        "color": "#e67e22",
+        "x": 460,
+        "y": 200,
+        "role": "Trục tời thủy lực nâng đại cổng",
+        "portrait": "./assets/portraits/jade.jpg"
+      },
+      {
+        "taskId": 4,
+        "name": "Bệ Tuyên Thệ Hoàng Gia",
+        "icon": "👑",
+        "color": "#e74c3c",
+        "x": -290,
+        "y": -240,
+        "role": "Bệ phong ấn giữ Mảnh bản đồ 6 (Trùm Chapter 1)",
+        "portrait": "./assets/portraits/maya.jpg"
+      }
+    ]
+  },
+  "advisor": {
+    "id": "thalor",
+    "name": "Archon Thalor (Người canh cổng vĩ đại)",
+    "role": "NPC Cố vấn trưởng Màn 6 (Trùm Chapter 1)",
+    "portrait": "./assets/portraits/thalor.jpg",
+    "voiceAudio": "./assets/audio/voice/stage_06_advisor.mp3",
+    "dialogueSteps": [
+      {
+        "step": 1,
+        "title": "1. Chào hỏi & Khẳng định tư cách tiến vào Atlantis (Grand Entrance Test)",
+        "npcPrompt": "Mortal seekers! You stand before the sacred threshold of Atlantis! Do you possess the courage to enter?",
+        "vietnameseTranslation": "Những kẻ tìm kiếm phàm trần! Các bạn đang đứng trước ngưỡng cửa thiêng liêng của Atlantis! Các bạn có đủ dũng khí để bước vào không?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Hail Archon Thalor! We have conquered all trials and come bearing the ancient map shards!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We just want to take photos of the big gate.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "Open the door quickly, we are in a hurry!",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "hail archon thalor",
+          "thalor",
+          "conquered all trials",
+          "ancient map shards",
+          "atlantis"
+        ],
+        "targetPhrase": "Hail Archon Thalor! We have conquered all trials and come bearing the ancient map shards!"
+      },
+      {
+        "step": 2,
+        "title": "2. Tuyên thệ tuân thủ đạo luật cổ & Xin mật lệnh mở cổng (Oath & Gate Code Request)",
+        "npcPrompt": "The gates of the sunken kingdom open only to those bound by honor. What vow do you make?",
+        "vietnameseTranslation": "Cánh cổng của vương quốc chìm sâu chỉ mở ra cho những ai mang danh dự. Các bạn đưa ra lời thề gì?",
+        "options": [
+          {
+            "key": "A",
+            "text": "We swear to honor the kingdom and ask for the final mechanical codes to lift the gate!",
+            "isCorrect": true
+          },
+          {
+            "key": "B",
+            "text": "We promise to sell all your treasures for profit.",
+            "isCorrect": false
+          },
+          {
+            "key": "C",
+            "text": "No oaths from us, just give us the key.",
+            "isCorrect": false
+          }
+        ],
+        "targetKeywords": [
+          "swear to honor",
+          "honor the kingdom",
+          "mechanical codes",
+          "lift the gate",
+          "oath"
+        ],
+        "targetPhrase": "We swear to honor the kingdom and ask for the final mechanical codes to lift the gate!"
+      }
+    ],
+    "cluebook": {
+      "title": "📜 BẢN CHIẾU THIÊNG LIÊNG CỦA ARCHON THALOR",
+      "summary": "1. Đại bửu thạch: Hô 'Insert the Sun Pearl into the top slot' | 2. Danh ngôn: Gõ 'Wisdom and courage open every door' | 3. Trục xoay: Hô 'Push the stone pillar with all strength' | 4. Lời thề: 'We swear to protect the secrets of Atlantis'!",
+      "items": [
+        {
+          "targetTaskId": 1,
+          "objectName": "3 Bệ Đá Đại Bửu Thạch",
+          "clue": "Đặt ngọc trai mặt trời vào ô trên cùng: 'Insert the Sun Pearl into the top slot'."
+        },
+        {
+          "targetTaskId": 2,
+          "objectName": "Vòm Cổng Khắc Danh Ngôn",
+          "clue": "Hoàn thiện danh ngôn triết gia: 'Wisdom and courage open every door'."
+        },
+        {
+          "targetTaskId": 3,
+          "objectName": "Trục Xoay Khớp Đá",
+          "clue": "Đồng tâm hiệp lực đẩy trục xoay: 'Push the stone pillar with all strength!'."
+        },
+        {
+          "targetTaskId": 4,
+          "objectName": "Bệ Tuyên Thệ Hoàng Gia",
+          "clue": "Lời tuyên thệ kết thúc Chương 1: 'We swear to protect the secrets of Atlantis'."
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Tìm 3 khối Đại bửu thạch",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô lệnh lắp khối ngọc trai mặt trời vào ô trên cùng của bệ đá.",
+      "interactionType": "speak",
+      "npc": "3 Bệ Đá Đại Bửu Thạch",
+      "npcDialogue": "Bệ đá Orichalcum đang chờ lệnh gắn khối Đại bửu thạch thứ nhất!",
+      "vietnameseHint": "Hô: Insert the Sun Pearl into the top slot.",
+      "targetPhrase": "Insert the Sun Pearl into the top slot",
+      "targetKeywords": [
+        "insert",
+        "sun pearl",
+        "top slot",
+        "insert the sun pearl into the top slot"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Insert the Sun Pearl into the top slot now!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Drop the jewel on the floor and run!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Keep the jewel inside your backpack!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Thalor: Insert the Sun Pearl into the top slot",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 2,
+      "title": "Dịch mật mã mở cổng",
+      "skill": "Đọc & Viết (Read & Write)",
+      "desc": "Gõ câu danh ngôn hoàn chỉnh khắc trên vòm cổng.",
+      "interactionType": "write",
+      "npc": "Vòm Cổng Khắc Danh Ngôn",
+      "npcDialogue": "Văn bia cổ khuyết mất một mệnh đề, hãy điền danh ngôn mở cổng!",
+      "vietnameseHint": "Gõ: Wisdom and courage open every door",
+      "targetPhrase": "Wisdom and courage open every door",
+      "targetKeywords": [
+        "wisdom",
+        "courage",
+        "open every door",
+        "wisdom and courage open every door"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Wisdom and courage open every door",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Fear and greed will conquer all",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Gold and silver are all we need",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Thalor: Wisdom and courage open every door",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 3,
+      "title": "Lắp bửu thạch vào trục",
+      "skill": "Nghe & Nói (Listen & Speak)",
+      "desc": "Hô hiệu lệnh cùng đồng đội dồn lực đẩy trục xoay nâng cánh cổng vĩ đại.",
+      "interactionType": "speak",
+      "npc": "Trục Xoay Khớp Đá",
+      "npcDialogue": "Trục tời đá cổ đại quá nặng, cần khẩu lệnh để 4 người cùng đẩy một lúc!",
+      "vietnameseHint": "Hô: Push the stone pillar with all strength!",
+      "targetPhrase": "Push the stone pillar with all strength",
+      "targetKeywords": [
+        "push",
+        "stone pillar",
+        "all strength",
+        "push the stone pillar with all strength"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "Push the stone pillar with all strength, heave!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "Pull the rope in the opposite direction!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Let go of the handles immediately!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Thalor: Push the stone pillar with all strength!",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": null,
+      "completed": false
+    },
+    {
+      "id": 4,
+      "title": "Thu thập Mảnh bản đồ 6 & Mở Cổng Atlantis",
+      "skill": "Nói & Nghe (Speak & Listen)",
+      "desc": "Nói lời tuyên thệ trước Người canh cổng để nhận Mảnh bản đồ 6 và hoàn thành Chương 1.",
+      "interactionType": "speak",
+      "npc": "Bệ Tuyên Thệ Hoàng Gia",
+      "npcDialogue": "Archon Thalor: Hãy dõng dạc xướng lời tuyên thệ trước toàn thể tiền nhân Atlantis!",
+      "vietnameseHint": "Tuyên thệ: We swear to protect the secrets of Atlantis.",
+      "targetPhrase": "We swear to protect the secrets of Atlantis",
+      "targetKeywords": [
+        "we swear",
+        "protect",
+        "secrets of atlantis",
+        "we swear to protect the secrets of atlantis"
+      ],
+      "options": [
+        {
+          "key": "A",
+          "text": "We swear to protect the secrets of Atlantis forever!",
+          "isCorrect": true
+        },
+        {
+          "key": "B",
+          "text": "We swear nothing and will tell everyone about this place!",
+          "isCorrect": false
+        },
+        {
+          "key": "C",
+          "text": "Goodbye, we are leaving without entering!",
+          "isCorrect": false
+        }
+      ],
+      "hint": "Bí quyết Thalor: We swear to protect the secrets of Atlantis",
+      "energyPenalty": 2,
+      "rewardSkillPts": 50,
+      "rewardExp": 50,
+      "reward": "map_shard_06",
+      "completed": false
+    }
+  ]
+}

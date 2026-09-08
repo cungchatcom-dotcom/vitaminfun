@@ -29,6 +29,12 @@ structlog==25.*
 # việc vẽ: game vẽ bằng Phaser ở trình duyệt.
 Pillow==12.3.*
 
+# --- Bang tinh ---
+# Doc file .xlsx cua bo phan noi dung (sheet Questions / Stage-Quests). Tu viet
+# bo doc zip+XML thi ~60 dong, nhung phai tu lo chuoi dung chung, chuoi inline,
+# o trong lam lech cot va dinh dang so — dung thu vien co san re hon nhieu.
+openpyxl==3.1.*
+
 # --- Test ---
 pytest==8.3.*
 pytest-asyncio==0.25.*

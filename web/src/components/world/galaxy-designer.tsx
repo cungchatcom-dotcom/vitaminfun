@@ -20,10 +20,12 @@ import {
 import { ApiError } from '@/lib/api-error';
 import { ownText, pickText } from '@/lib/i18n-text';
 import { listGalaxies, updateGalaxy, type Galaxy } from '@/lib/galaxies';
-import { AUDIO_ACCEPT, IMAGE_ACCEPT, uploadMedia } from '@/lib/media';
+import { BACKGROUND_ACCEPT, IMAGE_ACCEPT, uploadMedia } from '@/lib/media';
 import { localizedPath } from '@/lib/routes';
 import { createWorld, listWorlds, updateWorld, type World } from '@/lib/worlds';
 
+import { AudioPanel } from './audio-panel';
+import { BackgroundLayer } from '@/components/game/background-layer';
 import { FrameTextFields, MediaPicker } from './designer-fields';
 import { GalaxyFrame } from './galaxy-frame';
 import { PulseFields } from './pulse-fields';
@@ -71,7 +73,7 @@ export function GalaxyDesigner() {
   //: World đang bị rê chuột. Chỉ để XEM TRƯỚC chữ trong hai cái khung — bên
   //: học sinh rê chuột là chữ đổi, nên bên soạn cũng phải thấy đúng như vậy.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState<'background' | 'music' | 'title' | 'desc' | null>(
+  const [uploading, setUploading] = useState<'background' | 'title' | 'desc' | null>(
     null,
   );
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -166,10 +168,10 @@ export function GalaxyDesigner() {
 
   // ---------------------------------------------------------------- tải file
 
-  async function uploadFor(kind: 'background' | 'music' | 'title' | 'desc', file: File) {
+  async function uploadFor(kind: 'background' | 'title' | 'desc', file: File) {
     setUploading(kind);
     try {
-      const asset = await uploadMedia(file, kind === 'music' ? 'galaxy-music' : 'galaxy');
+      const asset = await uploadMedia(file, 'galaxy');
       // Tên cột đúng bằng `${kind}_media_id` cho cả bốn — không cần một cây
       // `if` bốn nhánh nói lại đúng cái mà cái tên đã nói.
       await patchGalaxy({ [`${kind}_media_id`]: asset.id });
@@ -306,12 +308,10 @@ export function GalaxyDesigner() {
             }}
           >
             {galaxy.background_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={galaxy.background_url}
-                alt=""
+              <BackgroundLayer
+                url={galaxy.background_url}
+                kind={galaxy.background_kind}
                 className="pointer-events-none absolute inset-0 size-full object-cover"
-                draggable={false}
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-linear-to-b from-abyss-950 to-abyss-800 text-sm text-slate-500">
@@ -504,42 +504,33 @@ export function GalaxyDesigner() {
 
             <MediaPicker
               label={t('galaxy.designer.background')}
-              accept={IMAGE_ACCEPT}
+              accept={BACKGROUND_ACCEPT}
               busy={uploading === 'background'}
               hasValue={Boolean(galaxy.background_media_id)}
               onPick={(file) => void uploadFor('background', file)}
               onClear={() => void patchGalaxy({ clear_background: true })}
               preview={
                 galaxy.background_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={galaxy.background_url}
-                    alt=""
+                  <BackgroundLayer
+                    url={galaxy.background_url}
+                    kind={galaxy.background_kind}
+                    still
                     className="mb-2 h-20 w-full rounded-lg border border-abyss-700 object-cover"
                   />
                 ) : null
               }
             />
-
-            <div className="mt-3">
-              <MediaPicker
-                label={t('galaxy.designer.music')}
-                accept={AUDIO_ACCEPT}
-                busy={uploading === 'music'}
-                hasValue={Boolean(galaxy.music_media_id)}
-                onPick={(file) => void uploadFor('music', file)}
-                onClear={() => void patchGalaxy({ clear_music: true })}
-                preview={
-                  galaxy.music_url ? (
-                    // Nghe thử ngay tại đây. Không tự phát: nhạc bật lên bất
-                    // ngờ trong lúc soạn bài là thứ ai cũng vội tắt.
-                    // eslint-disable-next-line jsx-a11y/media-has-caption
-                    <audio src={galaxy.music_url} controls className="mb-2 w-full" />
-                  ) : null
-                }
-              />
-            </div>
           </Card>
+
+          <AudioPanel
+            backgroundKind={galaxy.background_kind}
+            surface="galaxy"
+            audio={galaxy.audio ?? {}}
+            audioUrls={galaxy.audio_urls ?? {}}
+            audioNames={galaxy.audio_names ?? {}}
+            onSave={(slot, track) => patchGalaxy({ audio: { [slot]: track } })}
+            onError={setErrorKey}
+          />
 
           <Card>
             <SectionTitle>{t('galaxy.designer.frames')}</SectionTitle>

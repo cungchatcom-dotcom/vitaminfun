@@ -53,8 +53,29 @@ export const GAME_EVENTS = {
   QUEST_ZONE_LEFT: 'QUEST_ZONE_LEFT',
   /** React: một nhiệm vụ vừa hoàn thành. payload: { questId } */
   QUEST_COMPLETED: 'QUEST_COMPLETED',
+  /**
+   * React: vừa qua được nhiệm vụ NPC, các nhiệm vụ còn lại mở khoá.
+   *
+   * Sự kiện riêng chứ không suy ra từ `QUEST_COMPLETED`: cảnh Phaser không biết
+   * nhiệm vụ nào là NPC, và cũng không nên biết — nó chỉ vẽ, còn luật mở khoá
+   * thì server quyết và React chuyển lời.
+   */
+  QUESTS_UNLOCKED: 'QUESTS_UNLOCKED',
   /** React: cả màn đã thắng. */
   STAGE_WON: 'STAGE_WON',
   /** Phaser: vị trí người chơi đổi. payload: { x, y } */
   PLAYER_MOVED: 'PLAYER_MOVED',
+  /**
+   * Phaser: cảnh đã dựng xong và MỌI tài sản đã nạp — ảnh nền, biểu tượng
+   * nhiệm vụ, spritesheet nhân vật, tiếng.
+   *
+   * Bắn ở cuối `create()`, tức là sau khi `preload()` đã kéo về hết. Video mở
+   * màn đợi đúng sự kiện này để biết lúc nào kéo màn ra: hết video mà cảnh chưa
+   * xong thì tấm màn ở lại thêm một nhịp, còn hơn kéo ra để lộ một khung hình
+   * trống — đó chính là cái nó sinh ra để che.
+   *
+   * Không payload: chỉ có một cảnh trên màn hình, và "cảnh nào" là câu hỏi
+   * không tồn tại.
+   */
+  STAGE_READY: 'STAGE_READY',
 } as const;

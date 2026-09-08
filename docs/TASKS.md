@@ -1912,6 +1912,422 @@ khung — **hai người mà hàng vẫn đúng cỡ của mười**. Đo mép: 
 trái, điểm sát mép phải, tên chiếm khoảng giữa. Trình thiết kế hiện đủ **mười
 hàng mẫu** Mia…Nam.
 
+### Bước 6w — Thêm màn chơi: bấm một cái là vào thẳng màn chỉnh sửa
+
+Trước đây bấm **Thêm màn** mở ra một cái hộp hỏi ba ô — tên màn, `scene_key`,
+tên NPC — rồi mới tạo. Giờ bấm một cái là **tạo ngay và đi thẳng vào màn chỉnh
+sửa**. Không còn hộp nào.
+
+Ba ô đó không giữ được ô nào:
+
+| Ô | Vì sao bỏ |
+|---|---|
+| `scene_key` | **Không chỗ nào đọc tới nó.** Nó có từ thời mỗi màn là một lớp cảnh Phaser viết tay riêng; giờ cả trò chơi chạy trên MỘT lớp cảnh dựng từ dữ liệu. Server tự điền `DEFAULT_SCENE_KEY` |
+| Tên NPC (`advisor_npc_key`) | Trùng lặp. Cái tên học sinh nhìn thấy là tên của **nhiệm vụ NPC**, sửa ngay trong sơ đồ màn |
+| Tên màn | Đằng nào người dựng cũng đổi sau khi nhìn thấy màn chơi thật |
+
+Bắt trả lời ba câu trước khi được nhìn thấy thứ mình vừa tạo là dựng một cái
+cổng không canh gì cả.
+
+**`scene_key` không làm gì — bằng chứng.** Một màn từng bị gõ nhầm thành
+`ship_desk_01` (desk, chứ không phải deck) và **không ai phát hiện ra**, vì
+không có gì đọc nó để mà hỏng. Đã sửa lại trong database nhân tiện. Cột thì
+**giữ**, không xoá: nếu sau này có loại cảnh thứ hai (bản đồ nhìn từ trên xuống,
+màn chỉ hội thoại...) thì đây đúng là chỗ đánh dấu, và thêm lại một cột đã xoá
+đắt hơn nhiều so với để nó nằm im. Nó chỉ thôi **bắt buộc**.
+
+**Tên mặc định `Stage N`** lấy theo số thứ tự, sửa tại chỗ ngay ở tiêu đề màn
+chỉnh sửa. Chuỗi nằm ở `messages/` chứ không sinh ở server: nó là chữ hiển thị,
+mà server thì không biết người dựng đang xem bằng ngôn ngữ nào.
+
+**Tên NPC mặc định là `NPC`**, cũng sửa tại chỗ, ngay ở hàng nhiệm vụ NPC trong
+sơ đồ màn. Nhiệm vụ NPC sinh ra với `name_i18n` RỖNG và giao diện lùi về nhãn đã
+dịch — chôn sẵn chữ vào một hàng `quests` là chôn luôn khả năng dịch nó.
+
+> Hàng nhiệm vụ NPC sửa **tên hiển thị**, hàng nhiệm vụ thường sửa **khoá vật
+> thể**. Khoá vật thể của NPC cố định là `npc` (cảnh và migration đều gọi đúng
+> cái tên đó), nên ô sửa ở hàng đó phải trỏ vào thứ duy nhất còn đổi được — và
+> cũng là thứ học sinh thật sự nhìn thấy.
+
+`InlineName` (`components/ui/inline-name.tsx`) gom hai chỗ sửa tại chỗ về một
+mối: gạch chân chấm chấm nói chữ này bấm được, rời ô hoặc Enter là lưu, Escape
+là huỷ, **rỗng thì huỷ chứ không lưu** — một màn chơi không tên thì không tra ra
+được ở bất cứ danh sách nào.
+
+**Nghiệm thu.** Bấm "+ Thêm màn" ở chương 1 → URL nhảy thẳng sang
+`/stages/<id>`, tiêu đề `Stage 2`, sơ đồ đã có sẵn `#0 NPC` với huy hiệu *Hội
+thoại NPC* + *🔒 Bắt buộc*. Bấm tiêu đề, gõ "Bão ngoài khơi", Enter → tiêu đề và
+breadcrumb đổi theo. Bấm chữ `NPC`, gõ "Thuyền trưởng Drake", Enter → đổi theo.
+Đọc thẳng database: `name_i18n = {"vi": "Bão ngoài khơi"}`, `scene_key =
+"default"` (server điền), `advisor_npc_key = NULL` (không còn ai hỏi), nhiệm vụ
+`(#0, advisor, npc)` với `name_i18n = {"vi": "Thuyền trưởng Drake"}`.
+
+### Bước 6x — Chọn nhiệm vụ bằng cả thẻ, và điểm qua ải luôn hiện số
+
+Hai lỗi ở sơ đồ màn chơi, do người dùng báo.
+
+**1. Bấm vào thẻ nhiệm vụ thỉnh thoảng không ăn.** Chỉ mỗi cái `<button>` bọc
+hàng huy hiệu là bấm được; bấm vào phần NỀN của thẻ thì không có gì xảy ra. Cộng
+thêm việc `onSelect` là BẬT/TẮT, nên bấm trúng rồi bấm trượt rồi lại bấm trúng
+thành ra chọn xong bỏ chọn — người dùng thấy *"phải bấm đi bấm lại mấy lần"*, và
+họ đọc đúng: nó hỏng thật.
+
+Giờ **cả thẻ** nhận cú bấm. Những vùng có việc riêng chặn nổi bọt, và chặn ở
+**thẻ bao** chứ không ở từng cái nút: thêm một nút mới vào đó sau này thì nó
+được chặn sẵn, không phải nhớ.
+
+| Vùng | Vì sao chặn |
+|---|---|
+| Tên nhiệm vụ | Bấm vào là mở ô sửa. Nó tự gọi `onSelect` khi thẻ chưa được chọn, nên để nổi bọt là gọi hai lần = bật rồi tắt |
+| Danh sách câu hỏi (`<ol>`) | Sửa điểm, xem câu, gỡ câu |
+| Hàng nút dưới (`<div>`) | Đổi giai đoạn, điểm qua ải, gỡ nhiệm vụ |
+
+Giữ nguyên nét bật/tắt: bấm lại đúng thẻ đang chọn là bỏ chọn, để quay về chế độ
+"tạo nhiệm vụ mới" ở cột phải.
+
+**2. Ô Điểm qua ải để trống.** Tổng điểm chỉ nằm ở placeholder mờ, nên người
+dựng nhìn vào một ô rỗng thì không biết luật đang là gì — mà "trống nghĩa là
+phải đúng hết" là thứ không ai đoán ra được.
+
+Giờ ô **luôn hiện một con số**, mặc định là điểm tối đa của nhiệm vụ. Bên dưới
+vẫn là `pass_score = NULL` khi con số bằng đúng tổng điểm — gõ đúng bằng tổng
+cũng lưu NULL, và xoá trắng cũng vậy. Giữ NULL thì thêm một câu hỏi vào nhiệm vụ
+là ngưỡng tự đi theo; ghim cứng 30 rồi thêm câu thứ tư thành 40 điểm là bỗng
+dưng qua ải dễ đi mà không ai đụng vào nó.
+
+Sửa ở cả hai chỗ có ô này: sơ đồ màn (`PassScoreInput`) và hộp soạn nhiệm vụ.
+
+**Nghiệm thu.** Bấm vào **nền** thẻ `#2` (toạ độ 51,553 — vùng đệm, trước đây
+bấm không ăn) → chọn `#2`. Bấm nền thẻ `#3` → chuyển sang `#3`, không phải tắt.
+Bấm lại đúng chỗ đó → bỏ chọn. Bấm ô Điểm qua ải của thẻ đang chọn → ô nhận con
+trỏ và thẻ **vẫn** được chọn. Bấm tên `q3` khi chưa chọn gì → mở ô sửa VÀ chọn
+`#4`, đúng một lần. Bốn thẻ đều hiện `Điểm qua ải 10` thay vì ô trống. Gõ `7` →
+database lưu `pass_score = 7`; gõ lại `10` (bằng tổng) → về `NULL`.
+
+### Bước 6y — Nhóm khối phòng chờ: phóng cùng nhau, kéo cùng nhau
+
+Khối `character` và khối `stats` mỗi cái có các KHỐI CON — dòng mô tả nhân vật,
+năm con số thành tích. Chúng nằm rời nhau trong DOM, mỗi cái là một hộp đặt theo
+toạ độ thế giới, kéo riêng được. Nhưng với người chơi thì chúng là MỘT thứ:
+
+- **Rê chuột vào một khối là cả nhóm phóng**, cùng một tỉ lệ, mỗi khối nở ĐỀU
+  quanh tâm của chính nó.
+- **Kéo khối cha là các khối con đi theo** đúng bấy nhiêu — cả khi kéo chuột lẫn
+  khi gõ toạ độ vào ô số ở bảng thuộc tính.
+
+Danh sách nhóm ở `LOBBY_GROUPS` trong `web/src/game/world.ts`, cạnh sổ đăng ký —
+cùng nếp với `LOBBY_ACTION_KEYS` và `LOBBY_STAT_KEYS`.
+
+**Một hướng đi sai đã thử rồi bỏ.** Bản đầu cho cả nhóm nở ra như một mảng CỨNG,
+quanh tâm khối cha — nghe hợp lý, vì con số sẽ dính chặt vào cái ô vẽ trên tấm
+khung. Nhưng nhìn thì sai, và đo ra được: khối con nằm lệch phải tâm cha nở
+**0,74 điểm ảnh bên trái và 1,97 bên phải**; khối con nằm trên thì mép dưới THỤT
+VÀO (−2,54) trong lúc mép trên vọt lên (+3,37). Nó không đọc ra là *to lên*, nó
+đọc ra là *trượt đi* — đúng như người dùng báo: "hình như đang zoom sang trái".
+
+Giờ mỗi khối nở quanh tâm của chính nó. Cái giá phải trả: con số xê dịch so với
+hoa văn trên tấm khung đúng `(tỉ lệ − 1) × khoảng cách tới tâm khung` — một con
+số cách tâm 200 đơn vị lệch 6 đơn vị thế giới, cỡ hơn một điểm ảnh. Đổi một điểm
+ảnh lệch lấy việc mọi khối đều nở đều là cuộc đổi chác đáng.
+
+**Cách bắt sự kiện.** Không bọc cả nhóm vào một thẻ chung: thẻ chung phải to bằng
+hộp bao cả nhóm, và khoảng trống giữa các khối con trong hộp đó sẽ nuốt mất cú rê
+dành cho thứ nằm bên dưới. Thay vào đó mỗi khối tự nghe
+`pointerenter`/`pointerleave` và báo về một trạng thái chung `hoveredGroup`.
+
+> Rời khối này sang khối anh em thì KHÔNG tắt: `pointerleave` của cái này chạy
+> trước `pointerenter` của cái kia, nên tắt vô điều kiện là cả nhóm co lại rồi
+> phồng lên trong một khung hình. Kiểm bằng `relatedTarget`.
+
+**Sửa luôn một lỗi CÓ TỪ TRƯỚC — và đây mới là cái "zoom sang trái" gốc.** Phép
+phóng cũ dùng lớp `hover:scale-*` của Tailwind, tức thuộc tính `scale:` riêng của
+CSS. Thứ tự hợp thành mà trình duyệt áp là `translate → rotate → scale →
+transform`, nên cái `translate(-50%, -50%)` căn giữa bị NHÂN với tỉ lệ phóng:
+khối phóng 1,03 thì tâm nó trôi lên trái đúng 1,5% kích thước của chính nó. Trên
+tấm khung thành tích 193×279 điểm ảnh là gần 3×4 điểm — khối *trượt sang trái*
+thay vì *nở ra tại chỗ*. Viết `transform: translate(...) scale(...)` thì phép căn
+giữa chạy trước và không bị nhân.
+
+**Đổi KÍCH THƯỚC khối cha vẫn chỉ đổi của riêng nó.** Khung to ra thì các con số
+bên trong vẫn ở đúng chỗ đã căn — đó là điều người dựng mong đợi khi kéo một cái
+tay cầm ở góc. Chỉ có phép DỜI mới kéo theo cả nhóm.
+
+**Nghiệm thu.** Đo bốn CẠNH (không phải tâm) của cả sáu khối nhóm `stats`, ghi
+lại bằng `MutationObserver` để không phải đo trong lúc con trỏ đang đứng trên
+khối:
+
+| Khối | nở trái | nở phải | nở trên | nở dưới | tỉ lệ |
+|---|---|---|---|---|---|
+| `stats` (cha) | 2,89 | 2,90 | 4,18 | 4,17 | 1,030 |
+| con 1 | 1,35 | 1,36 | 0,41 | 0,42 | 1,030 |
+| con 2 | 1,27 | 1,27 | 0,41 | 0,41 | 1,030 |
+| con 3 | 1,40 | 1,39 | 0,42 | 0,41 | 1,030 |
+| con 4 | 1,33 | 1,33 | 0,41 | 0,41 | 1,030 |
+| con 5 | 1,22 | 1,22 | 0,42 | 0,41 | 1,030 |
+
+Mọi cặp cạnh đối xứng trong vòng 0,01 điểm ảnh, mọi tỉ lệ đúng 1,03. Kéo khung
+`stats` đi (+191, +95) → cả năm con số dịch đúng (+191, +95). Gõ `x = 511` vào ô
+số của khối cha (lệch +100) → cả năm dịch đúng +100, `y` đứng yên. Dữ liệu đã trả
+về vị trí ban đầu sau khi thử.
+
+### Bước 6z — Phòng chờ học sinh: chỉ còn giao diện đồ hoạ
+
+Bỏ danh sách chương và màn chơi dạng thẻ chữ nằm dưới khung phòng chờ, bỏ luôn
+tiêu đề trang. Cả hai nói lại đúng những gì cái khung phía trên đã vẽ: tên world
+và cốt truyện nằm trong khung tiêu đề, điểm chiến lực và số mảnh bản đồ nằm ở
+bảng thành tích, chương thì có hàng chương bấm vào là mở bản đồ chương.
+
+Hai bản của cùng một thứ trên cùng một màn hình thì bản nào cũng làm yếu bản kia:
+người dựng căn tấm khung cho đẹp, rồi ngay bên dưới là một danh sách chữ không
+liên quan gì tới nó. Giữ đúng MỘT bản, và bản đó là cái người dựng dựng.
+
+**Giữ lại hai thứ.** Vụn đường dẫn — nó là lối ra, không phải bản sao: khung
+phòng chờ có nút về bản đồ thiên hà nhưng không có đường về danh sách world. Và
+dòng báo mở được Cánh cổng Thời gian — một trạng thái mà tấm khung không vẽ.
+
+**Đường vào màn chơi không mất:** bấm một chương ở hàng chương là mở
+`ChapterMinimap`, mỗi màn trong đó dẫn thẳng tới `/play/stage/{id}`. Đã kiểm.
+
+Gỡ luôn mười khoá chữ chỉ phục vụ danh sách vừa bỏ (`play.bestScore`,
+`play.completed`, `play.mapShards`, `play.noStagesYet`, `play.play`,
+`play.playAgain`, `play.quests`, `play.shard`, `play.skillPts`,
+`play.enterWorld`) — khoá không ai đọc là thứ lần sau có người sửa nhầm mà không
+biết mình vừa sửa cái gì.
+
+### Bước 6aa — Ướm cỡ nhân vật cho từng màn chơi
+
+Nhân vật vẫn luôn cao **160 đơn vị thế giới** — một hằng số nằm trong
+`StageScene.ts`. Nhưng mỗi ảnh nền một tỉ lệ khác nhau: boong tàu vẽ cận cảnh
+thì nhân vật 160 đơn vị trông bé xíu, quảng trường vẽ từ xa thì nó to như kho
+lúa. Giờ người dựng ướm được, ngay trong trình thiết kế đồ hoạ của màn.
+
+**Cột mới `stages.character_height`** (migration `0023_character_height`),
+nullable. `NULL` = **kế thừa**, và `effective_character_height()` giải ba nấc,
+dừng ở nấc đầu tiên có giá trị:
+
+1. số của chính màn này,
+2. số của màn **đầu tiên** trong world (chương nhỏ nhất, thứ tự nhỏ nhất),
+3. `DEFAULT_CHARACTER_HEIGHT = 160`.
+
+Nấc thứ hai là chỗ luật *"cỡ ở màn 1 làm mặc định cho cả world"* thành mã. Đọc
+**lúc cần** chứ không sao chép sẵn xuống từng màn: sao chép thì sửa lại màn 1
+sau đó không lan xuống đâu nữa, mà lan xuống mới là điều người dựng muốn.
+
+**Lưu chiều CAO, không lưu bề rộng.** Mỗi nhân vật một khổ spritesheet khác
+nhau, nhưng thứ người chơi so sánh là *"cao bằng chừng nào so với vật thể quanh
+mình"*. Ghim bề rộng thì nhân vật gầy cao vống lên còn nhân vật mập thì lùn tịt.
+Vì vậy trình thiết kế đọc `size.h` từ cú kéo — ngược với vật thể nhiệm vụ, thứ
+lưu `size.w` vì ảnh của nó giữ tỉ lệ gốc theo bề rộng.
+
+**Trong trình thiết kế.** Nhân vật **đầu tiên** của world hiện ở **giữa map**,
+không kéo đi được, chỉ **một tay cầm ở góc** để đổi cỡ; thả tay là lưu. Lấy con
+đầu tiên là đủ: người dựng cần một hình người có tỉ lệ đúng đứng cạnh cảnh, chứ
+không cần đúng con học sinh sẽ chọn — mà cũng không đoán trước được. Cảnh chơi
+đặt cỡ mọi nhân vật theo **cùng một chiều cao**, nên căn theo con nào cũng ra
+cùng kết quả.
+
+Vẽ **đúng một khung**, không chạy hoạt hình: đây là cái thước, mà một cái thước
+đang nhấp nháy thì khó ướm. Mẹo `background-size: (số khung × 100%)` cắt lấy
+khung đầu và kéo vừa khít thẻ — cùng nguyên lý Phaser dùng, nhưng theo PHẦN TRĂM
+nên nó co giãn theo khung soạn mà không cần đo pixel.
+
+Nhân vật vẽ **trước** các vật thể nhiệm vụ nên nằm **dưới** chúng: nó là thước
+đo, không phải nội dung của màn, và không được che thứ người dựng đang sắp đặt.
+
+**Có đường quay lại.** Thẻ *Cỡ nhân vật* ở cột phải nói rõ màn đang **kế thừa**
+hay đã có **số riêng**, và khi có số riêng thì hiện nút *Về lại kế thừa*
+(`clear_character_height`, cùng nếp với `clear_pass_score`). Không có nó thì cú
+kéo đầu tiên là cánh cửa một chiều: lỡ tay kéo ở màn 7 là màn 7 vĩnh viễn không
+theo màn 1 nữa.
+
+**Đóng băng vào đề bài.** `snapshot.stage.character_height` mang số đã giải
+xong kế thừa, nên người dựng chỉnh giữa chừng thì lượt đang chơi vẫn vẽ nhân vật
+đúng cỡ nó bắt đầu. `HERO_HEIGHT` trong cảnh chỉ còn là đường lùi cho các lượt
+đóng băng từ trước khi trường này ra đời.
+
+**Nghiệm thu.** Mở trình thiết kế màn 1: nhân vật hiện giữa map, thẻ bên phải ghi
+`160 · Đang kế thừa`. Kéo tay cầm góc → panel đổi sang `272`, database ghi
+`character_height = 272` cho ĐÚNG màn 1. Hỏi API màn 2 và màn 5: `character_height
+= null` nhưng `character_height_effective = 272` — kế thừa chạy. Đặt riêng `420`
+cho màn 2 → màn 2 dùng 420, màn 1 vẫn 272, màn 5 vẫn kế thừa 272. Gọi
+`clear_character_height` cho màn 2 → về `null`, dùng lại 272. Gửi `5000` → 422
+`VALIDATION_FAILED` đúng trường `character_height`. Vào chơi màn 5: đề bài đóng
+băng mang `character_height: 272`. Dữ liệu đã trả về `NULL` hết sau khi thử.
+
+> ⚠️ **Ghi chú về cách nghiệm thu.** Cú bấm đơn của công cụ điều khiển trình
+> duyệt không sinh `pointerdown`, nên nó không chọn được vật thể nào trong trình
+> thiết kế — kể cả vật thể nhiệm vụ vốn đã chạy từ lâu. Đó là hạn chế của công
+> cụ, không phải của màn hình; phần kéo được nghiệm thu bằng chuỗi sự kiện
+> `pointerdown → pointermove → pointerup` bắn thẳng vào đúng những chỗ
+> `useDesignBoard` nghe.
+
+### Bước 6ab — Màn chơi: bỏ thanh tiến độ đội ở chân màn hình
+
+Thanh này liệt kê tên từng người kèm một dãy chấm "ai xong nhiệm vụ nào". Chơi
+một mình — mà hiện giờ chỉ có chơi một mình, phòng nhiều người là việc của Bước
+7 — thì nó chỉ còn đúng tên người đang ngồi trước màn hình, cộng một dãy chấm
+lặp lại thứ mà bộ đếm `Nhiệm vụ 1/4` trên thanh đầu đã nói. Nó ăn một dải chiều
+cao của cảnh chơi để nói lại một điều.
+
+Dựng lại ở **Bước 7**, khi trong phòng thật sự có người khác để mà theo dõi. Dữ
+liệu vẫn còn nguyên ở `run.team`, không đụng gì tới server.
+
+### Bước 6ac — Đáp án nháp, chấm cả nhiệm vụ, và chơi tiếp lượt đang dở
+
+Ba thay đổi đi cùng nhau, vì chúng là ba mặt của một chuyện: **một lượt chơi dở
+dang không được biến mất**.
+
+#### 1. Chấm CẢ NHIỆM VỤ, không chấm từng câu
+
+Một nhiệm vụ là MỘT việc — nói chuyện xong với thuyền trưởng, sửa xong cái cột
+buồm. Người chơi phải được xem hết các câu, sửa lại, rồi mới chốt. Chấm ngay
+từng câu thì câu một đã khoá lại trước khi họ kịp đọc câu bốn.
+
+| | Trước | Sau |
+|---|---|---|
+| Endpoint | `POST .../questions/{id}/answer` | `PUT .../questions/{id}/draft` + `POST .../quests/{id}/submit` |
+| Lúc chấm | Mỗi lần nộp một câu | Một lần cho cả nhiệm vụ |
+| Sửa lại đáp án | Không — chấm rồi là xong | Được, tới lúc bấm Nộp bài |
+
+**Một lần nộp nhiệm vụ = một lượt thử cho MỖI câu chưa đúng.** Câu đã đúng thì
+bỏ qua, không chấm lại và không tiêu lượt — giữ nguyên luật "đúng rồi thì thôi"
+mà chỉ số một phần `uq_quest_answers_correct_once` đang cưỡng chế ở database.
+Câu **không có nháp** thì cũng không chấm: bỏ trống không phải là trả lời sai, và
+tính nó là sai thì người chơi mất một lượt cho câu họ chưa kịp xem.
+
+`attempts_left` trả về giờ là của cả nhiệm vụ, lấy theo câu còn NHIỀU lượt nhất —
+một câu đã cạn lượt không được làm cả nhiệm vụ đóng lại khi những câu khác vẫn
+còn cơ hội gỡ điểm.
+
+#### 2. Bảng `quest_drafts` — bài đã chọn nhưng chưa nộp
+
+Migration `0024_quest_drafts`. Một dòng cho mỗi (lượt chơi, người, câu hỏi), ghi
+đè tự do. `UNIQUE(stage_run_id, user_id, question_id)` — **không** có `quest_id`
+trong khoá: một câu chỉ thuộc một nhiệm vụ trong cùng một đề đã đóng băng, nên
+thêm nó vào khoá là mở đường cho hai bản nháp của cùng một câu.
+
+**Bảng NHÁP, không phải bảng điểm.** Không `score`, không `is_correct`, không
+`attempt_no`. Chấm điểm vẫn là `quest_answers` — nhật ký từng lần thử, không ghi
+đè. Gộp hai thứ vào một bảng thì mất lịch sử số lần thử, mà đó là thứ cả công
+thức tính điểm dựa vào.
+
+**Lưu ở SERVER chứ không ở máy.** `localStorage` thì đổi máy là mất, và cũng
+chẳng có gì bảo đảm nó còn đó.
+
+**Lưu lúc nào:** rời một câu sang câu khác, đóng bảng, và **ngưng thao tác 800ms**.
+Cái thứ ba không có trong yêu cầu nhưng thiếu nó thì hụt mất đúng cái mục đích:
+một nhiệm vụ chỉ có MỘT câu thì không bao giờ có cú chuyển câu nào, và người chơi
+chọn xong rồi ngồi đọc lại đề mà mất mạng thì mất trắng. 800ms đủ dài để một lượt
+gõ vào ô tự luận không bắn mỗi ký tự một request, đủ ngắn để "vừa chọn xong thì
+mất điện" vẫn kịp.
+
+`PUT` chứ không `POST`: gọi hai lần cùng một nội dung cho cùng một kết quả, và
+mạng chập chờn thì lần gửi lại không sinh ra bản nháp thứ hai.
+
+#### 3. `start_run`: chơi tiếp thay vì luôn mở lượt mới
+
+```
+lượt cũ còn `playing` của CHÍNH người này ở màn này?
+  ├─ còn giờ  → trả về đúng lượt đó
+  └─ hết giờ  → chốt thành `lost_time`, rồi mở lượt mới
+không có     → mở lượt mới
+```
+
+Trạng thái khôi phục được **toàn bộ** vì nó vốn ở server cả: đề bài trong
+`snapshot_json`, bài đã chấm ở `quest_answers`, bài đang dở ở `quest_drafts`,
+năng lượng ở `stage_run_players`, và đồng hồ đếm từ `started_at` chứ không từ lúc
+mở trang.
+
+**Màn đã THẮNG rồi vẫn chơi lại được**, và lần đó là lượt hoàn toàn mới — lượt cũ
+không còn `playing` nên không lọt vào nhánh chơi tiếp.
+
+Hết giờ thì **chốt** lượt cũ chứ không bỏ đó: một lượt "đang chơi" nằm lại mãi
+trong database là thứ mọi báo cáo về sau phải tự nhớ mà loại trừ. Việc này cũng
+tự dọn các lượt cũ còn treo từ trước — lần đầu vào lại mỗi màn là chúng được chốt.
+
+#### Nghiệm thu
+
+Qua API, trên nhiệm vụ `hull` có hai câu hỏi:
+
+| Bước | Kết quả |
+|---|---|
+| Gọi `start` hai lần liên tiếp | Cùng MỘT `run.id` — chơi tiếp, không mở lượt mới |
+| Lưu nháp câu 1 rồi đọc lại lượt chơi | `draft = {"selectedOptionId": "b"}` quay về đúng |
+| Sửa nháp câu 1 (`b` → `a`) | `quest_drafts` chỉ có một dòng, giá trị mới |
+| Nộp nhiệm vụ khi câu 2 chưa có nháp | Chỉ câu 1 được chấm; câu 2 **không** có dòng nào trong `quest_answers`, `attempts_left` vẫn 3 |
+| Trả lời câu 2 rồi nộp lại | `quest_completed: true`; câu 1 vẫn chỉ có `attempt_no = 1` — không chấm lại |
+| Đẩy `started_at` lùi 2 giờ rồi gọi `start` | Lượt cũ thành `lost_time`, lượt mới sinh ra với trạng thái sạch |
+
+Trên trình duyệt: chọn đáp án B ở nhiệm vụ NPC, **không** bấm Nộp bài, đợi một
+nhịp → `quest_drafts` đã có `{"selectedOptionId": "b"}`. **Đóng hẳn tab**, mở lại
+màn chơi → đồng hồ hiện `01:28` (chạy tiếp, không reset về `05:00`) và đáp án B
+vẫn đang được chọn. Đổi sang A rồi nộp → `✓ MISSION COMPLETE`, huy hiệu *Đã hoàn
+thành*, nhãn trong cảnh thành `⚓ Thuyền trưởng Drake ✓`, năng lượng được cấp
+`100/100`.
+
+#### 4. Nút Chơi ngay ở phòng chờ dẫn về màn đang dở
+
+`PlayWorldDetailOut.resume_stage_id` — màn người này đang chơi dở và **vẫn còn
+giờ**, hoặc `null`. Nút Chơi ngay ưu tiên nó, không có thì vẫn về màn mở cao
+nhất như trước.
+
+Không có nó thì người chơi đóng nhầm tab giữa chừng, vào lại phòng chờ, bấm Chơi
+ngay — và rơi vào màn mở CAO NHẤT, không phải màn họ đang làm dở. Cái nút hứa
+"chơi tiếp" mà lại dẫn đi chỗ khác.
+
+Chỉ trả về màn **còn giờ**: lượt đã hết giờ thì bấm vào cũng là bắt đầu lại từ
+đầu, nên dẫn người ta tới đó là hứa một thứ không có. Và đọc một phòng chờ thì
+**không ghi** vào database — lượt hết giờ được chốt ở `start_run`, đúng lúc người
+chơi thật sự quay lại màn đó.
+
+Chữ trên nút (`title`) nói rõ nó dẫn đi đâu khi đang có màn dở: cùng một cái nút
+mà hôm nay vào màn 7, mai vào màn 3, thì người chơi cần biết vì sao.
+
+| Trạng thái | `resume_stage_id` | Nút Chơi ngay vào |
+|---|---|---|
+| Không có lượt dở | `null` | Màn mở cao nhất |
+| Đang dở màn 1, còn giờ | màn 1 | **Màn 1** |
+| Lượt dở đã hết giờ | `null` | Màn mở cao nhất |
+
+Nghiệm thu cả ba dòng bằng API, rồi xem trên phòng chờ thật: `href` của nút đổi
+từ `/play/stage/01a041b9…` (màn mở cao nhất) sang `/play/stage/01a03740…` (màn
+đang dở), kèm chữ *"Chơi tiếp "Con bao bat ngo" — bạn đang dở màn này"*.
+
+#### 5. Chỗ đứng của nhân vật cũng được khôi phục
+
+`stage_run_players.pos_x` / `pos_y` (migration `0025_player_position`), toạ độ
+thế giới 3200×1800. `NULL` = chưa đi đâu, cảnh đặt ở chỗ xuất phát mặc định.
+
+Đặt ở `stage_run_players` chứ không ở `stage_progress`: một vị trí chỉ có nghĩa
+trong CẢNH của một lượt chơi. Lượt mới là một ván mới và nhân vật phải đứng lại
+ở vạch xuất phát — đúng nếp với mọi thứ khác của lượt chơi. Bảng này khoá theo
+(lượt chơi, người), mà lượt chơi thuộc về một màn — nên **"riêng từng học sinh ở
+từng màn" là hệ quả sẵn có**, không phải thêm cột.
+
+**Ghi mỗi 2 giây, không ghi mỗi bước.** `PLAYER_MOVED` bắn sau mỗi bước — kể cả
+giữa đường, kể cả từng khung hình khi giữ phím. Gửi thẳng là hàng trăm request
+cho một lần đi bộ. Chỉ giữ vị trí mới nhất rồi ghi theo nhịp; mất tối đa một
+nhịp nếu tab đóng đúng lúc, tức nhân vật lùi vài bước chứ không về vạch xuất
+phát.
+
+Cảnh Phaser chỉ **đặt** nhân vật vào chỗ đó lúc dựng rồi thôi — nó không tự nhớ
+và không tự lưu. Cảnh biết vẽ, không biết mạng; việc ghi xuống server là của
+React.
+
+Toạ độ bị **kẹp vào khung** ở cả hai đầu: Pydantic chặn ngoài 0..3200/0..1800
+(422), và service kẹp lại lần nữa. Đây là số do máy người chơi gửi lên, mà một
+con số ngoài khung sẽ đẩy nhân vật ra khỏi cảnh ở lần vào sau — không sập gì cả,
+chỉ là mất hút, tức kiểu hỏng khó lần ra nhất.
+
+**Nghiệm thu.** API: lưu `(2100, 1300)` → đọc lại đúng; gửi `x = 99999` → 422.
+Trên trình duyệt: vào màn mới, nhân vật ở chỗ mặc định; bấm sang góc phải dưới
+boong tàu, đợi một nhịp → `pos_x=2699, pos_y=1533` đã ở database; **đóng hẳn
+tab**, mở lại → nhân vật đứng đúng góc phải dưới đó, đồng hồ chạy tiếp `03:35`.
+
+**Còn nợ:** chưa có nút "chơi lại từ đầu" khi lượt cũ vẫn còn giờ. Muốn làm lại
+sạch thì phải bỏ dở (`POST /runs/{id}/abandon`) hoặc đợi hết giờ. Giao diện chưa
+có lối vào cho việc đó.
+
 ### Bước 7 — Phòng chơi & realtime
 
 - [ ] `ARCHITECTURE_REALTIME.md` — chốt protocol trước khi code
@@ -1959,6 +2375,213 @@ hàng mẫu** Mia…Nam.
 - World 2 (MAYA) và World 3 (Xuyên Việt)
 
 ---
+
+### Bước 6u — Nhiệm vụ NPC là cổng vào của mọi màn chơi
+
+Trước đây `phase = 'advisor'` chỉ là một lựa chọn: giáo viên tạo được một màn
+không có NPC nào, hoặc ba cái, và mọi nhiệm vụ mở sẵn từ giây đầu. Giờ nó là
+LUẬT:
+
+1. Mỗi màn có **đúng một** nhiệm vụ NPC. Chỉ số một phần
+   `uq_quests_stage_advisor` (`UNIQUE (stage_id) WHERE phase = 'advisor'`) chặn
+   cái thứ hai ngay ở database.
+2. Nhiệm vụ đó **sinh ra cùng lúc với màn chơi**, trong cùng một giao dịch —
+   giáo viên không phải bấm gì. Tách thành hai lệnh nối nhau thì lệnh thứ hai
+   hỏng là có một màn không cổng vào mà không ai biết.
+3. **Không xoá được, không hạ xuống nhiệm vụ thường.** Đổi tên, đổi ảnh, đổi vị
+   trí, thay câu hỏi bên trong thì vẫn được — cái khe thì phải còn.
+4. Mọi nhiệm vụ khác **khoá** cho tới khi người chơi qua được nó.
+
+**Vì sao đây không chỉ là chuyện dẫn dắt cốt truyện.** Luật chia mảnh bản đồ nói
+*mỗi thành viên phải hoàn thành ít nhất một nhiệm vụ thì cả đội mới được chia*.
+Trước đây không có gì bảo đảm điều đó: người thứ tư vào muộn có thể chạy thẳng
+tới cột buồm, thấy đồng đội làm hết rồi, và cả đội hỏng vì một người không kịp
+làm gì. Cổng NPC biến điều kiện đó thành hệ quả — ai cũng phải qua NPC, nên ai
+cũng có ít nhất một nhiệm vụ.
+
+**Khoá theo TỪNG NGƯỜI, không theo đội.** Đồng đội gặp NPC xong không mở khoá
+hộ được. Mở theo đội thì đúng cái lỗ hổng trên lại mở ra.
+
+**Chốt ở server.** `submit_answer` từ chối bài nộp vào nhiệm vụ đang khoá với mã
+`ADVISOR_LOCKED`. Che ở giao diện thì gọi thẳng API là lách được, mà lách được
+thì cái cổng không còn là luật chơi, chỉ là một gợi ý.
+
+**Giao diện.** `QuestProgress.locked` đi kèm mỗi nhiệm vụ trong `RunOut`. Cảnh
+Phaser gắn 🔒 vào **nhãn** của vật thể đang khoá, và **không làm mờ hình**: làm
+mờ là cách nói mơ hồ — một vật thể mờ còn đọc được là "đã xong", là "ở xa", hay
+chỉ là tấm ảnh giáo viên tải lên vốn đã nhạt. Cái ổ khoá nói đúng một điều và
+không nói gì khác, nên nó là đủ; bỏ lớp mờ đi thì ảnh nền và ảnh vật thể giữ
+nguyên được cái nhìn mà người dựng đã căn.
+
+> Cùng luật đó áp cho nhiệm vụ **ĐÃ XONG**: không làm mờ, chỉ gắn `✓` vào
+> **cuối** nhãn. Người dựng tải tấm ảnh lên và căn nó vào cảnh; hạ xuống nửa độ
+> sáng là sửa tác phẩm của họ để nói một điều mà dấu ✓ đã nói rõ hơn. Dấu ✓ cũng
+> chuyển vào NHÃN thay vì là một `text` 22px riêng trong hệ toạ độ thế giới —
+> camera thu về cỡ 0,3 lần nên nó ra chưa tới bảy điểm ảnh trên màn hình, gần
+> như vô hình. Nhãn thì đã có sẵn cơ chế giữ cỡ chữ không đổi theo mức thu phóng.
+>
+> Cuối nhãn chứ không đầu: đầu nhãn đã có `⚓` của NPC và `🔒` của nhiệm vụ đang
+> khoá, nên nhét thêm dấu thứ ba vào đó là đẩy cái TÊN — thứ người chơi thật sự
+> đọc — lùi mãi sang phải.
+
+**Dấu ✓ là của RIÊNG từng người.** `completedQuestIds` dựng từ `run.my_progress`,
+mà server tính nó chỉ từ bài làm của chính người gọi (`_run_out`:
+`mine = [... if a.user_id == user.id]`). Bốn người cùng một phòng thì mỗi máy
+thấy đúng dấu ✓ của mình — đó là luật §1.5 "kết quả từng người là độc lập" hiện
+thành hình ảnh. Ai xong nhiệm vụ nào của ĐỒNG ĐỘI là dữ liệu khác (`run.team`),
+và nó không được vẽ lên cảnh.
+
+Nghiệm thu bằng cách nhét hai người vào CÙNG một lượt chơi rồi hỏi API bằng hai
+tài khoản. Bé Minh qua NPC, Cô Lan chưa:
+
+| | Bé Minh | Cô Lan |
+|---|---|---|
+| nhiệm vụ NPC | **xong** | chưa xong |
+| ba nhiệm vụ chính | mở | **đang khoá** |
+| năng lượng | 100/100 | 0/0 |
+
+Cùng một lượt chơi, hai bức tranh khác nhau — dấu ✓, ổ khoá và năng lượng đều
+theo người, không theo phòng. Đi tới một vật thể đang khoá thì bảng
+vẫn **mở ra và nói vì sao**, có tên NPC phải gặp; im lặng không phản hồi đọc ra
+là hỏng chứ không phải là luật.
+
+> Ổ khoá nằm TRONG nhãn chứ không phải một ảnh riêng đặt phía trên. Nhãn đã có
+> sẵn cơ chế giữ cỡ chữ không đổi theo mức thu phóng của camera
+> (`rescaleLabels`); một ảnh riêng thì không, nên ở mức thu nhỏ nó co thành một
+> chấm. Tôi đã làm đúng cách sai đó trước, và trên màn hình không thấy gì cả.
+
+**Nhãn mặc định `Gặp NPC` nằm ở `messages/`, không nằm ở database.** Nhiệm vụ
+sinh tự động nên `name_i18n` rỗng; `questLabel()` lùi về nhãn đã dịch. Chôn sẵn
+chữ tiếng Việt vào một hàng `quests` là chôn luôn khả năng dịch nó.
+
+**Điều kiện xuất bản.** `STAGE_NO_ADVISOR` giờ kiểm **vô điều kiện**, không còn
+chỉ kiểm khi giáo viên đã gõ `advisor_npc_key`. Nhiệm vụ NPC vẫn **được tính**
+vào `MIN_QUESTS_PER_STAGE = 4`: nó là một nhiệm vụ thật — có câu hỏi, có điểm
+qua ải — chứ không phải một bước thủ tục.
+
+**Migration `0021_npc_gate`** làm hai nhịp, thứ tự quan trọng: (1) NÂNG nhiệm vụ
+đã mang khoá `npc` mà còn `phase = 'main'` lên `advisor`, giữ nguyên câu hỏi bên
+trong; (2) màn nào vẫn chưa có thì CHÈN một cái. Chèn trước là đụng
+`UNIQUE (stage_id, quest_object_key)`. `downgrade` chỉ gỡ chỉ số, **không xoá**
+các nhiệm vụ đã tạo — giáo viên có thể đã lắp câu hỏi vào chúng.
+
+**Nghiệm thu.** Năm màn có sẵn: sau migration mỗi màn đúng 1 `advisor` + n
+`main`; chèn tay cái thứ hai → `duplicate key ... uq_quests_stage_advisor`. Tạo
+màn mới qua API → có ngay `(#0, advisor, npc)`, và `STAGE_NO_ADVISOR` biến khỏi
+danh sách chặn xuất bản. Xoá nhiệm vụ NPC → 409 `ADVISOR_QUEST_REQUIRED`; hạ nó
+xuống `main` → 409 cùng mã; nâng nhiệm vụ thứ hai lên `advisor` → 409
+`ADVISOR_QUEST_EXISTS`; đổi tên nó → 200. Vào màn "Cơn bão bất ngờ" bằng tài
+khoản học sinh: `npc locked=False`, ba nhiệm vụ còn lại `locked=True`; nộp vào
+`mast` → 409 `ADVISOR_LOCKED`; làm xong NPC → cả ba về `locked=False` và nộp vào
+`mast` trả 200. Trên màn hình: ba nhãn `🔒 Cột buồm chính` / `🔒 Hòm báu cổ
+Atlantis` / `🔒 Thân tàu rạn nứt`, hình vật thể giữ nguyên độ sáng, bảng khoá
+hiện đúng câu *"Qua
+"Thuyền trưởng Drake" trước đã"*, và sau khi qua NPC thì cả ba ổ khoá biến mất,
+bộ đếm lên `1/4`.
+
+### Bước 6v — Năng lượng là của TỪNG NGƯỜI, cấp sau khi qua NPC
+
+Trả nợ Bước 8b, phần năng lượng. Trước đây năng lượng là một quỹ **chung cả
+đội**, cấp ngay lúc vào màn, và cạn quỹ là **cả đội thua** (`lost_energy`). Giờ:
+
+| | Trước | Sau |
+|---|---|---|
+| Thuộc về ai | Một quỹ chung cả đội (`stage_runs.team_energy_*`) | **Từng người** (`stage_run_players.energy_granted` / `energy_remaining`) |
+| Cấp lúc nào | Vào màn là có ngay | **Sau khi chính người đó qua nhiệm vụ NPC** |
+| Cấp bao nhiêu | `stages.initial_team_energy` | `stages.energy_per_player`, giáo viên đặt lúc dựng màn |
+| Trả lời sai | Trừ `energyCost.wrongAnswer` của cả đội | **Không trừ gì** |
+| Hết năng lượng | `status = 'lost_energy'`, cả đội chơi lại | **Không thua.** Chỉ mất quyền dùng trợ giúp |
+| Tiêu vào đâu | Trả lời sai | **Chỉ các hành động trợ giúp** (Dịch, nghe lại, xem text) |
+
+**Vì sao cấp SAU khi qua NPC.** NPC là cổng vào của màn (Bước 6u). Cấp trước thì
+người chơi tiêu hết vào các hành động trợ giúp ngay ở cửa, rồi bước vào phần
+chính với hai bàn tay trắng — mà phần chính mới là chỗ cần trợ giúp.
+
+**Chỉ cấp một lần.** `energy_granted > 0` vừa là số đã cấp vừa là cờ *đã cấp*:
+qua NPC là chuyện một chiều nên hai điều đó là một. Không có cái cờ này thì mỗi
+lần nộp thêm một câu của nhiệm vụ NPC (một nhiệm vụ chứa nhiều câu) lại nạp đầy
+bình thêm một lần nữa.
+
+**Vì sao bỏ trừ-khi-sai.** Trừ điểm khi trả lời sai là phạt việc dám thử, trong
+một trò chơi mà cả mục đích là để học sinh dám nói tiếng Anh. Trần **3 lượt thử**
+vẫn còn, và đó mới là cái chặn đoán bừa. Cột `quest_answers.energy_spent` giữ
+nguyên cho các hành động trợ giúp ghi vào sau này; hiện nó luôn bằng 0.
+
+**Vì sao bỏ `lost_energy`.** Để một người tiêu hết năng lượng làm **cả đội thua**
+là đúng thứ mà luật "kết quả từng người độc lập" sinh ra để loại trừ. Hết giờ
+giờ là cách thua duy nhất, và ràng buộc CHECK của `stage_runs.status` phản ánh
+điều đó.
+
+**Thưởng năng lượng khi thắng** (`energyBonus` trong `balance_json`) tính theo
+quỹ **của chính người đó**, không phải một con số chung — công thức Exp là công
+thức cá nhân, nên người tiêu dè sẻn không bị kéo xuống vì đồng đội xài hoang.
+Chưa được cấp (chưa qua NPC) thì không có thưởng: chia cho 0 là hỏng, mà cho họ
+100% cũng sai — họ chưa từng có bình nào.
+
+**`energy_per_player = 0` là hợp lệ** và có nghĩa: *màn này không có trợ giúp*.
+Ràng buộc cũ là `> 0`, giờ là `>= 0`.
+
+**Giao diện.** `my_energy_granted === 0` nghĩa là CHƯA QUA NPC, khác hẳn "đã cấp
+rồi và tiêu hết". Vẽ chung một thanh rỗng cho cả hai thì người chơi vừa vào màn
+nhìn thấy một vạch đỏ cạn kiệt và tưởng mình sắp hỏng chuyện gì đó. Nên chưa cấp
+thì HUD hiện chữ *"qua NPC để nhận"*, cấp rồi mới hiện thanh.
+
+**Migration `0022_personal_energy`.** Đổi tên `stages.initial_team_energy` →
+`energy_per_player`; thêm hai cột vào `stage_run_players`; bỏ hai cột năng lượng
+khỏi `stage_runs`; gỡ `'lost_energy'` khỏi CHECK. Backfill lấy thẳng số của CẢ
+ĐỘI làm số của mỗi người — không có cách đọc ngược chính xác từ một quỹ chung, và
+đây là dữ liệu lịch sử chỉ dùng để xem lại.
+
+**Nghiệm thu.** Vào màn "Cơn bão bất ngờ": `granted=0 remaining=0`, HUD hiện
+*"qua NPC để nhận"*. Trả lời SAI câu của NPC → `my_energy: 0`, còn 2 lượt thử,
+bảng phản hồi **không còn** dòng "mất năng lượng". Trả lời ĐÚNG → `my_energy:
+100` ngay trong phản hồi, và HUD đổi sang thanh đầy `100/100`. Trả lời sai ở
+nhiệm vụ chính → vẫn `100`. Nộp lại câu NPC đã đúng → vẫn `100`, không cấp hai
+lần. Đọc thẳng database: `energy_granted=100, energy_remaining=100`, tổng
+`energy_spent` của mọi bài nộp = **0**.
+
+**Còn nợ:** nhóm nút **trợ giúp** (Dịch / nghe lại / xem text / hint) chưa dựng,
+nên hiện chưa có gì tiêu năng lượng — thanh cấp xong thì đứng nguyên ở 100%. Đây
+là lựa chọn có chủ ý: dựng đúng cái luật trước, cái sink sau. Cột
+`quests.energy_cost` cũng vẫn **chưa được dùng**; nếu bật nó lên thì phải nhớ
+MIỄN cho nhiệm vụ NPC, vì người chơi chỉ có năng lượng SAU khi qua NPC và một
+cái cổng đòi năng lượng để đi qua là cái cổng không mở được.
+
+### Bước 8b — Đổi luật năng lượng & luật cộng điểm theo `PROJECT OVERVIEW.md`
+
+Nhánh `main` mang về `docs/PROJECT OVERVIEW.md` — bản luật chung cho **toàn dự
+án**, không riêng Atlantis. Ba luật trong đó lật ngược cái `api/` đang chạy. Khi
+merge, **doc theo bản luật chung**, còn code thành nợ, trả ở đây chứ không trả
+trong commit merge: trộn một thay đổi cột database vào commit merge là cách chắc
+chắn nhất để sáu tháng nữa không ai truy được vì sao nó đổi.
+
+| Luật | Code đang làm | Phải thành |
+|---|---|---|
+| Quỹ năng lượng | `stage_runs.team_energy_initial` / `team_energy_remaining`, `stages.initial_team_energy` — **một quỹ cho cả đội** | Quỹ **riêng từng người**, cấp lúc vào màn |
+| Hết năng lượng | `status = 'lost_energy'` → cả đội thua, chơi lại | **Không thua.** Chỉ mất quyền dùng hành động trợ giúp; `lost_energy` biến mất khỏi ràng buộc CHECK |
+| Trả lời sai | Trừ `energyCost.wrongAnswer` vào quỹ đội | **Không trừ năng lượng.** Năng lượng chỉ tiêu cho Dịch / nghe lại / xem text. Trần 3 lượt thử vẫn giữ |
+| Cộng điểm chiến lực | Cộng ngay lúc nộp; **thua vẫn giữ điểm cơ bản** | Chỉ chốt **khi thắng** — công thức Exp của `PROJECT OVERVIEW.md` không áp dụng cho lượt thua |
+
+**Cái mất khi đổi:** lý lẽ ở [GAME_DOMAIN.md §"Thua thì vẫn giữ điểm cơ bản"] —
+*học sinh trả lời đúng ba câu tiếng Anh thì đã học được cái gì đó, kể cả khi
+đồng đội tiêu hết năng lượng*. Luật mới bỏ cái đó đi, nhưng bù lại nó cũng bỏ
+luôn đường mà một người có thể làm cả đội thua (hết năng lượng), nên nỗi lo
+"người giỏi bị phạt vì đồng đội kém" tự mất theo. Ghi lại ở đây để lần cân bằng
+sau không ai đề xuất lại cái cũ mà tưởng là ý mới.
+
+**Cái được giữ:** `status = 'lost_time'` đã có sẵn và khớp luật mới —
+*"điều kiện thời gian là tiên quyết, hết giờ mà chưa xong là thua"*.
+
+**Yêu cầu mới đi kèm (thuộc Bước 7, màn Phòng chờ):** mỗi nhân vật chỉ một người
+được chọn, chọn rồi thì khoá; phòng thiếu người vẫn bắt đầu được và người chơi
+gánh thêm nhiệm vụ của nhân vật còn trống; không mời người vào giữa lượt chơi.
+
+- [x] Migration: `stage_runs` bỏ `team_energy_*`, thêm cột năng lượng theo người — **0022, xem Bước 6v**
+- [x] Bỏ `'lost_energy'` khỏi CHECK của `stage_runs.status` — **0022**
+- [x] `submit_answer` thôi trừ năng lượng khi sai, giữ trần 3 lượt — **Bước 6v**
+- [ ] Dời việc cộng `world_progress.skill_pts` sang lúc kết thúc màn với `status = 'won'`
+- [ ] Viết lại các đoạn nói về năng lượng đội trong `GAME_DOMAIN.md`
+- [ ] Dựng nhóm nút TRỢ GIÚP (Dịch / nghe lại / xem text) — chỗ tiêu năng lượng
 
 ## 4. Nợ kỹ thuật của prototype — xử lý ở bước nào
 

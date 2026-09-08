@@ -2,7 +2,7 @@
 
 ⚠️ LUẬT QUAN TRỌNG NHẤT CỦA FILE NÀY:
 
-`SubmitAnswerOut` **không được có** `score`, `detail`, `answer`, hay `skill_pts`.
+`SubmitQuestOut` **không được có** `score`, `detail`, `answer`, hay `skill_pts`.
 Trong trận, người chơi chỉ biết nhiệm vụ xong hay chưa xong. Chi tiết chấm điểm
 để dành cho màn xem lại sau khi hết màn — xem docs/GAME_DOMAIN.md §1.6.
 
@@ -18,6 +18,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Vùng đi được dùng CHUNG một lược đồ với bên soạn thảo, không sao chép sang
+# đây: hai bản mô tả của cùng một hình dạng dữ liệu sẽ lệch nhau đúng vào lúc ai
+# đó thêm một loại hình mới ở một bên.
+from app.modules.worlds.schemas import AudioTrack, BackgroundKind, CollisionMap
+
 
 # ==========================================================================
 # Đề bài đã đóng băng
@@ -32,6 +37,16 @@ class SnapshotQuestion(BaseModel):
     content: dict[str, Any]
     points: int
     audio_max_plays: int | None = None
+
+    #: CÁCH RA ĐỀ, đã đóng băng. Đề bài cũ (trước khi có cột này) không mang
+    #: trường này và mặc định là `"text"` — đúng sự thật cho những lượt bắt đầu
+    #: từ khi chưa có câu nghe nào, chứ không phải một phỏng đoán.
+    prompt_kind: Literal["text", "audio"] = "text"
+    #: Đoạn chữ của đề mở sẵn cạnh trình phát. Nút Transcript thì luôn có.
+    show_transcript: bool = False
+    #: URL tệp nghe, ĐÓNG BĂNG như ảnh nền. `None` = câu đọc, hoặc câu nghe mà
+    #: giáo viên chưa tải file — màn học sinh khi đó hiện thẳng đoạn chữ ra.
+    audio_url: str | None = None
 
 
 class SnapshotQuest(BaseModel):
@@ -61,15 +76,44 @@ class SnapshotStage(BaseModel):
     name_i18n: dict[str, str]
     synopsis_i18n: dict[str, str]
     scene_key: str
+    #: Chiều CAO nhân vật trong cảnh, hệ toạ độ thế giới. Đã giải xong kế thừa.
+    character_height: int = 160
+    #: CHỖ XUẤT PHÁT của nhân vật, đã đóng băng. Điểm va chạm, hệ toạ độ thế
+    #: giới. `None` = người dựng chưa đặt, cảnh dùng chỗ mặc định của nó — và
+    #: đề bài cũ (trước khi có cột này) cũng rơi đúng vào nhánh đó, tức là
+    #: những lượt đang chơi dở không đổi một chút nào.
+    spawn_x: int | None = None
+    spawn_y: int | None = None
     time_limit_seconds: int
-    initial_team_energy: int
+    energy_per_player: int
     map_shard_index: int
     advisor_npc_key: str | None = None
+    #: Loi NPC noi luc trao so tay. Rong = chua soan.
+    advisor_outro_i18n: dict[str, str] = {}
+    #: URL đoạn ghi âm NPC nói lời chia tay, đã đóng băng. `None` = chỉ có chữ.
+    advisor_outro_audio_url: str | None = None
+    #: Đoạn chữ mở sẵn cạnh trình phát. Mặc định `True` — đề bài cũ không mang
+    #: trường này, và mở sẵn là đúng với thứ chúng vẫn hiện ra từ trước tới nay.
+    advisor_outro_show_transcript: bool = True
+    #: Ten so tay. Rong = giao dien lui ve nhan dich cua no.
+    cluebook_title_i18n: dict[str, str] = {}
     cluebook_i18n: dict[str, str]
     background_media_id: uuid.UUID | None = None
     #: URL ảnh nền, đã đóng băng.
     background_url: str | None = None
+    #: Ảnh nền là ảnh hay video, cũng ĐÓNG BĂNG. Đề bài cũ không có trường này
+    #: và mặc định là ảnh — đúng sự thật cho những lượt bắt đầu từ khi chưa có
+    #: video, chứ không phải một phỏng đoán.
+    background_kind: BackgroundKind | None = None
     advisor_portrait_media_id: uuid.UUID | None = None
+    #: Vùng đi được, đã đóng băng. `None` = chưa vẽ, tức cả bản đồ đi được.
+    #: Xem `CollisionMap` bên `worlds/schemas.py` — cùng một hình dạng dữ liệu.
+    collision: CollisionMap | None = None
+    #: Âm thanh, đã đóng băng. Object rỗng = màn không có tiếng nào.
+    audio: dict[str, AudioTrack] = {}
+    #: URL từng khối tiếng, ĐÓNG BĂNG như ảnh nền: đổi file giữa chừng thì hai
+    #: máy đang chơi cùng màn sẽ nghe hai thứ khác nhau.
+    audio_urls: dict[str, str] = {}
 
 
 class StageSnapshot(BaseModel):
@@ -90,12 +134,23 @@ class QuestionProgress(BaseModel):
     completed: bool
     #: Còn mấy lượt thử. `null` = không giới hạn.
     attempts_left: int | None
+    #: Bài đang DỞ — đã chọn nhưng chưa nộp. `null` = chưa chọn gì.
+    #:
+    #: Có mặt để vào lại là khôi phục được đúng cái người chơi đang làm. Đây
+    #: KHÔNG phải đáp án đúng: nó là chính bài của họ, gửi lên rồi gửi về.
+    draft: dict[str, Any] | None = None
 
 
 class QuestProgress(BaseModel):
     quest_id: uuid.UUID
     #: Người này đã đạt `pass_score` của nhiệm vụ chưa.
     completed: bool
+    #: Nhiệm vụ đang KHOÁ với người này vì chưa qua NPC.
+    #:
+    #: Tính theo TỪNG NGƯỜI: đồng đội gặp NPC xong không mở khoá hộ được. Nhiệm
+    #: vụ NPC không bao giờ khoá, và những lượt chơi cũ không có NPC thì mọi
+    #: nhiệm vụ đều mở — không đóng cửa lại giữa chừng với người đang chơi.
+    locked: bool = False
     questions: list[QuestionProgress]
 
 
@@ -155,13 +210,22 @@ class RunOut(BaseModel):
     #: đều thiếu trường này, mà nó thì không bao giờ đổi theo thời gian.
     world_id: uuid.UUID
     room_code: str
-    status: Literal["playing", "won", "lost_energy", "lost_time", "abandoned"]
+    status: Literal["playing", "won", "lost_time", "abandoned"]
     is_trial: bool
 
     snapshot: StageSnapshot
 
-    team_energy_initial: int
-    team_energy_remaining: int
+    #: Năng lượng đã cấp cho NGƯỜI GỌI trong lượt này. `0` = chưa qua NPC nên
+    #: chưa được cấp — giao diện dựa vào đúng con số này để biết nên vẽ thanh
+    #: năng lượng hay vẽ dòng "qua NPC để nhận".
+    my_energy_granted: int
+    #: Còn lại bao nhiêu sau khi tiêu cho các hành động trợ giúp.
+    my_energy_remaining: int
+
+    #: Chỗ nhân vật của NGƯỜI GỌI đang đứng. `null` = chưa đi đâu, cảnh dùng
+    #: chỗ xuất phát mặc định của nó.
+    my_pos_x: int | None = None
+    my_pos_y: int | None = None
     #: Số giây còn lại, tính từ `started_at`. Server là nguồn duy nhất của thời
     #: gian — đồng hồ trên máy người chơi chỉ để hiển thị cho mượt.
     seconds_remaining: int
@@ -185,24 +249,36 @@ class RunOut(BaseModel):
 # ==========================================================================
 
 
-class SubmitAnswerIn(BaseModel):
+class SavePositionIn(BaseModel):
+    """Chỗ nhân vật đang đứng, hệ toạ độ thế giới 3200×1800."""
+
+    x: int = Field(ge=0, le=3200)
+    y: int = Field(ge=0, le=1800)
+
+
+class SaveDraftIn(BaseModel):
+    """Lựa chọn đang dở của một câu. Không chấm gì cả."""
+
     response: dict[str, Any] | None = None
 
 
-class SubmitAnswerOut(BaseModel):
-    """Phản hồi khi nộp một câu.
+class SubmitQuestOut(BaseModel):
+    """Phản hồi khi nộp CẢ MỘT NHIỆM VỤ.
 
-    ⚠️ Bốn trường. Không hơn. Xem ghi chú đầu file.
+    ⚠️ Ba trường. Không điểm, không đáp án, không giải thích — xem ghi chú đầu
+    file. Muốn biết từng câu đúng sai thì đọc `my_progress` của lượt chơi, ở đó
+    cũng chỉ có xong/chưa xong.
     """
 
-    #: Câu này đã trả lời đúng chưa.
-    completed: bool
-    #: Cả NHIỆM VỤ đã đạt điểm qua ải chưa — đây là thứ hiện "MISSION COMPLETE".
+    #: Cả nhiệm vụ đã đạt điểm qua ải chưa — đây là thứ hiện "MISSION COMPLETE".
     quest_completed: bool
-    #: Còn mấy lượt thử cho câu này. `null` = không giới hạn, `0` = đã khoá.
+    #: Còn mấy lần nộp NHIỆM VỤ nữa. `null` = không giới hạn, `0` = đã khoá.
     attempts_left: int | None
-    #: Năng lượng ĐỘI còn lại sau lần nộp này.
-    team_energy: int
+    #: Năng lượng CỦA CHÍNH người nộp, còn lại sau lần nộp này.
+    #:
+    #: Nộp bài không tiêu năng lượng, nhưng con số vẫn đi kèm: chính lần nộp làm
+    #: xong nhiệm vụ NPC là lần năng lượng được CẤP, và giao diện phải thấy ngay.
+    my_energy: int
 
 
 # ==========================================================================
@@ -222,11 +298,12 @@ class RunResultPlayer(BaseModel):
 
 
 class RunResultOut(BaseModel):
-    status: Literal["playing", "won", "lost_energy", "lost_time", "abandoned"]
+    status: Literal["playing", "won", "lost_time", "abandoned"]
     #: Mảnh bản đồ của màn này — chỉ trao khi thắng.
     map_shard_index: int | None
     duration_seconds: int | None
-    team_energy_remaining: int
+    #: Năng lượng còn lại của NGƯỜI GỌI lúc chốt màn.
+    my_energy_remaining: int
     players: list[RunResultPlayer]
     #: Điểm chiến lực của người gọi trong world này, SAU khi đã cộng.
     my_world_skill_pts: int
@@ -291,6 +368,18 @@ class PlayStageOut(BaseModel):
     synopsis_i18n: dict[str, str]
     map_shard_index: int
     quest_count: int
+
+    #: Ảnh nền của màn — chính tấm ảnh người chơi sẽ thấy khi vào chơi, dùng
+    #: luôn làm mặt của màn trên minimap.
+    #:
+    #: Không thêm cột "ảnh đại diện màn" riêng: minimap là lời hứa về nơi sắp
+    #: đến, mà nơi sắp đến TRÔNG NHƯ THẾ NÀO thì đã có sẵn một câu trả lời đúng.
+    #: Một cột nữa chỉ tạo ra cơ hội cho hai ảnh nói hai điều khác nhau.
+    background_url: str | None = None
+    #: Nền của màn có thể là VIDEO. Trên minimap nó được ghim ở khung hình đầu —
+    #: nhiều màn hiện cùng lúc, cho tất cả chạy vòng lặp là bắt máy học sinh
+    #: giải mã N luồng video để vẽ mấy vòng tròn nhỏ.
+    background_kind: BackgroundKind | None = None
 
     #: Điểm chiến lực cần để mở, đã tính từ balance_json của world.
     required_skill_pts: int
@@ -368,7 +457,11 @@ class PlayGalaxyOut(BaseModel):
     name_i18n: dict[str, str]
     description_i18n: dict[str, str]
     background_url: str | None = None
-    music_url: str | None = None
+    #: Nền là ảnh hay video. Xem `BackgroundKind` bên `worlds/schemas.py`.
+    background_kind: BackgroundKind | None = None
+    #: Nhạc nền của bản đồ. Object rỗng = màn hình này im lặng.
+    audio: dict[str, AudioTrack] = {}
+    audio_urls: dict[str, str] = {}
 
     #: Khung tiêu đề và khung mô tả. `*_url` rỗng thì giao diện vẽ một tấm nền
     #: trơn — màn hình vẫn chạy được trước khi ai kịp tải ảnh trang trí lên.
@@ -409,12 +502,17 @@ class PlayLobbyOut(BaseModel):
     """Toàn bộ phần TRÌNH BÀY của phòng chờ."""
 
     background_url: str | None = None
+    #: Nền là ảnh hay video — đã giải xong việc thừa kế nền từ thiên hà.
+    background_kind: BackgroundKind | None = None
     title: PlayFrameOut
     desc: PlayFrameOut
     #: Bố cục các khối kéo thả — nguyên `worlds.lobby_json`.
     layout: dict[str, Any] = {}
     #: Ảnh nền của từng khối, tra sẵn theo `media_id` bên trong `layout`.
     urls: dict[str, str] = {}
+    #: Nhạc nền của phòng chờ. Object rỗng = im lặng.
+    audio: dict[str, AudioTrack] = {}
+    audio_urls: dict[str, str] = {}
 
 
 class PlayRankOut(BaseModel):
@@ -486,3 +584,13 @@ class PlayWorldDetailOut(PlayWorldOut):
     #: Tiến độ world = thương của hai số này.
     my_quests_played: int = 0
     quest_total: int = 0
+
+    #: Màn người này đang chơi DỞ và VẪN CÒN GIỜ. `None` = không có màn nào dở.
+    #:
+    #: Nút Chơi ngay ở phòng chờ nhảy thẳng vào đây. Không có nó thì người chơi
+    #: đóng nhầm tab giữa chừng, vào lại phòng chờ, bấm Chơi ngay — và rơi vào
+    #: màn mở CAO NHẤT, không phải màn họ đang làm dở.
+    #:
+    #: Chỉ trả về màn còn giờ: lượt đã hết giờ thì bấm vào cũng là bắt đầu lại
+    #: từ đầu, nên dẫn người ta tới đó là hứa một thứ không có.
+    resume_stage_id: uuid.UUID | None = None

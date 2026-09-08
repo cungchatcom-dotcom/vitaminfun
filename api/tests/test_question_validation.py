@@ -311,3 +311,50 @@ def test_moi_dang_dot_1_deu_co_ham_kiem_va_ham_cham() -> None:
     from app.modules.questions.schemas import _VALIDATORS
 
     assert set(GRADERS) == set(_VALIDATORS) == set(QuestionType.ALL)
+
+
+class TestShortAnswerSai:
+    """Hai cach lam hong mot cau go dap an ma khong ai thay ngay."""
+
+    def test_thieu_de_bai(self) -> None:
+        assert (
+            _loi("SHORT_ANSWER", {"prompt": "  "}, {"accepted": ["a"]})
+            == ErrorCode.QUESTION_FIELD_EMPTY
+        )
+
+    def test_khong_liet_ke_cach_viet_nao(self) -> None:
+        # Danh sach rong = go gi cung sai. Ca lop se cung mat diem mot cau.
+        assert (
+            _loi("SHORT_ANSWER", {"prompt": "Ho khau lenh"}, {"accepted": []})
+            == ErrorCode.QUESTION_NO_CORRECT_ANSWER
+        )
+
+    def test_cach_viet_toan_khoang_trang_cung_la_khong_co(self) -> None:
+        assert (
+            _loi("SHORT_ANSWER", {"prompt": "Ho khau lenh"}, {"accepted": ["  ", ""]})
+            == ErrorCode.QUESTION_NO_CORRECT_ANSWER
+        )
+
+    def test_hop_le_thi_khong_bao_loi(self) -> None:
+        validate_payload(
+            "SHORT_ANSWER",
+            {"prompt": "Ho khau lenh ha buom."},
+            {"accepted": ["lower the sails"]},
+        )
+
+
+def test_literal_cua_QuestionOut_khop_QuestionType_ALL() -> None:
+    """Hai danh sach dang cau hoi phai bang nhau.
+
+    `QuestionOut.type` la `Literal` liet ke tay (khong sinh tu dong duoc vi
+    `Literal` can gia tri tinh). Them mot dang vao `QuestionType.ALL` ma quen
+    them vao day thi cau hoi LUU DUOC nhung VO luc tra ve — mot loi 500 khong
+    noi gi, va no chi lo ra khi co nguoi soan dung dang do.
+    """
+    from typing import get_args
+
+    from app.db.models.question import QuestionType
+    from app.modules.questions.schemas import QuestionOut
+
+    literal = set(get_args(QuestionOut.model_fields["type"].annotation))
+    assert literal == set(QuestionType.ALL)

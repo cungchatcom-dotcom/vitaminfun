@@ -21,6 +21,7 @@ import {
 import { localizedPath } from "@/lib/routes";
 import { useAsyncAction } from "@/lib/use-async-action";
 
+import { PromptKindFields, type PromptKindValue } from "./prompt-kind-fields";
 import { QuestionBuilder } from "./builders";
 import { QUESTION_TYPE_META } from "./registry";
 import { QuestionRenderer } from "./renderers";
@@ -58,6 +59,19 @@ export function QuestionEditor({
   const [level, setLevel] = useState("");
   const [explanation, setExplanation] = useState("");
   const [status, setStatus] = useState<QuestionStatus>("draft");
+  /**
+   * CÁCH RA ĐỀ — đọc hay nghe, tệp nghe, transcript mở sẵn.
+   *
+   * Gom vào MỘT state chứ không bốn: bốn giá trị này chỉ có nghĩa cùng nhau
+   * (một câu `text` mà mang `audio_media_id` là một câu tự mâu thuẫn), và
+   * `PromptKindFields` cũng nhận/trả trọn cụm.
+   */
+  const [prompt, setPrompt] = useState<PromptKindValue>({
+    promptKind: "text",
+    showTranscript: false,
+    audioMediaId: null,
+    audioUrl: null,
+  });
 
   const [savedId, setSavedId] = useState<string | undefined>(questionId);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -91,6 +105,12 @@ export function QuestionEditor({
         setLevel(data.level ?? "");
         setExplanation(data.explanation ?? "");
         setStatus(data.status);
+        setPrompt({
+          promptKind: data.prompt_kind,
+          showTranscript: data.show_transcript,
+          audioMediaId: data.audio_media_id ?? null,
+          audioUrl: data.audio_url ?? null,
+        });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -133,6 +153,12 @@ export function QuestionEditor({
         topic: topic || null,
         level: level || null,
         status: nextStatus,
+        prompt_kind: prompt.promptKind,
+        show_transcript: prompt.showTranscript,
+        // `null` ở đây nghĩa là XOÁ, không phải "không gửi" — server phân biệt
+        // hai chuyện đó bằng `model_fields_set`. Nhờ vậy nút "Gỡ tệp nghe" thật
+        // sự gỡ được, thay vì trả 200 rồi không đổi gì.
+        audio_media_id: prompt.audioMediaId,
       };
       try {
         const saved = savedId
@@ -159,7 +185,20 @@ export function QuestionEditor({
         }
       }
     },
-    [type, points, timeLimit, content, answer, explanation, topic, level, savedId, router, locale],
+    [
+      type,
+      points,
+      timeLimit,
+      content,
+      answer,
+      explanation,
+      topic,
+      level,
+      prompt,
+      savedId,
+      router,
+      locale,
+    ],
   );
 
   // Enter trong form không đi qua onClick của nút, nên phải có chốt riêng.
@@ -284,6 +323,13 @@ export function QuestionEditor({
             ))}
           </div>
         ) : null}
+
+        {/* CÁCH RA ĐỀ nằm cùng thẻ thuộc tính, dưới đường kẻ: nó là một thuộc
+            tính của câu hỏi, không phải một phần của nội dung. Người soạn chọn
+            "nghe" rồi mới gõ đề — mà đề chính là transcript. */}
+        <div className="mt-4 border-t border-abyss-800 pt-4">
+          <PromptKindFields value={prompt} onChange={setPrompt} />
+        </div>
       </Card>
 
       {/* --- Khung soạn --- */}
@@ -328,6 +374,12 @@ export function QuestionEditor({
         >
           <QuestionRenderer
             type={type}
+            // Xem trước bằng CHÍNH cách học sinh sẽ thấy, kể cả cái nút
+            // Transcript: một khung xem trước bỏ qua cách ra đề thì giáo viên
+            // căn xong một câu nghe mà chưa từng nhìn thấy nó ở dạng nghe.
+            promptKind={prompt.promptKind}
+            audioUrl={prompt.audioUrl}
+            showTranscript={prompt.showTranscript}
             content={content}
             value={tryValue}
             onChange={(next) => {

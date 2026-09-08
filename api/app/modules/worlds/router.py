@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.core.deps import CurrentUserDep, DbDep, require_role
@@ -19,6 +20,7 @@ from app.db.models import (
     PublishStatus,
     MediaAsset,
     Quest,
+    QuestPhase,
     QuestQuestion,
     Question,
     Stage,
@@ -31,7 +33,9 @@ from app.modules.worlds import service
 from app.db.models.content import DEFAULT_QUESTION_POINTS
 from app.modules.worlds.balance import DEFAULT_BALANCE, read_balance
 from app.modules.worlds.schemas import (
+    AudioTrack,
     ChapterCreate,
+    CollisionMap,
     GalaxyOut,
     GalaxyUpdate,
     ChapterOut,
@@ -62,12 +66,24 @@ router = APIRouter(
 # --------------------------------------------------------------------------
 
 
+async def _background_kind(db: DbDep, media_id) -> str | None:
+    """`media_assets.kind` của ảnh nền: `"image"` hay `"video"`.
+
+    Một truy vấn nhỏ riêng thay vì nhồi thêm cột vào `url_of`: ba màn dùng lại
+    được, và chỗ gọi đọc ra đúng cái nó hỏi. `None` khi chưa đặt nền.
+    """
+    if media_id is None:
+        return None
+    return await db.scalar(select(MediaAsset.kind).where(MediaAsset.id == media_id))
+
+
 async def _galaxy_out(db: DbDep, galaxy: Galaxy) -> GalaxyOut:
     async def url_of(media_id):
         if media_id is None:
             return None
         return await db.scalar(select(MediaAsset.url).where(MediaAsset.id == media_id))
 
+    _audio_galaxy = await _audio_media(db, galaxy.audio_json or {})
     return GalaxyOut(
         id=galaxy.id,
         universe_id=galaxy.universe_id,
@@ -76,7 +92,6 @@ async def _galaxy_out(db: DbDep, galaxy: Galaxy) -> GalaxyOut:
         position=galaxy.position,
         status=galaxy.status,
         background_media_id=galaxy.background_media_id,
-        music_media_id=galaxy.music_media_id,
         title_media_id=galaxy.title_media_id,
         title_x=galaxy.title_x,
         title_y=galaxy.title_y,
@@ -92,9 +107,12 @@ async def _galaxy_out(db: DbDep, galaxy: Galaxy) -> GalaxyOut:
         desc_color=galaxy.desc_color,
         desc_font=galaxy.desc_font,
         background_url=await url_of(galaxy.background_media_id),
-        music_url=await url_of(galaxy.music_media_id),
+        background_kind=await _background_kind(db, galaxy.background_media_id),
         title_url=await url_of(galaxy.title_media_id),
         desc_url=await url_of(galaxy.desc_media_id),
+        audio=galaxy.audio_json or {},
+        audio_urls=_audio_galaxy[0],
+        audio_names=_audio_galaxy[1],
     )
 
 
@@ -140,8 +158,10 @@ async def _world_out(db: DbDep, world: World) -> WorldOut:
             return None
         return await db.scalar(select(MediaAsset.url).where(MediaAsset.id == media_id))
 
+    _audio_world = await _audio_media(db, world.audio_json or {})
     return WorldOut(
         id=world.id,
+        world_code=world.world_code,
         galaxy_id=world.galaxy_id,
         name_i18n=world.name_i18n,
         story_i18n=world.story_i18n,
@@ -154,6 +174,7 @@ async def _world_out(db: DbDep, world: World) -> WorldOut:
         cover_url=await url_of(world.cover_media_id),
         lobby_media_id=world.lobby_media_id,
         lobby_url=await url_of(world.lobby_media_id),
+        lobby_kind=await _background_kind(db, world.lobby_media_id),
         title_media_id=world.title_media_id,
         title_url=await url_of(world.title_media_id),
         title_x=world.title_x,
@@ -172,6 +193,9 @@ async def _world_out(db: DbDep, world: World) -> WorldOut:
         desc_font=world.desc_font,
         lobby_json=world.lobby_json or {},
         lobby_urls=await _lobby_urls(db, world.lobby_json or {}),
+        audio=world.audio_json or {},
+        audio_urls=_audio_world[0],
+        audio_names=_audio_world[1],
         scene_x=world.scene_x,
         scene_y=world.scene_y,
         icon_size=world.icon_size,
@@ -224,6 +248,7 @@ async def _chapter_out(db: DbDep, chapter: Chapter, current: User) -> ChapterOut
 async def _stage_brief(db: DbDep, stage: Stage, world: World) -> StageBrief:
     return StageBrief(
         id=stage.id,
+        stage_code=stage.stage_code,
         chapter_id=stage.chapter_id,
         order_index=stage.order_index,
         name_i18n=stage.name_i18n,
@@ -299,6 +324,7 @@ async def _quests_out(db: DbDep, stage_id: uuid.UUID) -> list[QuestOut]:
         out.append(
             QuestOut(
                 id=quest.id,
+                quest_code=quest.quest_code,
                 stage_id=quest.stage_id,
                 order_index=quest.order_index,
                 phase=quest.phase,
@@ -327,6 +353,46 @@ async def _one_quest_out(db: DbDep, quest: Quest) -> QuestOut:
     return next(q for q in quests if q.id == quest.id)
 
 
+async def _audio_media(db: DbDep, audio: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    """(URL, TÊN FILE GỐC) của từng khối tiếng.
+
+    Trả cả tên vì `storage_key` là một chuỗi băm — nhìn vào
+    `43e3a40d10bb428e997cc82cc180b69a.mp3` thì không ai biết mình đã tải bản nào
+    lên. Tên gốc đã nằm sẵn trong `media_assets.original_name`, chỉ là chưa ai
+    chuyển nó ra tới giao diện.
+
+    MỘT truy vấn cho cả bộ, và các khối rất có thể dùng chung một file.
+    """
+    ids = {
+        track["media_id"]
+        for track in (audio or {}).values()
+        if isinstance(track, dict) and track.get("media_id")
+    }
+    if not ids:
+        return {}, {}
+
+    found = {
+        str(row.id): (row.url, row.original_name)
+        for row in await db.execute(
+            select(MediaAsset.id, MediaAsset.url, MediaAsset.original_name).where(
+                MediaAsset.id.in_(ids)
+            )
+        )
+    }
+    urls: dict[str, str] = {}
+    names: dict[str, str] = {}
+    for slot, track in (audio or {}).items():
+        if not isinstance(track, dict):
+            continue
+        hit = found.get(str(track.get("media_id")))
+        if not hit:
+            continue
+        urls[slot] = hit[0]
+        if hit[1]:
+            names[slot] = hit[1]
+    return urls, names
+
+
 async def _stage_out(db: DbDep, stage: Stage, world: World) -> StageOut:
     brief = await _stage_brief(db, stage, world)
     background_url = None
@@ -334,23 +400,82 @@ async def _stage_out(db: DbDep, stage: Stage, world: World) -> StageOut:
         background_url = await db.scalar(
             select(MediaAsset.url).where(MediaAsset.id == stage.background_media_id)
         )
+    _audio_stage = await _audio_media(db, stage.audio_json or {})
+    # URL đoạn ghi âm lời NPC — dựng sẵn, cùng nếp với `background_url` ngay
+    # trên: giao diện không tra bảng media, và không đoán đường dẫn.
+    outro_audio_url = None
+    if stage.advisor_outro_audio_media_id:
+        outro_audio_url = await db.scalar(
+            select(MediaAsset.url).where(MediaAsset.id == stage.advisor_outro_audio_media_id)
+        )
+    # URL video mở màn — cùng nếp: dựng sẵn, giao diện không tra bảng media.
+    intro_video_url = None
+    if stage.intro_video_media_id:
+        intro_video_url = await db.scalar(
+            select(MediaAsset.url).where(MediaAsset.id == stage.intro_video_media_id)
+        )
     return StageOut(
         **brief.model_dump(),
         background_url=background_url,
+        background_kind=await _background_kind(db, stage.background_media_id),
         synopsis_i18n=stage.synopsis_i18n,
         time_limit_seconds=stage.time_limit_seconds,
-        initial_team_energy=stage.initial_team_energy,
+        energy_per_player=stage.energy_per_player,
         skill_pts_max=stage.skill_pts_max,
         required_skill_pts=stage.required_skill_pts,
+        character_height=stage.character_height,
+        character_height_effective=await service.effective_character_height(db, stage),
+        spawn_x=stage.spawn_x,
+        spawn_y=stage.spawn_y,
         min_players=stage.min_players,
         max_players=stage.max_players,
         advisor_npc_key=stage.advisor_npc_key,
         background_media_id=stage.background_media_id,
+        intro_video_media_id=stage.intro_video_media_id,
+        intro_video_url=intro_video_url,
         advisor_portrait_media_id=stage.advisor_portrait_media_id,
+        advisor_outro_i18n=stage.advisor_outro_i18n,
+        advisor_outro_audio_media_id=stage.advisor_outro_audio_media_id,
+        advisor_outro_audio_url=outro_audio_url,
+        advisor_outro_show_transcript=stage.advisor_outro_show_transcript,
+        cluebook_title_i18n=stage.cluebook_title_i18n,
         cluebook_i18n=stage.cluebook_i18n,
+        collision=CollisionMap.model_validate(stage.collision_json)
+        if stage.collision_json
+        else None,
+        audio=stage.audio_json or {},
+        audio_urls=_audio_stage[0],
+        audio_names=_audio_stage[1],
         quests=await _quests_out(db, stage.id),
         publish_blockers=await service.publish_blockers(db, stage, world),
     )
+
+
+def _merge_audio(current: dict[str, Any] | None, payload: dict[str, AudioTrack] | None):
+    """Gộp âm thanh theo TỪNG KHỐI vào bộ đang có.
+
+    Gửi `{"ambient": {...}}` không được làm mất các khối khác. Gộp ở mức khối
+    chứ không sâu hơn — chỗ gọi luôn gửi trọn một khối, nên một khối thiếu
+    `media_id` là câu nói "gỡ file", không phải một thiếu sót.
+
+    `None` = không gửi trường này, giữ nguyên. Một hàm cho cả ba màn (thiên hà,
+    phòng chờ world, màn chơi) vì ba chỗ chép cùng một vòng lặp là ba chỗ để
+    lệch khi luật gộp đổi.
+    """
+    if payload is None:
+        return current or {}
+    merged = dict(current or {})
+    for slot, track in payload.items():
+        # "Lấy tiếng của video nền" chỉ có nghĩa với NHẠC NỀN. `walk` và `idle`
+        # gắn với hành động của nhân vật — không có đoạn tiếng video nào tương
+        # ứng với một bước chân. Chặn ở đây, chỗ duy nhất cả ba màn đi qua, thay
+        # vì tin rằng giao diện sẽ không bao giờ gửi lên.
+        if track.from_video and slot != "ambient":
+            raise ValidationFailedError(
+                ErrorCode.VALIDATION_FAILED, field=f"audio.{slot}.from_video", slot=slot
+            )
+        merged[slot] = track.model_dump(mode="json", exclude_none=True)
+    return merged
 
 
 def _apply(target: object, payload: object, fields: tuple[str, ...]) -> None:
@@ -359,6 +484,97 @@ def _apply(target: object, payload: object, fields: tuple[str, ...]) -> None:
         value = getattr(payload, field, None)
         if value is not None:
             setattr(target, field, value)
+
+
+def _apply_optional(target: object, payload: BaseModel, fields: tuple[str, ...]) -> None:
+    """Như `_apply`, nhưng `null` nghĩa là XOÁ chứ không phải "không gửi".
+
+    `_apply` bỏ qua mọi giá trị `None`, và đó là luật đúng cho hầu hết trường:
+    giao diện gửi một mẩu payload, thứ không gửi thì giữ nguyên. Nhưng có những
+    trường mà người dùng PHẢI xoá được — mã định danh là một, vì gõ nhầm mã rồi
+    không gỡ ra được là một ô hỏng vĩnh viễn.
+
+    Phân biệt bằng `model_fields_set`: Pydantic nhớ trường nào thật sự có trong
+    JSON gửi lên. "Không gửi" và "gửi null" nhờ đó là hai chuyện khác nhau, thay
+    vì phải bịa thêm một cờ `clear_*` cho mỗi trường.
+    """
+    sent = payload.model_fields_set
+    for field in fields:
+        if field in sent:
+            setattr(target, field, getattr(payload, field))
+
+
+#: Trường của NHIỆM VỤ đi qua `_apply`: `null` = "không gửi", giữ nguyên.
+QUEST_KEEP_FIELDS: tuple[str, ...] = (
+    "order_index",
+    "quest_object_key",
+    "name_i18n",
+    "phase",
+    "scene_x",
+    "scene_y",
+    "trigger_radius",
+    "icon_size",
+    "pulse_percent",
+    "pulse_period_ms",
+    "energy_cost",
+    "pass_score",
+)
+
+#: Trường của NHIỆM VỤ đi qua `_apply_optional`: `null` = XOÁ.
+#:
+#: `icon_media_id` từng nằm ở danh sách trên, và nút "Gỡ ảnh" của trình thiết kế
+#: vì thế không làm gì cả: nó gửi đúng `{"icon_media_id": null}`, `_apply` thấy
+#: `None` và bỏ qua, server trả về nhiệm vụ y như cũ — không lỗi, không đổi,
+#: không một dấu hiệu nào. Một nhiệm vụ lỡ tải nhầm ảnh là một ô hỏng vĩnh viễn
+#: cho tới khi có ai tải đè lên một tấm khác.
+#:
+#: Hai danh sách để CẠNH NHAU, ở mức module, chính vì thế: chúng là hai vế của
+#: một luật, và luật đó chỉ đọc được khi nhìn cả hai cùng lúc. Một trường nằm ở
+#: cả hai chỗ thì kết quả phụ thuộc vào thứ tự hai dòng gọi — xem
+#: `tests/test_stage_spawn.py`.
+QUEST_CLEARABLE_FIELDS: tuple[str, ...] = ("quest_code", "icon_media_id")
+
+#: Trường của MÀN CHƠI đi qua `_apply`: `null` = "không gửi", giữ nguyên.
+STAGE_KEEP_FIELDS: tuple[str, ...] = (
+    "name_i18n",
+    "synopsis_i18n",
+    "order_index",
+    "scene_key",
+    "map_shard_index",
+    "character_height",
+    "spawn_x",
+    "spawn_y",
+    "time_limit_seconds",
+    "energy_per_player",
+    "skill_pts_max",
+    "required_skill_pts",
+    "star_max",
+    "min_players",
+    "max_players",
+    "advisor_npc_key",
+    "background_media_id",
+    "advisor_portrait_media_id",
+    "advisor_outro_i18n",
+    "advisor_outro_show_transcript",
+    "cluebook_title_i18n",
+    "cluebook_i18n",
+    "status",
+)
+
+#: Trường của MÀN CHƠI đi qua `_apply_optional`: `null` = XOÁ.
+#:
+#: Ba cái nút "Gỡ" của trình thiết kế màn nằm ở đây, và cả ba đều gửi đúng một
+#: thứ: `{"<trường>": null}`. Nằm nhầm sang danh sách trên thì nút trả 200 rồi
+#: không đổi gì — đúng cái lỗi nút "Gỡ ảnh" của nhiệm vụ đã mắc một lần.
+#:
+#: `background_media_id` KHÔNG ở đây, và đó không phải một chỗ quên: trình thiết
+#: kế chưa có nút gỡ ảnh nền, chỉ có tải đè. Thêm nút đó thì chuyển trường này
+#: xuống — và test không giao nhau sẽ giữ cho nó không nằm cả hai chỗ.
+STAGE_CLEARABLE_FIELDS: tuple[str, ...] = (
+    "stage_code",
+    "advisor_outro_audio_media_id",
+    "intro_video_media_id",
+)
 
 
 # --------------------------------------------------------------------------
@@ -396,7 +612,6 @@ async def update_galaxy(galaxy_id: uuid.UUID, payload: GalaxyUpdate, db: DbDep) 
             "name_i18n",
             "description_i18n",
             "background_media_id",
-            "music_media_id",
             "title_media_id",
             "title_x",
             "title_y",
@@ -417,12 +632,12 @@ async def update_galaxy(galaxy_id: uuid.UUID, payload: GalaxyUpdate, db: DbDep) 
     # thì phải nói rõ bằng cờ riêng.
     if payload.clear_background:
         galaxy.background_media_id = None
-    if payload.clear_music:
-        galaxy.music_media_id = None
     if payload.clear_title:
         galaxy.title_media_id = None
     if payload.clear_desc:
         galaxy.desc_media_id = None
+
+    galaxy.audio_json = _merge_audio(galaxy.audio_json, payload.audio)
 
     await db.commit()
     await db.refresh(galaxy)
@@ -534,6 +749,9 @@ async def update_world(
         for key, element in payload.lobby_json.items():
             merged[key] = element.model_dump(mode="json", exclude_none=True)
         world.lobby_json = merged
+
+    _apply_optional(world, payload, ("world_code",))
+    world.audio_json = _merge_audio(world.audio_json, payload.audio)
 
     if payload.clear_cover:
         world.cover_media_id = None
@@ -678,8 +896,21 @@ async def create_stage(
     if taken is not None:
         raise ConflictError(ErrorCode.CONFLICT, field="order_index")
 
-    stage = Stage(chapter_id=chapter.id, status=PublishStatus.DRAFT, **payload.model_dump())
+    fields = payload.model_dump()
+    # Bỏ trống thì điền mặc định. Cột `NOT NULL` nên phải có gì đó, nhưng cái gì
+    # thì không quan trọng — chưa có chỗ nào đọc tới nó.
+    fields["scene_key"] = fields["scene_key"].strip() or service.DEFAULT_SCENE_KEY
+
+    stage = Stage(chapter_id=chapter.id, status=PublishStatus.DRAFT, **fields)
     db.add(stage)
+    await db.flush()
+
+    # Nhiệm vụ NPC sinh ra CÙNG màn, trong cùng một giao dịch.
+    #
+    # Cùng giao dịch chứ không phải hai lệnh nối nhau: nếu tách ra và lệnh thứ
+    # hai hỏng, giáo viên có một màn chơi không cổng vào mà không ai biết —
+    # đúng cái trạng thái mà toàn bộ thay đổi này sinh ra để loại trừ.
+    db.add(service.new_advisor_quest(stage.id))
     await db.commit()
     await db.refresh(stage)
 
@@ -710,29 +941,37 @@ async def update_stage(
     if payload.status == PublishStatus.PUBLISHED and stage.status != PublishStatus.PUBLISHED:
         raise ValidationFailedError(ErrorCode.VALIDATION_FAILED, field="status")
 
-    _apply(
-        stage,
-        payload,
-        (
-            "name_i18n",
-            "synopsis_i18n",
-            "order_index",
-            "scene_key",
-            "map_shard_index",
-            "time_limit_seconds",
-            "initial_team_energy",
-            "skill_pts_max",
-            "required_skill_pts",
-            "star_max",
-            "min_players",
-            "max_players",
-            "advisor_npc_key",
-            "background_media_id",
-            "advisor_portrait_media_id",
-            "cluebook_i18n",
-            "status",
-        ),
-    )
+    _apply(stage, payload, STAGE_KEEP_FIELDS)
+
+    if payload.clear_character_height:
+        stage.character_height = None
+
+    # Cả hai trục cùng lúc: nửa chỗ đứng không phải một chỗ đứng, và cảnh chơi
+    # đọc nó bằng `x ?? mặc_định` cho từng trục — một nửa NULL sẽ ghép chỗ người
+    # dựng đặt với chỗ mặc định thành một điểm thứ ba mà không ai chọn.
+    if payload.clear_spawn:
+        stage.spawn_x = None
+        stage.spawn_y = None
+
+    # Âm thanh GỘP theo từng khối: gửi `{"walk": {...}}` không được làm mất nhạc
+    # nền. Khối gửi lên mà KHÔNG có `media_id` nghĩa là gỡ file — chỗ gọi luôn
+    # gửi trọn một khối, nên vắng mặt ở đây là một câu nói, không phải thiếu sót.
+    # Mã và ĐOẠN GHI ÂM lời NPC xoá được: `null` ở đây nghĩa là XOÁ, không phải
+    # "không gửi". Không có nó thì nút "Gỡ tệp nghe" trả 200 rồi không đổi gì —
+    # đúng lỗi mà nút "Gỡ ảnh" của nhiệm vụ đã mắc phải một lần.
+    _apply_optional(stage, payload, STAGE_CLEARABLE_FIELDS)
+    stage.audio_json = _merge_audio(stage.audio_json, payload.audio)
+
+    # Vùng đi được thì ngược lại — ghi ĐÈ CẢ CỤC: người dựng gửi lên bản vẽ đầy
+    # đủ đang có trên màn hình họ. Trộn từng hình thì hai tab mở cùng lúc sẽ đẻ
+    # ra một bản vẽ mà không ai vẽ, và không ai gỡ ra được.
+    if payload.clear_collision:
+        stage.collision_json = None
+    elif payload.collision is not None:
+        # `exclude_none`: một hình hộp không có `points`, một đa giác không có
+        # `w`/`h`. Lưu cả các khoá rỗng là nhân đôi cỡ cột JSONB để chứa
+        # đúng con số không.
+        stage.collision_json = payload.collision.model_dump(mode="json", exclude_none=True)
 
     # Ngưỡng sao đi riêng: nhận vào thì SẮP XẾP và ép về 0..100 rồi mới lưu.
     # Người dựng gõ "70, 40, 90" là chuyện thường, và một danh sách ngưỡng
@@ -853,6 +1092,19 @@ async def _append_questions(
         existing.add(question_id)
 
 
+def _quest_conflict(exc: Exception) -> ConflictError:
+    """Đọc ra RÀNG BUỘC NÀO vừa gãy, thay vì báo chung một chữ "trùng".
+
+    Ba ràng buộc cùng nằm trên bảng `quests` và cùng ném ra một loại lỗi. Gộp cả
+    ba vào `field="order_index|quest_object_key"` thì giáo viên nâng nhiệm vụ
+    thứ hai lên NPC sẽ nhận một câu nói về thứ tự và khoá vật thể — hai thứ họ
+    không hề động vào.
+    """
+    if "uq_quests_stage_advisor" in str(exc):
+        return ConflictError(ErrorCode.ADVISOR_QUEST_EXISTS)
+    return ConflictError(ErrorCode.CONFLICT, field="order_index|quest_object_key")
+
+
 @router.post(
     "/stages/{stage_id}/quests",
     response_model=QuestOut,
@@ -866,6 +1118,7 @@ async def create_quest(
 
     quest = Quest(
         stage_id=stage.id,
+        quest_code=payload.quest_code,
         order_index=payload.order_index,
         quest_object_key=payload.quest_object_key,
         name_i18n=payload.name_i18n,
@@ -891,7 +1144,7 @@ async def create_quest(
         raise
     except Exception as exc:  # UNIQUE(stage, order) hoặc UNIQUE(stage, object)
         await db.rollback()
-        raise ConflictError(ErrorCode.CONFLICT, field="order_index|quest_object_key") from exc
+        raise _quest_conflict(exc) from exc
 
     await db.refresh(quest)
     return await _one_quest_out(db, quest)
@@ -901,25 +1154,18 @@ async def create_quest(
 async def update_quest(quest_id: uuid.UUID, payload: QuestUpdate, db: DbDep) -> QuestOut:
     quest = await service.get_quest(db, quest_id)
 
-    _apply(
-        quest,
-        payload,
-        (
-            "order_index",
-            "quest_object_key",
-            "name_i18n",
-            "phase",
-            "scene_x",
-            "scene_y",
-            "trigger_radius",
-            "icon_media_id",
-            "icon_size",
-            "pulse_percent",
-            "pulse_period_ms",
-            "energy_cost",
-            "pass_score",
-        ),
-    )
+    # Không hạ nhiệm vụ NPC xuống thành nhiệm vụ thường: màn sẽ không còn cổng
+    # vào. Chiều ngược lại (nâng một nhiệm vụ thường lên NPC) do chỉ số một phần
+    # `uq_quests_stage_advisor` chặn, và rơi vào nhánh ConflictError bên dưới.
+    if (
+        payload.phase is not None
+        and quest.phase == QuestPhase.ADVISOR
+        and payload.phase != QuestPhase.ADVISOR
+    ):
+        raise ConflictError(ErrorCode.ADVISOR_QUEST_REQUIRED, questId=str(quest.id))
+
+    _apply(quest, payload, QUEST_KEEP_FIELDS)
+    _apply_optional(quest, payload, QUEST_CLEARABLE_FIELDS)
     # `pass_score = None` trong PATCH nghĩa là "không gửi". Muốn xoá về mặc định
     # thì phải nói rõ bằng cờ riêng.
     if payload.clear_pass_score:
@@ -929,7 +1175,7 @@ async def update_quest(quest_id: uuid.UUID, payload: QuestUpdate, db: DbDep) -> 
         await db.commit()
     except Exception as exc:
         await db.rollback()
-        raise ConflictError(ErrorCode.CONFLICT, field="order_index|quest_object_key") from exc
+        raise _quest_conflict(exc) from exc
 
     await db.refresh(quest)
     return await _one_quest_out(db, quest)
@@ -943,6 +1189,13 @@ async def update_quest(quest_id: uuid.UUID, payload: QuestUpdate, db: DbDep) -> 
 )
 async def delete_quest(quest_id: uuid.UUID, db: DbDep) -> None:
     quest = await service.get_quest(db, quest_id)
+
+    # Nhiệm vụ NPC không gỡ được. Giáo viên đổi tên nó, thay ảnh, thay câu hỏi
+    # bên trong — nhưng cái khe thì phải còn, vì mọi nhiệm vụ khác của màn mở
+    # khoá qua đúng cái khe này.
+    if quest.phase == QuestPhase.ADVISOR:
+        raise ConflictError(ErrorCode.ADVISOR_QUEST_REQUIRED, questId=str(quest.id))
+
     await db.delete(quest)
     await db.commit()
 

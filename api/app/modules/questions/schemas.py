@@ -25,7 +25,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.errors import ErrorCode, ValidationFailedError
-from app.db.models import QuestionStatus, QuestionType
+from app.db.models import PromptKind, QuestionStatus, QuestionType
 
 MAX_OPTIONS = 6
 MIN_OPTIONS = 2
@@ -58,6 +58,14 @@ class QuestionCreate(BaseModel):
     image_media_id: uuid.UUID | None = None
     audio_media_id: uuid.UUID | None = None
     audio_max_plays: int | None = Field(default=None, ge=1, le=10)
+    #: CÁCH RA ĐỀ — đọc hay nghe. Vuông góc với `type`; xem `PromptKind`.
+    #:
+    #: `Literal` chứ không phải `str` (khác `type` ngay trên): danh sách này
+    #: ngắn, đóng, và do CHECK trong database chốt lại — nên một giá trị lạ là
+    #: lỗi 422 rõ ràng, không cần một mã lỗi có bản dịch riêng.
+    prompt_kind: Literal["text", "audio"] = PromptKind.TEXT
+    #: Đoạn chữ của đề mở sẵn cạnh trình phát. Chỉ có nghĩa khi nghe.
+    show_transcript: bool = False
 
 
 class QuestionUpdate(BaseModel):
@@ -79,6 +87,8 @@ class QuestionUpdate(BaseModel):
     image_media_id: uuid.UUID | None = None
     audio_media_id: uuid.UUID | None = None
     audio_max_plays: int | None = Field(default=None, ge=1, le=10)
+    prompt_kind: Literal["text", "audio"] | None = None
+    show_transcript: bool | None = None
 
 
 class QuestionOut(BaseModel):
@@ -88,7 +98,12 @@ class QuestionOut(BaseModel):
     # Literal chứ không phải str (khác bản LMS): kiểu TS sinh ra thành union,
     # nên frontend gán nhầm một dạng không tồn tại sẽ gãy lúc biên dịch.
     # Chiều VÀO (QuestionCreate) vẫn để `str` — có lý do, xem ghi chú ở đó.
-    type: Literal["MCQ_SINGLE", "MCQ_MULTI", "GAP_FILL", "GAP_DROPDOWN"]
+    #
+    # ⚠️ Danh sách này phải KHỚP `QuestionType.ALL`. Không sinh tự động được vì
+    # `Literal` cần giá trị tĩnh để công cụ kiểm kiểu và bộ sinh OpenAPI đọc ra.
+    # Thiếu một dạng ở đây thì câu hỏi LƯU ĐƯỢC nhưng vỡ lúc trả về, và lỗi hiện
+    # ra là 500 không nói gì — nên có một test khoá hai danh sách lại với nhau.
+    type: Literal["MCQ_SINGLE", "MCQ_MULTI", "GAP_FILL", "GAP_DROPDOWN", "SHORT_ANSWER"]
     schema_version: int
     points: int
     time_limit_seconds: int | None
@@ -100,8 +115,57 @@ class QuestionOut(BaseModel):
     level: str | None
     topic: str | None
     tags: list[str]
+    #: ĐỊA CHỈ GỐC nếu câu này đến từ file .xlsx nội dung. Câu soạn tay thì cả
+    #: ba đều `None`, và giao diện không hiện gì cả.
+    world_code: str | None = None
+    stage_code: str | None = None
+    quest_code: str | None = None
+    question_order: int | None = None
+
+    #: CÁCH RA ĐỀ — đọc hay nghe. Xem `PromptKind` và GAME_DOMAIN §3c.
+    prompt_kind: Literal["text", "audio"] = PromptKind.TEXT
+    #: Đoạn chữ của đề mở sẵn cạnh trình phát. Nút Transcript thì luôn có.
+    show_transcript: bool = False
+    audio_media_id: uuid.UUID | None = None
+    #: URL tệp nghe, dựng sẵn để giao diện không phải tra bảng media — cùng nếp
+    #: với `icon_url` của nhiệm vụ và `background_url` của màn chơi.
+    audio_url: str | None = None
+
     created_at: datetime
     updated_at: datetime
+
+
+class ImportReportOut(BaseModel):
+    """Kết quả một lần nhập file .xlsx.
+
+    Mọi con số ở đây đều kiểm chứng được bằng cách mở kho ra đếm. Đó là chủ ý:
+    nhập khẩu là thao tác ghi hàng loạt, và thứ người dùng cần ngay sau đó là
+    bằng chứng chuyện vừa xảy ra đúng như họ tưởng.
+    """
+
+    created: int
+    updated: int
+    linked: int
+    already_linked: int
+    in_bank: int
+    #: Mã nhiệm vụ chưa tồn tại. Đây là danh sách việc-cần-làm: điền mã này vào
+    #: nhiệm vụ trong trình thiết kế rồi nhập lại là chúng tự lắp vào.
+    missing_quest_codes: list[str]
+    #: Dòng bị bỏ qua, kèm lý do đọc được.
+    skipped: list[str]
+
+
+class QuestionCodesOut(BaseModel):
+    """Những mã định danh đang CÓ THẬT trong kho, để dựng ô chọn bộ lọc.
+
+    Chỉ là danh sách chuỗi: chỗ gọi không cần biết mỗi mã có bao nhiêu câu, nó
+    cần biết chọn được những gì.
+    """
+
+    world_codes: list[str]
+    stage_codes: list[str]
+    #: Thu hẹp theo `stage_code` khi truy vấn có truyền — xem `service.list_codes`.
+    quest_codes: list[str]
 
 
 class QuestionListOut(BaseModel):
@@ -270,12 +334,27 @@ def _validate_gap_dropdown(content: dict, answer: dict) -> None:
             _fail(ErrorCode.QUESTION_CORRECT_NOT_IN_OPTIONS, gap=key)
 
 
+def _validate_short_answer(content: dict, answer: dict) -> None:
+    """Học sinh GÕ câu trả lời; chấm bằng cách khớp danh sách `accepted`.
+
+    `accepted` phải có ít nhất một cách viết. Danh sách rỗng nghĩa là gõ gì cũng
+    sai — một câu hỏi không ai trả lời đúng được, và người soạn chỉ phát hiện ra
+    khi có học sinh đang làm bài.
+    """
+    _require_text(content.get("prompt"), "prompt")
+
+    accepted = [a for a in (answer.get("accepted") or []) if str(a).strip()]
+    if not accepted:
+        _fail(ErrorCode.QUESTION_NO_CORRECT_ANSWER)
+
+
 #: Dạng nào kiểm bằng hàm nào. Thêm dạng mới = thêm một dòng.
 _VALIDATORS = {
     QuestionType.MCQ_SINGLE: lambda c, a: _validate_mcq(c, a, multi=False),
     QuestionType.MCQ_MULTI: lambda c, a: _validate_mcq(c, a, multi=True),
     QuestionType.GAP_FILL: _validate_gap_fill,
     QuestionType.GAP_DROPDOWN: _validate_gap_dropdown,
+    QuestionType.SHORT_ANSWER: _validate_short_answer,
 }
 
 

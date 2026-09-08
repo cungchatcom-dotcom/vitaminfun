@@ -19,6 +19,7 @@ import type {
   RendererProps,
 } from "./types";
 import { parseTemplate } from "./template";
+import { AudioPrompt, resolvePrompt, type PromptKind } from "./audio-prompt";
 
 // --------------------------------------------------------------------------
 // Trắc nghiệm
@@ -68,7 +69,11 @@ export function McqRenderer({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-lg font-semibold">{data.prompt}</p>
+      {/* Có canh gác vì đề bài CÓ THỂ VẮNG: câu nghe giấu đoạn chữ sau nút
+          Transcript, và `QuestionRenderer` gỡ `prompt` ra trước khi truyền
+          xuống đây. Không canh thì còn lại một thẻ `<p>` rỗng chiếm chỗ ngay
+          trên các phương án. */}
+      {data.prompt && <p className="text-lg font-semibold">{data.prompt}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {options.map((option, index) => {
@@ -244,20 +249,143 @@ function gapResultStyle(correct: boolean | undefined): React.CSSProperties {
 
 // --------------------------------------------------------------------------
 
+/**
+ * SHORT_ANSWER — học sinh GÕ câu trả lời.
+ *
+ * Một ô chữ, không có lựa chọn nào. Muốn dễ hơn thì xin gợi ý, và gợi ý thì tốn
+ * năng lượng — xem `docs/GAME_DOMAIN.md`. Đó là cả điểm khác nhau giữa dạng này
+ * và trắc nghiệm: ở đây học sinh phải tự nhớ ra chữ, không phải nhận ra chữ.
+ */
+export function ShortAnswerRenderer({
+  content,
+  value,
+  onChange,
+  detail,
+  disabled,
+  mode,
+  answer,
+}: RendererProps) {
+  const { prompt, placeholder, maxWords } = content as {
+    prompt?: string;
+    placeholder?: string;
+    maxWords?: number;
+  };
+  const text = (value as { text?: string })?.text ?? "";
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const accepted = (answer as { accepted?: string[] } | null)?.accepted ?? [];
+
+  return (
+    <div className="space-y-3">
+      {prompt && <p className="text-lg leading-relaxed">{prompt}</p>}
+
+      <input
+        type="text"
+        className="field-input w-full"
+        disabled={disabled}
+        value={text}
+        placeholder={placeholder ?? ""}
+        onChange={(event) => onChange({ text: event.target.value } as QuestionResponse)}
+        aria-label={prompt || "Câu trả lời"}
+        style={gapResultStyle(detail?.ok)}
+      />
+
+      {/* Đếm từ chỉ hiện khi người soạn ĐẶT giới hạn. Hiện một bộ đếm không có
+          ngưỡng nào là bắt học sinh đoán xem bao nhiêu từ mới đủ. */}
+      {maxWords ? (
+        <p
+          className="text-right text-xs"
+          style={{ color: words > maxWords ? "var(--color-danger)" : "var(--color-text-muted)" }}
+        >
+          {words}/{maxWords}
+        </p>
+      ) : null}
+
+      {/* Chữa bài: chỉ ra cách viết được chấp nhận. Học sinh gõ sai mà không
+          biết đáng lẽ phải gõ gì thì không học được gì từ câu đó. */}
+      {mode === "review" && accepted.length > 0 && (
+        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          ✓ {accepted.join(" / ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+
+/**
+ * Vẽ một câu hỏi — bất kể dạng nào, bất kể ra đề bằng chữ hay bằng tiếng.
+ *
+ * CÁCH RA ĐỀ xử lý ở ĐÂY, đúng một chỗ, chứ không nhét vào từng dạng bài. Năm
+ * dạng bài × hai cách ra đề là mười nhánh phải nhớ; bọc một lớp ở ngoài thì
+ * thêm một cách ra đề mới không đụng vào dạng nào cả.
+ *
+ * Phép biến đổi rất gọn: câu NGHE thì **gỡ `prompt` ra khỏi nội dung** truyền
+ * xuống, rồi đưa nó cho `AudioPrompt` làm transcript. Nhờ vậy không renderer nào
+ * biết audio là gì, và cũng không renderer nào tự vẽ đoạn chữ hai lần.
+ *
+ * Chỉ giấu ĐOẠN CHỮ CỦA ĐỀ — phương án, ô trống, ô nhập vẫn hiện nguyên. Giấu
+ * cái ô phải điền thì câu hỏi thành không làm được, chứ không thành khó hơn.
+ */
 export function QuestionRenderer({
   type,
+  promptKind,
+  audioUrl,
+  showTranscript,
   ...props
-}: RendererProps & { type: string }) {
-  switch (type) {
-    case "MCQ_SINGLE":
-      return <McqRenderer {...props} multi={false} />;
-    case "MCQ_MULTI":
-      return <McqRenderer {...props} multi />;
-    case "GAP_FILL":
-      return <GapFillRenderer {...props} />;
-    case "GAP_DROPDOWN":
-      return <GapDropdownRenderer {...props} />;
-    default:
-      return null;
+}: RendererProps & {
+  type: string;
+  /** `"audio"` = ra đề bằng tiếng. Vắng mặt = câu đọc, y như trước. */
+  promptKind?: PromptKind | null;
+  /** URL tệp nghe đã đóng băng trong đề bài. */
+  audioUrl?: string | null;
+  /** Đoạn chữ mở sẵn hay giấu sau nút. */
+  showTranscript?: boolean | null;
+}) {
+  const prompt = resolvePrompt({ kind: promptKind, audioUrl, showTranscript });
+
+  const inner = { ...props };
+  let transcript: string | undefined;
+  if (prompt.audio) {
+    transcript = (props.content as { prompt?: string }).prompt;
+    // Gỡ `prompt` khỏi nội dung truyền xuống: `AudioPrompt` là chỗ duy nhất vẽ
+    // nó khi ra đề bằng tiếng. Để nguyên thì đoạn chữ hiện ở CẢ HAI chỗ, và cái
+    // nút Transcript không giấu được gì.
+    inner.content = { ...props.content, prompt: undefined };
   }
+
+  const body = (() => {
+    switch (type) {
+      case "MCQ_SINGLE":
+        return <McqRenderer {...inner} multi={false} />;
+      case "MCQ_MULTI":
+        return <McqRenderer {...inner} multi />;
+      case "GAP_FILL":
+        return <GapFillRenderer {...inner} />;
+      case "GAP_DROPDOWN":
+        return <GapDropdownRenderer {...inner} />;
+      case "SHORT_ANSWER":
+        return <ShortAnswerRenderer {...inner} />;
+      default:
+        return null;
+    }
+  })();
+
+  if (!prompt.audio) return body;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <AudioPrompt
+        src={prompt.audio}
+        transcript={transcript}
+        defaultOpen={prompt.transcriptOpen}
+        toggleable={prompt.toggleable}
+        // Tự phát CHỈ khi đang làm bài thật. Ở khung xem trước của giáo viên và
+        // ở màn xem lại, tiếng tự nổ ra là thứ gây giật mình chứ không giúp gì:
+        // họ đang đọc, không đang làm bài.
+        autoPlay={props.mode === "exam"}
+      />
+      {body}
+    </div>
+  );
 }
