@@ -31,16 +31,31 @@ export default async function GalaxyMapPage({ params }: { params: Promise<{ loca
 
   return (
     <AuthProvider user={user}>
-      <div className="flex min-h-full flex-col">
-        {context.is_preview && <PreviewBanner />}
-        <TopBar accent="student" />
+      {/* TRỌN MÀN HÌNH. Tấm bản đồ là một BỨC TRANH 3200×1800 do chính người
+          dựng vẽ ra; nhốt nó trong một cột rộng 72rem giữa hai dải trống thì
+          phân nửa công sức ấy không ai nhìn thấy.
+
+          `h-dvh` chứ không `h-screen`: trên điện thoại, `100vh` tính cả phần bị
+          thanh địa chỉ che, nên mép dưới bản đồ bị cắt.
+
+          Thanh trên cùng GIỮ LẠI, khác màn chơi: ở đây người dùng còn cần lối
+          đăng xuất và tên mình, mà màn này không có HUD nào mang chúng. */}
+      <div className="flex h-dvh flex-col overflow-hidden">
+        {context.is_preview && (
+          <div className="shrink-0">
+            <PreviewBanner />
+          </div>
+        )}
+        <div className="shrink-0">
+          <TopBar accent="student" />
+        </div>
 
         {/* Không có tiêu đề trang phía trên tấm bản đồ.
             "Galaxy map" thì chính tấm bản đồ đã nói rõ hơn mọi dòng chữ, còn
             "Chào <tên>" thì thanh trên cùng đã có sẵn tên người đang đăng nhập.
             Hai dòng đó chỉ đẩy bản đồ tụt xuống và ăn mất chiều cao màn hình —
             thứ mà một bức tranh 3200×1800 cần hơn cả. */}
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+        <main className="flex min-h-0 flex-1 items-center justify-center p-3">
           <GalaxyMap galaxy={galaxy} />
         </main>
       </div>

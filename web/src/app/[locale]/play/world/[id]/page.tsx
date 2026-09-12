@@ -37,11 +37,27 @@ export default async function WorldPage({
 
   return (
     <AuthProvider user={user}>
-      <div className="flex min-h-full flex-col">
-        {context.is_preview && <PreviewBanner />}
-        <TopBar accent="student" />
+      {/* TRỌN MÀN HÌNH. Tấm bản đồ là một BỨC TRANH 3200×1800 do chính người
+          dựng vẽ ra; nhốt nó trong một cột rộng 72rem giữa hai dải trống thì
+          phân nửa công sức ấy không ai nhìn thấy.
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+          `h-dvh` chứ không `h-screen`: trên điện thoại, `100vh` tính cả phần bị
+          thanh địa chỉ che, nên mép dưới bản đồ bị cắt.
+
+          Thanh trên cùng GIỮ LẠI, khác màn chơi: ở đây người dùng còn cần lối
+          đăng xuất và tên mình, mà màn này không có HUD nào mang chúng. */}
+      <div className="flex h-dvh flex-col overflow-hidden">
+        {context.is_preview && (
+          <div className="shrink-0">
+            <PreviewBanner />
+          </div>
+        )}
+        <div className="shrink-0">
+          <TopBar accent="student" />
+        </div>
+
+        {/* `relative` để lời báo Cánh cổng Thời gian neo được vào đây. */}
+        <main className="relative flex min-h-0 flex-1 items-center justify-center p-3">
           <WorldStages world={world} locale={locale} />
         </main>
       </div>

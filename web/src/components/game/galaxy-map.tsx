@@ -51,8 +51,25 @@ export function GalaxyMap({ galaxy }: { galaxy: PlayGalaxy }) {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950"
-      style={{ aspectRatio: `${GALAXY.width} / ${GALAXY.height}` }}
+      /**
+       * PHỦ HẾT CHỖ ĐƯỢC CHO, nhưng GIỮ NGUYÊN TỈ LỆ 3200×1800.
+       *
+       * Tỉ lệ không phải để cho đẹp: mọi khối trong bản đồ được đặt theo PHẦN
+       * TRĂM của khung này, còn ảnh nền thì `object-cover`. Khung lệch tỉ lệ là
+       * ảnh bị xén một dải, mà các khối thì không xén theo — người dựng căn một
+       * cái cổng vào đúng giữa vòm đá, người chơi thấy nó nằm lệch trên bầu trời.
+       *
+       * Nên khung CAO bằng chỗ được cho (`h-full`) và bề RỘNG tự suy ra từ tỉ lệ
+       * (`w-auto` + `aspect-ratio`). Trần chiều cao `calc(...)` lo nốt trường hợp
+       * ngược lại — cửa sổ hẹp mà cao, như điện thoại dựng đứng: ở đó bề rộng
+       * mới là thứ hết trước, nên phải hạ chiều cao xuống cho bề rộng vừa đủ
+       * 100vw. Trừ `1.5rem` là phần đệm `p-3` hai bên của khung cha.
+       */
+      className="relative m-auto h-full w-auto max-w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950"
+      style={{
+        aspectRatio: `${GALAXY.width} / ${GALAXY.height}`,
+        maxHeight: `calc((100vw - 1.5rem) * ${GALAXY.height} / ${GALAXY.width})`,
+      }}
       /* Lưới an toàn cho cả tấm bản đồ. Việc xoá chính là của từng world ở
          `WorldPin`; cái này bắt trường hợp con trỏ phóng ra khỏi bản đồ nhanh
          đến mức `pointerleave` của world không kịp bắn — chuột rời hẳn cửa sổ
