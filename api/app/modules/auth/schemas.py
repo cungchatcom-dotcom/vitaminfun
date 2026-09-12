@@ -36,6 +36,16 @@ class SignupRequest(BaseModel):
     password: str = Field(max_length=128)
 
 
+class AudioPrefs(BaseModel):
+    """Tuỳ chọn âm thanh của người chơi. Theo TÀI KHOẢN, không theo trình duyệt."""
+
+    #: Có nghe nhạc không.
+    on: bool = True
+    #: Âm lượng TỔNG, 0..1. NHÂN vào âm lượng từng khối do giáo viên cân bằng,
+    #: không thay thế nó — người chơi vặn cả bản phối, không vặn từng nhạc cụ.
+    master: float = Field(default=1.0, ge=0, le=1)
+
+
 class UserSummary(BaseModel):
     """Thông tin đủ để giao diện dựng khung và điều hướng."""
 
@@ -58,6 +68,9 @@ class UserSummary(BaseModel):
     #: Vai trò này có được vào chế độ chơi thử không. Giao diện dùng để hiện
     #: thanh cảnh báo chơi thử và nút "Bỏ qua điều kiện mở khoá".
     can_preview: bool
+
+    #: Tuỳ chọn âm thanh, đã bù mặc định — giao diện không phải tự bù.
+    audio_prefs: AudioPrefs = Field(default_factory=AudioPrefs)
 
 
 class LoginResponse(BaseModel):

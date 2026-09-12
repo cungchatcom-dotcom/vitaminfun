@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -77,6 +78,21 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     perm_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    #: TUỲ CHỌN ÂM THANH của người chơi: `{"on": true, "master": 1.0}`.
+    #:
+    #: Theo TÀI KHOẢN, không theo trình duyệt. Trước đây nó nằm ở
+    #: `localStorage` với lý do "thuộc về cái máy đang ngồi" — lý do ấy ngược
+    #: với phòng máy của một lớp học: em tắt nhạc ở máy thứ Hai, thứ Tư ngồi máy
+    #: khác thì nhạc bật lại, vì lựa chọn ở lại với cái bàn chứ không đi theo
+    #: người. Và cùng một cái máy thì trao tuỳ chọn của em trước cho em sau.
+    #:
+    #: RỖNG = mặc định (bật nhạc, âm lượng đầy), nên tài khoản chưa đụng tới
+    #: vẫn nghe đúng như cũ. Giao diện vẫn giữ một bản sao ở `localStorage`,
+    #: nhưng chỉ để vẽ ngay lúc mở trang; con số thật nằm ở đây.
+    audio_prefs_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email} role={self.role}>"

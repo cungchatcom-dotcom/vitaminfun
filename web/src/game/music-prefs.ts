@@ -8,12 +8,20 @@
  * là vẫn bật. Không có nó thì mỗi màn một cái công tắc riêng, và người chơi
  * phải tắt lại ở từng chỗ — ba lần cho một ý định.
  *
- * ## Đây là tuỳ chọn của NGƯỜI CHƠI, không phải dữ liệu của game
+ * ## Nó theo TÀI KHOẢN, không theo trình duyệt
  *
- * Nên nó nằm ở `localStorage` chứ không ở server: nó thuộc về cái máy đang
- * ngồi, không thuộc về tài khoản. Hai đứa trẻ dùng chung một tài khoản lớp ở
- * hai máy thì mỗi máy có mức âm lượng của riêng nó, và một đứa vặn nhỏ không
- * làm đứa kia mất tiếng.
+ * Con số thật nằm ở `users.audio_prefs_json`. `localStorage` vẫn còn, nhưng chỉ
+ * là BẢN SAO để vẽ ngay lúc mở trang — Phaser và mấy component cần đọc tuỳ chọn
+ * một cách đồng bộ, trước cả khi có lượt gọi mạng nào.
+ *
+ * Trước đây con số thật nằm ở `localStorage`, với lý do "nó thuộc về cái máy
+ * đang ngồi". Lý do ấy ngược với phòng máy của một lớp: em tắt nhạc ở máy hôm
+ * thứ Hai, thứ Tư ngồi máy khác thì nhạc bật lại — lựa chọn ở lại với cái bàn
+ * chứ không đi theo người. Và cùng một cái máy thì trao tuỳ chọn của em trước
+ * cho em sau.
+ *
+ * Đăng nhập là bản của tài khoản GHI ĐÈ bản sao ở máy: máy chỉ nhớ hộ, không
+ * quyết.
  *
  * ## Âm lượng tổng NHÂN vào, không thay thế
  *
@@ -62,7 +70,14 @@ export function readMusicPrefs(): MusicPrefs {
   }
 }
 
-export function writeMusicPrefs(prefs: MusicPrefs): void {
+/**
+ * Ghi BẢN SAO ở máy và báo cho mọi thứ đang mở. KHÔNG chạm tới server.
+ *
+ * Dùng khi nguồn tin là chính server — lúc đăng nhập xong, tài khoản nói tuỳ
+ * chọn của nó là gì. Gọi `writeMusicPrefs` ở đó sẽ gửi ngược giá trị vừa nhận
+ * về lại server: một lượt ghi thừa cho một thứ không đổi.
+ */
+export function cacheMusicPrefs(prefs: MusicPrefs): void {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(prefs));
   } catch {
@@ -70,4 +85,25 @@ export function writeMusicPrefs(prefs: MusicPrefs): void {
     // bên dưới, nên mọi thứ đang mở vẫn đổi theo ngay.
   }
   window.dispatchEvent(new CustomEvent<MusicPrefs>(MUSIC_PREFS_EVENT, { detail: prefs }));
+}
+
+/**
+ * NGƯỜI CHƠI vừa vặn cái nút: ghi bản sao, báo cho màn hình, rồi gửi lên tài
+ * khoản.
+ *
+ * Không chờ server: cái nút phải nhảy ngay dưới tay, còn việc lưu thì đi sau.
+ * Hỏng thì tuỳ chọn vẫn đúng trong phiên này và lần bấm sau sẽ gửi lại — không
+ * có gì để báo lỗi, và một hộp thoại "không lưu được âm lượng" thì phiền hơn
+ * chính cái nó báo.
+ *
+ * Khách chưa đăng nhập (màn thiết kế của giáo viên gọi tới đây) thì server trả
+ * 401 và ta bỏ qua: bản sao ở máy vẫn làm đúng việc của nó.
+ */
+export function writeMusicPrefs(prefs: MusicPrefs): void {
+  cacheMusicPrefs(prefs);
+  void fetch('/api/be/auth/me/audio-prefs', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(prefs),
+  }).catch(() => {});
 }

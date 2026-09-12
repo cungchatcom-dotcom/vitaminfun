@@ -8,6 +8,7 @@ from app.core.deps import CurrentUserDep, DbDep
 from app.core.security import create_token
 from app.db.models.user import User, UserRole
 from app.modules.auth.schemas import (
+    AudioPrefs,
     LoginRequest,
     LoginResponse,
     SignupRequest,
@@ -25,6 +26,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def to_summary(user: User) -> UserSummary:
     return UserSummary(
+        # Bù mặc định NGAY Ở ĐÂY: rỗng là trạng thái bình thường của một tài
+        # khoản chưa đụng tới cái nút nào, và mỗi chỗ đọc tự bù lấy là mỗi chỗ
+        # một cơ hội bù khác đi.
+        audio_prefs=AudioPrefs(**(user.audio_prefs_json or {})),
         id=user.id,
         email=user.email,
         display_name=user.display_name,
@@ -86,6 +91,28 @@ async def signup_endpoint(payload: SignupRequest, db: DbDep) -> LoginResponse:
         expires_in=access_token_ttl_seconds(),
         user=to_summary(user),
     )
+
+
+@router.put(
+    "/me/audio-prefs",
+    response_model=UserSummary,
+    summary="Lưu tuỳ chọn âm thanh của chính mình",
+)
+async def save_audio_prefs(
+    payload: AudioPrefs, current: CurrentUserDep, db: DbDep
+) -> UserSummary:
+    """Ghi tuỳ chọn nhạc lên TÀI KHOẢN đang đăng nhập.
+
+    Không nhận `user_id`: người ta chỉ đổi được tuỳ chọn của chính mình, và một
+    tham số nhận id là một cánh cửa để tắt nhạc của người khác.
+
+    Ai cũng gọi được — học sinh, giáo viên, admin. Đây là tuỳ chọn cá nhân, nó
+    không mở ra thứ gì để phải phân quyền.
+    """
+    current.audio_prefs_json = payload.model_dump()
+    await db.commit()
+    await db.refresh(current)
+    return to_summary(current)
 
 
 @router.get(

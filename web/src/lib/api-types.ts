@@ -63,6 +63,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me/audio-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Lưu tuỳ chọn âm thanh của chính mình
+         * @description Ghi tuỳ chọn nhạc lên TÀI KHOẢN đang đăng nhập.
+         *
+         *     Không nhận `user_id`: người ta chỉ đổi được tuỳ chọn của chính mình, và một
+         *     tham số nhận id là một cánh cửa để tắt nhạc của người khác.
+         *
+         *     Ai cũng gọi được — học sinh, giáo viên, admin. Đây là tuỳ chọn cá nhân, nó
+         *     không mở ra thứ gì để phải phân quyền.
+         */
+        put: operations["save_audio_prefs_api_v1_auth_me_audio_prefs_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -1522,6 +1548,22 @@ export interface components {
              * @default []
              */
             lines: string[];
+        };
+        /**
+         * AudioPrefs
+         * @description Tuỳ chọn âm thanh của người chơi. Theo TÀI KHOẢN, không theo trình duyệt.
+         */
+        AudioPrefs: {
+            /**
+             * On
+             * @default true
+             */
+            on: boolean;
+            /**
+             * Master
+             * @default 1
+             */
+            master: number;
         };
         /** AudioReportOut */
         AudioReportOut: {
@@ -4513,6 +4555,7 @@ export interface components {
             home_route: string;
             /** Can Preview */
             can_preview: boolean;
+            audio_prefs?: components["schemas"]["AudioPrefs"];
         };
         /** ValidationError */
         ValidationError: {
@@ -5052,6 +5095,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_audio_prefs_api_v1_auth_me_audio_prefs_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioPrefs"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummary"];
                 };
             };
             /** @description Validation Error */

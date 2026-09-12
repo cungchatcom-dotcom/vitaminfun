@@ -496,6 +496,20 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
     chạy trong màn một nẻo".
   - Thứ tự "đầu tiên" là thứ tự của chính bảng chọn (`world_characters.position`,
     rồi `characters.position`), và chỉ tính nhân vật ĐÃ PHÁT HÀNH.
+- **Tuỳ chọn nhạc đi theo TÀI KHOẢN** (`users.audio_prefs_json` — `{"on",
+  "master"}`), không theo trình duyệt. `localStorage` vẫn giữ một bản sao, nhưng
+  chỉ để vẽ ngay lúc mở trang (Phaser đọc đồng bộ, trước mọi lượt gọi mạng);
+  đăng nhập là bản của tài khoản GHI ĐÈ bản sao ấy.
+  - Trước đây con số thật nằm ở `localStorage`, với lý do "thuộc về cái máy đang
+    ngồi". Lý do ấy ngược với phòng máy của một lớp: em tắt nhạc ở máy hôm thứ
+    Hai, thứ Tư ngồi máy khác thì nhạc bật lại — lựa chọn ở lại với cái bàn chứ
+    không đi theo người; và cùng một cái máy thì trao tuỳ chọn của em trước cho
+    em sau.
+  - RỖNG `{}` = mặc định **bật nhạc, âm lượng đầy**, nên tài khoản vừa đăng ký
+    xong là có nhạc — bản nhạc là thứ giáo viên chủ động chọn và tải lên.
+  - Ghi qua `PUT /auth/me/audio-prefs`, không nhận `user_id`: người ta chỉ đổi
+    được tuỳ chọn của chính mình. Gửi đi theo kiểu bắn-và-quên — cái nút phải
+    nhảy ngay dưới tay, còn việc lưu thì đi sau.
 - **`world_progress.character_id` là nhân vật người này đã chọn cho world này.** Cột trên `world_progress` chứ không phải bảng mới: lựa chọn khoá theo đúng cặp (world, user) mà bảng đó đã khoá sẵn, và nó là một phần của "tiến trình của tôi trong world này". `SET NULL` khi nhân vật bị xoá — học sinh thấy ô trống và chọn lại, không mất tiến trình. **Đổi được bất cứ lúc nào**: một đứa trẻ chọn nhầm ở giây thứ ba mà phải chơi hết học kỳ với nhân vật đó là một hình phạt vô cớ.
 - **Spritesheet của nhân vật đi theo `RunOut`, không vào `snapshot_json`.** Snapshot là đề bài đóng băng; nhân vật là lựa chọn của người chơi và đổi được giữa hai lượt, nên nó phải đọc mới mỗi lần. Chỉ những hành động **có ảnh và đo được khổ khung** mới gửi xuống — khổ khung để trống thì server suy `ảnh ÷ frames`, vì cắt lệch một pixel là cả hoạt ảnh trượt khung và chỉ server mới có `media_assets.width/height`. Chưa chọn nhân vật → `character: null`, cảnh chơi vẽ ký hiệu mặc định: **một màn chơi không được đứng hình vì một lựa chọn cũ hết hiệu lực.**
 - **Trong màn chơi, `idle` lúc đứng và `walk` lúc đi — suy từ chính vị trí nhân vật, không từ nơi ra lệnh.** Có ba đường làm nhân vật dịch chuyển (tween của cú bấm, phím WASD, cú huỷ tween giữa chừng); so vị trí hai khung hình liên tiếp là MỘT luật đúng cho cả ba, thay vì ba chỗ phải nhớ đồng bộ. Nhân vật thiếu tấm cho hành động đang cần thì giữ nguyên tấm đang chạy — chỉ có mỗi `idle` vẫn đi lại được, chỉ là không có bước chân.

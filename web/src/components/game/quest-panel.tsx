@@ -1182,9 +1182,19 @@ export function QuestPanel({
               <Button ref={nutDong} variant="secondary" onClick={onClose}>
                 {t("stage.viewer.close")}
               </Button>
+              {/* CHỈ CÁI LOA, không kèm chữ. Cạnh nút Đóng, một cái loa đã nói
+                  đủ "bấm để nghe lại" — thêm hai chữ nữa chỉ làm hàng nút dài
+                  ra và kéo mắt khỏi thứ quan trọng hơn ở tấm bảng này: câu
+                  người canh giữ vừa nói.
+
+                  Chữ vẫn còn, ở `title` và `aria-label`: người rê chuột đọc
+                  được, và trình đọc màn hình cũng vậy. */}
               {tiengKhoa && (
                 <Button
                   variant="ghost"
+                  title={t("game.npc.replay")}
+                  aria-label={t("game.npc.replay")}
+                  className="px-2.5 text-lg leading-none"
                   onClick={() => {
                     const a = oTiengKhoa.current;
                     if (!a) return;
@@ -1194,7 +1204,7 @@ export function QuestPanel({
                     void a.play().catch(() => {});
                   }}
                 >
-                  🔊 {t("game.npc.replay")}
+                  🔊
                 </Button>
               )}
             </div>
