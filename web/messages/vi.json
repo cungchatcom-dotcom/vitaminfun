@@ -845,10 +845,11 @@
     "npcHint": "Nhân vật này trò chuyện với học sinh trong nhiệm vụ. Để trống thì khung mặt bỏ trống, hội thoại vẫn chạy.",
     "toDialogue": "Thiết kế màn hội thoại",
     "lockedMessage": "Câu khoá",
-    "lockedMessageHint": "Người gác cửa nói gì khi học sinh tới nhiệm vụ này lúc chưa mở. Để trống thì dùng câu tự sinh.",
+    "lockedMessageHint": "Người canh giữ nhiệm vụ này nói gì khi học sinh tới lúc chưa mở. Để trống thì dùng câu tự sinh.",
     "lockedMessagePlaceholder": "ví dụ: Chưa phải cửa này. Gặp người gác đã.",
     "lockedVoice": "Thu câu này",
-    "lockedNoVoice": "Người gác cửa của màn chưa có giọng"
+    "lockedNoVoice": "Người canh giữ nhiệm vụ này chưa có giọng",
+    "lockedListen": "Nghe thử"
   },
   "galaxy": {
     "designer": {

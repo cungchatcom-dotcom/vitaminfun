@@ -267,14 +267,6 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
     # Người canh giữ của MỌI nhiệm vụ trong một lượt tra.
     npcs = await actors_of(db, [q.npc_character_id for q in quests])
 
-    # GIỌNG CỦA NGƯỜI GÁC CỬA — tính MỘT lần cho cả màn.
-    #
-    # Câu khoá do người gác cửa nói, và cả màn chỉ có một người gác cửa (nhiệm
-    # vụ `advisor`). Hầu hết nhiệm vụ thường không gán NPC nào, nên lấy giọng
-    # của chính nhiệm vụ ấy thì phần lớn cánh cửa sẽ câm.
-    gac = next((q for q in quests if q.phase == QuestPhase.ADVISOR), None)
-    giong_gac = await tts.voice_of_character(db, gac.npc_character_id) if gac else None
-
     by_quest: dict[uuid.UUID, list[QuestQuestion]] = {}
     for link in links:
         by_quest.setdefault(link.quest_id, []).append(link)
@@ -352,12 +344,19 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
             db, npc_voice.id if npc_voice else None, verdict_lines
         )
 
-        # CÂU KHOÁ và tiếng của nó. Cùng bảng `voice_lines` với lời phán, nên
-        # hai nhiệm vụ có cùng câu và cùng giọng thì dùng chung một bản thu.
+        # CÂU KHOÁ và tiếng của nó — CÙNG GIỌNG với mọi thứ khác của nhiệm vụ
+        # này (`npc_voice` ở ngay trên), không phải giọng người gác cổng màn.
+        #
+        # Một nhiệm vụ, một người, một giọng: đề bài, phương án, lời khen chê,
+        # lời chia tay, câu khoá. Mọi ngoại lệ đều dẫn tới cùng một chỗ — mặt
+        # hiện trên màn hình là một người, tiếng vang lên là người khác.
+        #
+        # Cùng bảng `voice_lines` với lời phán, nên hai nhiệm vụ có cùng câu và
+        # cùng giọng thì dùng chung một bản thu.
         khoa = quest.locked_message_i18n or {}
         khoa_audio = await tts.line_urls(
             db,
-            giong_gac.id if giong_gac else None,
+            npc_voice.id if npc_voice else None,
             [t for t in khoa.values() if t],
         )
 
@@ -388,7 +387,7 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
                 # nó bắt đầu. Rỗng = màn chơi dùng bộ mặc định trong `messages/`.
                 "verdict": verdict_groups,
                 "verdict_audio": verdict_audio,
-                # CÂU KHOÁ: chữ của nhiệm vụ này, tiếng của NGƯỜI GÁC CỬA màn.
+                # CÂU KHOÁ: chữ và tiếng đều của CHÍNH nhiệm vụ này.
                 #
                 # Chỉ đóng băng URL của bản dịch ĐANG có — màn chơi chọn ngôn
                 # ngữ ở máy, nên gửi cả bảng `câu chữ → URL` và để nó tự tra.

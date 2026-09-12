@@ -127,6 +127,18 @@ export const generateLockedAudio = (questId: string, body: { overwrite?: boolean
     timeoutMs: TTS_TIMEOUT_MS,
   });
 
+/**
+ * Câu khoá của một nhiệm vụ, kèm URL tiếng đọc — để NGHE THỬ ngay tại ô soạn.
+ *
+ * `url = null` = chưa thu bằng giọng của người canh giữ hiện tại. Sửa chữ cũng
+ * rơi vào đây: bản thu khoá theo cặp (giọng, nội dung câu), nên chữ mới là một
+ * bản thu mới.
+ */
+export const lockedLines = (questId: string) =>
+  request<LockedLines>(`/quests/${questId}/locked-line`);
+
+export type LockedLines = components['schemas']['LockedLinesOut'];
+
 /** Dịch vụ giọng đọc còn sống không, và còn bao nhiêu ký tự. KHÔNG tốn credit. */
 export const voiceHealth = () => request<Record<string, VoiceHealth>>('/voices/health');
 

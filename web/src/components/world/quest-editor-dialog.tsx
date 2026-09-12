@@ -83,17 +83,14 @@ export function QuestEditorDialog({
   const npcs = useNpcs();
 
   /**
-   * NGƯỜI GÁC CỬA của màn đã có giọng chưa.
+   * NGƯỜI CANH GIỮ CỦA CHÍNH NHIỆM VỤ NÀY đã có giọng chưa.
    *
-   * Câu khoá do người gác cửa nói — nhiệm vụ `advisor` của màn — chứ không phải
-   * người canh giữ của chính nhiệm vụ đang sửa. Hầu hết nhiệm vụ thường không
-   * gán NPC nào, nên hỏi giọng của chúng thì nút sinh tiếng sẽ luôn mờ.
+   * Mọi thứ đọc thành tiếng của một nhiệm vụ — đề bài, phương án, lời khen chê,
+   * lời chia tay, câu khoá — đều là giọng của người này. Một nhiệm vụ, một
+   * người, một giọng; mặt hiện trên màn hình và tiếng vang lên phải là một.
    */
-  const gacCoGiong = Boolean(
-    npcs?.find(
-      (npc) =>
-        npc.id === stage.quests.find((q) => q.phase === 'advisor')?.npc_character_id,
-    )?.voice_id,
+  const npcCoGiong = Boolean(
+    npcs?.find((npc) => npc.id === quest.npc_character_id)?.voice_id,
   );
 
   useEffect(() => {
@@ -291,7 +288,7 @@ export function QuestEditorDialog({
               <LockedMessageField
                 quest={quest}
                 locale={locale}
-                hasVoice={gacCoGiong}
+                hasVoice={npcCoGiong}
                 onPatch={(next) => patch({ locked_message_i18n: next })}
                 onError={setErrorKey}
               />

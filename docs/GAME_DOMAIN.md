@@ -335,12 +335,24 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
   Bộ câu mẫu nằm ở `scripts/seed_locked_messages.py`: nó đọc tên cánh cửa từ
   chính cơ sở dữ liệu và xoay vòng sáu khuôn câu, nên đổi tên nhiệm vụ gác cửa
   là chạy lại script, không phải sửa tay.
-  - **Người NÓI câu ấy là NGƯỜI GÁC CỬA của màn** (nhiệm vụ `phase='advisor'`),
-    nên tiếng cũng thu bằng giọng của người ấy — `POST /quests/{id}/locked-audio`
-    tự tra `giong_gac`, giao diện không truyền giọng vào. Không có cột audio
-    riêng: bản thu nằm ở `voice_lines` khoá theo `(voice_id, sha256(text))` như
-    mọi câu khác, nên sửa chữ là tự khắc cần thu lại, và hai nhiệm vụ trùng chữ
-    thì dùng chung một file.
+  - **MỘT NHIỆM VỤ, MỘT NGƯỜI, MỘT GIỌNG.** Người nói câu khoá là NGƯỜI CANH GIỮ
+    CỦA CHÍNH NHIỆM VỤ ẤY (`quests.npc_character_id`) — cùng người đọc đề bài,
+    phương án, lời khen chê và lời chia tay. `POST /quests/{id}/locked-audio` tự
+    tra giọng từ nhiệm vụ, giao diện không truyền giọng vào; ảnh mặt trên tấm
+    bảng khoá cũng lấy từ đúng người ấy, và CHƯA GÁN AI thì để TRỐNG chứ không
+    lùi về mặt người khác.
+    - Bản trước lấy giọng (và mặt) của nhiệm vụ `advisor` với lý do "hầu hết
+      nhiệm vụ thường không gán ai". Lý do ấy chữa triệu chứng sai chỗ: cả màn
+      dùng chung một khuôn mặt thì mở cánh cửa nào cũng thấy một người, và tấm
+      bảng không nói gì về cánh cửa đang đứng trước. Cánh cửa chưa có người thì
+      câu trả lời là gán người cho nó.
+    - Không có cột audio riêng: bản thu nằm ở `voice_lines` khoá theo
+      `(voice_id, sha256(text))` như mọi câu khác, nên sửa chữ — hoặc đổi người
+      canh giữ — là tự khắc cần thu lại, và hai nhiệm vụ trùng chữ trùng giọng
+      thì dùng chung một file.
+    - `GET /quests/{id}/locked-line` trả câu khoá kèm URL bản thu để trình dựng
+      **nghe thử** ngay tại ô soạn. `url = null` = chưa thu bằng giọng hiện tại,
+      và nút nghe thử ẩn đi — một cái nút bấm vào im lặng còn tệ hơn không có.
   - `QuestOut` dựng TAY từng trường ở `_quests_out`, nên thêm cột ở model là
     CHƯA đủ: thiếu một dòng ở đó thì ô "Câu khoá" của trình dựng luôn mở ra
     trống dù cơ sở dữ liệu có chữ.

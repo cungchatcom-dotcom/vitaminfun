@@ -845,10 +845,11 @@
     "npcHint": "This character talks to the student during the quest. Leave it empty and the face frame stays blank; the conversation still runs.",
     "toDialogue": "Design the dialogue screen",
     "lockedMessage": "Locked message",
-    "lockedMessageHint": "What the gatekeeper says when a student reaches this quest before it opens. Leave empty to use the generated sentence.",
+    "lockedMessageHint": "What this quest's guardian says when a student arrives before it opens. Leave empty to use the generated sentence.",
     "lockedMessagePlaceholder": "e.g. Not this door. Speak to the guardian first.",
     "lockedVoice": "Record this line",
-    "lockedNoVoice": "The stage gatekeeper has no voice yet"
+    "lockedNoVoice": "This quest has no guardian with a voice yet",
+    "lockedListen": "Preview"
   },
   "galaxy": {
     "designer": {

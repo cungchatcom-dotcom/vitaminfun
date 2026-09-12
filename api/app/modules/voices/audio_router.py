@@ -40,6 +40,8 @@ from app.modules.voices.audio_schemas import (
     QuestionAudioOut,
     QuestionAudioStatusOut,
     StageAudioStatusOut,
+    LockedLineOut,
+    LockedLinesOut,
     VerdictLineOut,
     VerdictLinesOut,
 )
@@ -388,12 +390,18 @@ async def generate_locked_audio(
     current: CurrentUserDep,
     db: DbDep,
 ) -> AudioReportOut:
-    """Đọc câu khoá của nhiệm vụ này bằng giọng NGƯỜI GÁC CỬA của màn.
+    """Đọc câu khoá của nhiệm vụ này bằng giọng NGƯỜI CANH GIỮ CỦA CHÍNH NÓ.
 
-    Giọng lấy từ nhiệm vụ NPC, không phải từ chính nhiệm vụ đang khoá: câu ấy do
-    người gác cửa nói, và cả màn chỉ có một người gác cửa. Hầu hết nhiệm vụ
-    thường không gán NPC nào, nên lấy giọng của chính chúng thì phần lớn cánh
-    cửa sẽ câm.
+    MỘT NHIỆM VỤ, MỘT NGƯỜI, MỘT GIỌNG. Đề bài, phương án, lời khen chê, lời
+    chia tay và câu khoá — tất cả đều là `quest.npc_character_id`. Không có
+    ngoại lệ nào, vì mọi ngoại lệ đều dẫn tới cùng một chỗ: mặt hiện trên màn
+    hình là một người, tiếng vang lên là người khác.
+
+    Bản trước lấy giọng của nhiệm vụ NPC (người gác cổng của MÀN), với lý do
+    "hầu hết nhiệm vụ thường không gán ai nên lấy giọng của chính chúng thì phần
+    lớn cánh cửa sẽ câm". Lý do ấy chữa triệu chứng sai chỗ: cánh cửa chưa gán
+    người thì đúng là chưa có ai để nói, và câu trả lời là gán người cho nó —
+    không phải mượn giọng người bên cạnh.
 
     Chữ lấy THẲNG từ cột của nhiệm vụ, không nhận chuỗi client gửi lên: nhận bừa
     là mở đường thu bất cứ gì bằng giọng của người khác.
@@ -402,14 +410,9 @@ async def generate_locked_audio(
     if quest is None:
         raise NotFoundError(ErrorCode.NOT_FOUND, resource="quest")
 
-    gac = await db.scalar(
-        select(Quest).where(
-            Quest.stage_id == quest.stage_id, Quest.phase == QuestPhase.ADVISOR
-        )
-    )
     label = (quest.name_i18n or {}).get("en") or quest.quest_object_key
     voice = tts.require_voice(
-        await tts.voice_of_character(db, gac.npc_character_id) if gac else None, label
+        await tts.voice_of_character(db, quest.npc_character_id), label
     )
 
     texts = [t.strip() for t in (quest.locked_message_i18n or {}).values() if t and t.strip()]
@@ -457,6 +460,42 @@ async def read_verdict_lines(
 
     return VerdictLinesOut(
         quest_id=quest_id, voice_name=voice.name if voice else None, lines=out
+    )
+
+
+@router.get(
+    "/quests/{quest_id}/locked-line",
+    response_model=LockedLinesOut,
+    summary="Câu khoá và tiếng đọc của nó",
+)
+async def read_locked_line(quest_id: uuid.UUID, db: DbDep) -> LockedLinesOut:
+    """Câu khoá của nhiệm vụ, kèm URL tiếng theo giọng người canh giữ nó.
+
+    Sinh đôi với `read_verdict_lines`, và cùng một lý do: người dựng vừa bấm
+    thu xong thì việc tiếp theo họ muốn làm là NGHE, ngay tại chỗ. Không có
+    đường nghe thì cách duy nhất để biết bản thu ra sao là vào màn chơi, đi tới
+    đúng cánh cửa đang khoá.
+
+    `url = None` = chưa thu bằng giọng này — chữ vừa sửa cũng rơi vào đây, vì
+    bản thu khoá theo cặp (giọng, nội dung câu).
+    """
+    quest = await db.scalar(select(Quest).where(Quest.id == quest_id))
+    if quest is None:
+        raise NotFoundError(ErrorCode.NOT_FOUND, resource="quest")
+
+    voice = await tts.voice_of_character(db, quest.npc_character_id)
+    khoa = quest.locked_message_i18n or {}
+    texts = [t.strip() for t in khoa.values() if t and t.strip()]
+    urls = await tts.line_urls(db, voice.id if voice else None, texts)
+
+    return LockedLinesOut(
+        quest_id=quest_id,
+        voice_name=voice.name if voice else None,
+        lines=[
+            LockedLineOut(locale=loc, text=text.strip(), url=urls.get(text.strip()))
+            for loc, text in khoa.items()
+            if text and text.strip()
+        ],
     )
 
 

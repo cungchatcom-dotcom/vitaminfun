@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api-error';
-import { generateLockedAudio } from '@/lib/question-audio';
+import { generateLockedAudio, lockedLines } from '@/lib/question-audio';
 import type { Quest } from '@/lib/worlds';
 
 import { pickText } from '@/lib/i18n-text';
@@ -27,11 +27,13 @@ import { reportText } from './audio-tools';
  * Trống = quay về câu tự sinh. Người dựng không phải soạn gì để màn chơi chạy,
  * và xoá sạch ô này là cách "xoá" — không cần thêm một cái nút xoá riêng.
  *
- * ## Giọng là của NGƯỜI GÁC CỬA
+ * ## Giọng là của NGƯỜI CANH GIỮ CHÍNH NHIỆM VỤ NÀY
  *
- * Không phải giọng của nhiệm vụ đang sửa: câu ấy do người gác cửa nói, và cả màn
- * chỉ có một người gác cửa. `hasVoice` do chỗ gọi tra sẵn — nó đã nạp danh sách
- * NPC cho ô chọn ngay phía trên.
+ * Cùng giọng với đề bài, phương án và lời khen chê — một nhiệm vụ, một người,
+ * một giọng. Chưa gán người canh giữ, hoặc người ấy chưa có giọng, thì nút thu
+ * khoá lại: câu trả lời là gán người cho nhiệm vụ, không phải mượn giọng người
+ * bên cạnh. `hasVoice` do chỗ gọi tra sẵn — nó đã nạp danh sách NPC cho ô chọn
+ * ngay phía trên.
  */
 export function LockedMessageField({
   quest,
@@ -42,7 +44,7 @@ export function LockedMessageField({
 }: {
   quest: Quest;
   locale: string;
-  /** Người gác cửa của màn đã gán giọng chưa. Chưa thì nút thu bị khoá. */
+  /** Người canh giữ của nhiệm vụ này đã gán giọng chưa. Chưa thì nút thu khoá. */
   hasVoice: boolean;
   onPatch: (next: Record<string, string>) => Promise<void> | void;
   onError: (key: string | null) => void;
@@ -53,6 +55,34 @@ export function LockedMessageField({
 
   const hien = (quest.locked_message_i18n ?? {}) as Record<string, string>;
   const daCoChu = Object.values(hien).some((v) => v?.trim());
+
+  /**
+   * URL bản thu của ĐÚNG câu đang hiện, nếu có.
+   *
+   * Hỏi server chứ không đoán: bản thu khoá theo cặp (giọng, nội dung câu), nên
+   * chỉ server mới biết câu chữ hiện tại đã có tiếng bằng giọng người canh giữ
+   * hiện tại hay chưa. Sửa một chữ trong câu là bản thu cũ không còn khớp, và
+   * nút nghe thử phải tắt đi ngay — nếu không, người dựng bấm nghe rồi tưởng
+   * câu mới đã được thu.
+   */
+  const [tieng, setTieng] = useState<string | null>(null);
+  const oNghe = useRef<HTMLAudioElement>(null);
+
+  const doTieng = useCallback(async () => {
+    try {
+      const ra = await lockedLines(quest.id);
+      const dong = (ra.lines ?? []).find((l) => l.text === (pickText(hien, locale) || ''));
+      setTieng(dong?.url ?? null);
+    } catch {
+      setTieng(null);
+    }
+    // `hien` dựng lại mỗi lượt vẽ; khoá theo chính CHỮ trong đó.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quest.id, JSON.stringify(hien), locale]);
+
+  useEffect(() => {
+    void doTieng();
+  }, [doTieng]);
 
   return (
     <label className="block">
@@ -99,6 +129,8 @@ export function LockedMessageField({
               const report = await generateLockedAudio(quest.id, { overwrite: false });
               setNote(reportText(report, t as never));
               onError(null);
+              // Thu xong là việc tiếp theo người dựng muốn làm: NGHE.
+              await doTieng();
             } catch (error) {
               onError(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
             } finally {
@@ -108,6 +140,27 @@ export function LockedMessageField({
         >
           {t('designer.lockedVoice')}
         </Button>
+
+        {/* NGHE THỬ — chỉ hiện khi câu ĐANG soạn thật sự đã có bản thu bằng
+            giọng người canh giữ hiện tại. Hiện một cái nút bấm vào im lặng còn
+            tệ hơn không có nút: nó nói rằng có tiếng, trong khi không có. */}
+        {tieng && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const a = oNghe.current;
+                if (!a) return;
+                a.currentTime = 0;
+                void a.play().catch(() => {});
+              }}
+            >
+              🔊 {t('designer.lockedListen')}
+            </Button>
+            <audio ref={oNghe} key={tieng} src={tieng} preload="none" className="hidden" />
+          </>
+        )}
 
         {!hasVoice && (
           <span className="text-[11px] text-orichalcum-400">

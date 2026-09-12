@@ -474,12 +474,18 @@ export interface paths {
         put?: never;
         /**
          * Sinh tiếng cho câu khoá của nhiệm vụ
-         * @description Đọc câu khoá của nhiệm vụ này bằng giọng NGƯỜI GÁC CỬA của màn.
+         * @description Đọc câu khoá của nhiệm vụ này bằng giọng NGƯỜI CANH GIỮ CỦA CHÍNH NÓ.
          *
-         *     Giọng lấy từ nhiệm vụ NPC, không phải từ chính nhiệm vụ đang khoá: câu ấy do
-         *     người gác cửa nói, và cả màn chỉ có một người gác cửa. Hầu hết nhiệm vụ
-         *     thường không gán NPC nào, nên lấy giọng của chính chúng thì phần lớn cánh
-         *     cửa sẽ câm.
+         *     MỘT NHIỆM VỤ, MỘT NGƯỜI, MỘT GIỌNG. Đề bài, phương án, lời khen chê, lời
+         *     chia tay và câu khoá — tất cả đều là `quest.npc_character_id`. Không có
+         *     ngoại lệ nào, vì mọi ngoại lệ đều dẫn tới cùng một chỗ: mặt hiện trên màn
+         *     hình là một người, tiếng vang lên là người khác.
+         *
+         *     Bản trước lấy giọng của nhiệm vụ NPC (người gác cổng của MÀN), với lý do
+         *     "hầu hết nhiệm vụ thường không gán ai nên lấy giọng của chính chúng thì phần
+         *     lớn cánh cửa sẽ câm". Lý do ấy chữa triệu chứng sai chỗ: cánh cửa chưa gán
+         *     người thì đúng là chưa có ai để nói, và câu trả lời là gán người cho nó —
+         *     không phải mượn giọng người bên cạnh.
          *
          *     Chữ lấy THẲNG từ cột của nhiệm vụ, không nhận chuỗi client gửi lên: nhận bừa
          *     là mở đường thu bất cứ gì bằng giọng của người khác.
@@ -506,6 +512,34 @@ export interface paths {
          *     chính là thứ giao diện cần để đánh dấu câu nào còn thiếu.
          */
         get: operations["read_verdict_lines_api_v1_quests__quest_id__verdict_lines_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quests/{quest_id}/locked-line": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Câu khoá và tiếng đọc của nó
+         * @description Câu khoá của nhiệm vụ, kèm URL tiếng theo giọng người canh giữ nó.
+         *
+         *     Sinh đôi với `read_verdict_lines`, và cùng một lý do: người dựng vừa bấm
+         *     thu xong thì việc tiếp theo họ muốn làm là NGHE, ngay tại chỗ. Không có
+         *     đường nghe thì cách duy nhất để biết bản thu ra sao là vào màn chơi, đi tới
+         *     đúng cánh cửa đang khoá.
+         *
+         *     `url = None` = chưa thu bằng giọng này — chữ vừa sửa cũng rơi vào đây, vì
+         *     bản thu khoá theo cặp (giọng, nội dung câu).
+         */
+        get: operations["read_locked_line_api_v1_quests__quest_id__locked_line_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -609,7 +643,26 @@ export interface paths {
         get: operations["get_world_api_v1_worlds__world_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Xoá world
+         * @description Xoá world — CHỈ khi nó đã rỗng, tức không còn chương nào.
+         *
+         *     Cùng luật với `delete_chapter` và `delete_stage`, và cùng một lý do: khoá
+         *     ngoại là CASCADE. Xoá thẳng một world đang có nội dung sẽ kéo theo chương,
+         *     màn, nhiệm vụ, toàn bộ lượt chơi, bài làm, điểm chiến lực và mảnh bản đồ của
+         *     MỌI học sinh trong world ấy — sau đúng một cú bấm, và không có đường hoàn
+         *     tác. Bắt xoá từ trong ra ngoài là để cái giá ấy được nhìn thấy từng bước.
+         *
+         *     Câu hỏi trong kho KHÔNG mất theo: chúng thuộc về kho, không thuộc về world,
+         *     và `quest_questions` chỉ là mối nối. Xoá world là mất chỗ LẮP câu hỏi, không
+         *     mất câu hỏi.
+         *
+         *     `world_progress` và `map_shards_owned` thì đi theo world (CASCADE). Một world
+         *     đã rỗng chương thì không còn màn nào để chơi, nên những dòng ấy chỉ là dấu
+         *     vết của nội dung đã bị xoá trước đó — nhưng nếu bạn muốn giữ lịch sử để làm
+         *     báo cáo, hãy xuất báo cáo TRƯỚC khi xoá.
+         */
+        delete: operations["delete_world_api_v1_worlds__world_id__delete"];
         options?: never;
         head?: never;
         /** Sửa world */
@@ -2137,6 +2190,39 @@ export interface components {
                 [key: string]: string;
             } | null;
             content?: components["schemas"]["LobbyContent"] | null;
+        };
+        /**
+         * LockedLineOut
+         * @description CÂU KHOÁ của một nhiệm vụ, kèm tiếng đọc của người canh giữ nó.
+         *
+         *     Một bản dịch một dòng — ô soạn hôm nay chỉ có tiếng Anh, nhưng cái bảng này
+         *     không cần biết điều đó, và thêm bản dịch thứ hai thì nó tự dài ra.
+         *
+         *     `url = None` = chưa thu bằng giọng này. Đó chính là thứ giao diện cần để
+         *     biết khi nào hiện được nút nghe thử.
+         */
+        LockedLineOut: {
+            /** Locale */
+            locale: string;
+            /** Text */
+            text: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** LockedLinesOut */
+        LockedLinesOut: {
+            /**
+             * Quest Id
+             * Format: uuid
+             */
+            quest_id: string;
+            /** Voice Name */
+            voice_name?: string | null;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["LockedLineOut"][];
         };
         /** LoginRequest */
         LoginRequest: {
@@ -5699,6 +5785,37 @@ export interface operations {
             };
         };
     };
+    read_locked_line_api_v1_quests__quest_id__locked_line_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockedLinesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     stage_audio_status_api_v1_stages__stage_id__audio_get: {
         parameters: {
             query?: {
@@ -5894,6 +6011,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorldOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_world_api_v1_worlds__world_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                world_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

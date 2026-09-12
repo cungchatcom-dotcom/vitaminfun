@@ -122,3 +122,25 @@ class VerdictLinesOut(BaseModel):
     quest_id: uuid.UUID
     voice_name: str | None = None
     lines: list[VerdictLineOut] = []
+
+
+class LockedLineOut(BaseModel):
+    """CÂU KHOÁ của một nhiệm vụ, kèm tiếng đọc của người canh giữ nó.
+
+    Một bản dịch một dòng — ô soạn hôm nay chỉ có tiếng Anh, nhưng cái bảng này
+    không cần biết điều đó, và thêm bản dịch thứ hai thì nó tự dài ra.
+
+    `url = None` = chưa thu bằng giọng này. Đó chính là thứ giao diện cần để
+    biết khi nào hiện được nút nghe thử.
+    """
+
+    #: Khoá ngôn ngữ: `en`, `vi`…
+    locale: str
+    text: str
+    url: str | None = None
+
+
+class LockedLinesOut(BaseModel):
+    quest_id: uuid.UUID
+    voice_name: str | None = None
+    lines: list[LockedLineOut] = []
