@@ -470,6 +470,20 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
 - **Chưa có ảnh minimap thì MƯỢN ảnh chương (`cover`).** Hai cột vẫn tách, và tải riêng vẫn cho ra kết quả đẹp hơn vì hai khuôn hình khác nhau; nhưng một tấm ảnh hơi bị kéo giãn vẫn hơn hẳn một mảng đen trống, và ảnh chương thì luôn nói đúng về chương này. Chỉ giao diện lùi bậc — cột trong database vẫn là `NULL`, nên ô tải ảnh của người dựng vẫn hiện đúng "chưa có", không giả vờ đã có.
 - **Bấm vào một chương đã mở là mở MINIMAP của chương, không phải nhảy thẳng vào một màn.** Các màn xếp một hàng ngang theo thứ tự vì đây là một con đường, không phải một cái kho. Màn có tên thì tên nằm giữa vòng tròn, chưa có tên thì số thứ tự — chỗ nào cũng phải bấm được, kể cả màn người dựng chưa kịp đặt tên.
 - **Mặt của mỗi vòng tròn màn chơi là ẢNH NỀN CỦA CHÍNH MÀN ĐÓ** (`stages.background_media_id`, gửi xuống qua `PlayStageOut.background_url`). Minimap nhờ vậy là một lời hứa xem trước được: cái hang xanh trên bản đồ chính là cái hang xanh lát nữa bước vào. Không thêm cột "ảnh đại diện màn" riêng — nơi sắp đến TRÔNG NHƯ THẾ NÀO thì đã có sẵn một câu trả lời đúng, thêm cột nữa chỉ tạo cơ hội cho hai ảnh nói hai điều khác nhau. Màn khoá vẫn đeo ảnh nhưng **xám và tối hơn**: thấy nơi mình sắp tới là một phần của động lực đi tiếp, còn xám thì nói rõ "chưa phải bây giờ" mà không cần thêm chữ nào.
+- **Chưa chọn thì MẶC ĐỊNH là nhân vật ĐẦU TIÊN trong dàn của world.** Vào world
+  lần đầu mà ô mặt trống là cách mở màn tệ: học sinh phải bấm qua một hộp thoại
+  trước khi được nhìn thấy trò chơi, còn cảnh chơi thì vẽ một ký hiệu vô danh.
+  Người đầu danh sách là một câu trả lời sẵn có, và đổi được bất cứ lúc nào bằng
+  đúng cái nút vẫn ở đó.
+  - **TÍNH RA, không GHI XUỐNG** (`play/router.py::_my_character_id`). Ghi trong
+    một endpoint GET sẽ tạo một dòng `world_progress` cho người mới chỉ NGÓ VÀO
+    world — mà dòng ấy là thứ `players_total` đếm và bảng xếp hạng của giáo viên
+    đọc. Một lớp ba mươi em bấm xem thử sẽ thành ba mươi "người chơi" 0 điểm.
+  - Phòng chờ và CẢNH CHƠI dùng CHUNG hàm ấy: hai phép tính riêng cho cùng một
+    câu hỏi sẽ có ngày lệch, và triệu chứng là "ảnh đại diện một đằng, nhân vật
+    chạy trong màn một nẻo".
+  - Thứ tự "đầu tiên" là thứ tự của chính bảng chọn (`world_characters.position`,
+    rồi `characters.position`), và chỉ tính nhân vật ĐÃ PHÁT HÀNH.
 - **`world_progress.character_id` là nhân vật người này đã chọn cho world này.** Cột trên `world_progress` chứ không phải bảng mới: lựa chọn khoá theo đúng cặp (world, user) mà bảng đó đã khoá sẵn, và nó là một phần của "tiến trình của tôi trong world này". `SET NULL` khi nhân vật bị xoá — học sinh thấy ô trống và chọn lại, không mất tiến trình. **Đổi được bất cứ lúc nào**: một đứa trẻ chọn nhầm ở giây thứ ba mà phải chơi hết học kỳ với nhân vật đó là một hình phạt vô cớ.
 - **Spritesheet của nhân vật đi theo `RunOut`, không vào `snapshot_json`.** Snapshot là đề bài đóng băng; nhân vật là lựa chọn của người chơi và đổi được giữa hai lượt, nên nó phải đọc mới mỗi lần. Chỉ những hành động **có ảnh và đo được khổ khung** mới gửi xuống — khổ khung để trống thì server suy `ảnh ÷ frames`, vì cắt lệch một pixel là cả hoạt ảnh trượt khung và chỉ server mới có `media_assets.width/height`. Chưa chọn nhân vật → `character: null`, cảnh chơi vẽ ký hiệu mặc định: **một màn chơi không được đứng hình vì một lựa chọn cũ hết hiệu lực.**
 - **Trong màn chơi, `idle` lúc đứng và `walk` lúc đi — suy từ chính vị trí nhân vật, không từ nơi ra lệnh.** Có ba đường làm nhân vật dịch chuyển (tween của cú bấm, phím WASD, cú huỷ tween giữa chừng); so vị trí hai khung hình liên tiếp là MỘT luật đúng cho cả ba, thay vì ba chỗ phải nhớ đồng bộ. Nhân vật thiếu tấm cho hành động đang cần thì giữ nguyên tấm đang chạy — chỉ có mỗi `idle` vẫn đi lại được, chỉ là không có bước chân.

@@ -564,6 +564,13 @@ server {
 
   location / {
     proxy_pass http://127.0.0.1:5000;
+    # Mặc định của nginx là 60s, và nó CẮT NGANG các mẻ sinh tiếng đọc: tám mươi
+    # câu phán đi qua nhà cung cấp giọng mất hơn một phút. Triệu chứng khó đoán
+    # vì server VẪN LÀM XONG — giáo viên thấy "máy chủ không phản hồi", đóng
+    # popup mở lại thì tiếng đã có đủ. Trần phía trình duyệt là 5 phút
+    # (`TTS_TIMEOUT_MS` trong web/src/lib/question-audio.ts); để nginx rộng hơn
+    # thì lời từ chối luôn đến từ chỗ biết mình đang từ chối cái gì.
+    proxy_read_timeout 360s;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

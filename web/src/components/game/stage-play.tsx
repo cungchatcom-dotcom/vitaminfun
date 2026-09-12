@@ -679,7 +679,6 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
               advisorLabel={advisorLabel}
               // Mặt người GÁC CỔNG cho tấm bảng "đang khoá". Lấy từ ĐỀ BÀI ĐÃ
               // ĐÓNG BĂNG như mọi thứ khác của màn.
-              advisorNpc={advisorQuest?.npc ?? null}
               cluebook={cluebook}
               advisorOutro={advisorOutro}
               // Tiếng và cờ transcript đều lấy từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG, như mọi

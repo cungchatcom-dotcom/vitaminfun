@@ -455,6 +455,47 @@ async def _world_characters(db: DbDep, world_id: uuid.UUID) -> list[PlayCharacte
     ]
 
 
+async def _my_character_id(
+    db: DbDep, world_id: uuid.UUID, user_id: uuid.UUID
+) -> uuid.UUID | None:
+    """Nhân vật của người này trong world — ĐÃ CHỌN, hoặc MẶC ĐỊNH người đầu danh sách.
+
+    Vào world lần đầu thì chưa chọn ai, và một ô mặt trống là cách mở màn tệ:
+    học sinh phải bấm qua một hộp thoại trước khi được nhìn thấy trò chơi, còn
+    cảnh chơi thì vẽ một ký hiệu vô danh thay cho nhân vật. Người đầu tiên trong
+    dàn của world là một câu trả lời sẵn có, và đổi được bất cứ lúc nào bằng
+    đúng cái nút vẫn ở đó.
+
+    TÍNH RA chứ không GHI XUỐNG. Đây là một endpoint GET, và ghi ở đây sẽ tạo
+    một dòng `world_progress` cho người mới chỉ NGÓ VÀO world — mà dòng ấy là
+    thứ `players_total` đếm và bảng xếp hạng của giáo viên đọc. Một lớp ba mươi
+    em bấm xem thử sẽ thành ba mươi "người chơi" với 0 điểm. Lựa chọn thật được
+    ghi khi học sinh tự chọn (`pick_character`), hoặc khi lượt chơi đầu tiên bắt
+    đầu.
+
+    Cùng thứ tự với `_world_characters` — "người đầu danh sách" phải là người
+    đứng đầu trong chính bảng chọn mà học sinh nhìn thấy.
+    """
+    chosen = await db.scalar(
+        select(WorldProgress.character_id).where(
+            WorldProgress.world_id == world_id, WorldProgress.user_id == user_id
+        )
+    )
+    if chosen is not None:
+        return chosen
+
+    return await db.scalar(
+        select(Character.id)
+        .join(WorldCharacter, WorldCharacter.character_id == Character.id)
+        .where(
+            WorldCharacter.world_id == world_id,
+            Character.status == PublishStatus.PUBLISHED,
+        )
+        .order_by(WorldCharacter.position, Character.position, Character.id)
+        .limit(1)
+    )
+
+
 @router.put(
     "/worlds/{world_id}/character",
     response_model=PlayWorldDetailOut,
@@ -604,11 +645,7 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
         )
         or 0,
         characters=await _world_characters(db, world.id),
-        my_character_id=await db.scalar(
-            select(WorldProgress.character_id).where(
-                WorldProgress.world_id == world.id, WorldProgress.user_id == current.id
-            )
-        ),
+        my_character_id=await _my_character_id(db, world.id, current.id),
         chapters=out_chapters,
         gate_ready=summary["my_shards"] >= world.shard_total,
         level_i18n=world.level_i18n or {},
@@ -664,11 +701,11 @@ async def _run_character(
     giữ: hai bản chép của cùng phép cắt khung sẽ lệch nhau đúng vào lúc ai đó
     thêm một tư thế.
     """
-    character_id = await db.scalar(
-        select(WorldProgress.character_id).where(
-            WorldProgress.world_id == world_id, WorldProgress.user_id == user_id
-        )
-    )
+    # CÙNG một luật với phòng chờ, qua cùng một hàm: phòng chờ hiện mặt ai thì
+    # cảnh chơi phải vẽ đúng người đó. Hai phép tính riêng cho cùng một câu hỏi
+    # là hai câu trả lời chờ ngày lệch nhau — và triệu chứng sẽ là "ảnh đại diện
+    # một đằng, nhân vật chạy trong màn một nẻo".
+    character_id = await _my_character_id(db, world_id, user_id)
     if character_id is None:
         return None
 

@@ -103,7 +103,6 @@ export function QuestPanel({
   quest,
   progress,
   advisorLabel,
-  advisorNpc,
   cluebook,
   advisorOutro,
   advisorOutroAudio,
@@ -127,14 +126,6 @@ export function QuestPanel({
   quest: SnapshotQuest;
   progress: QuestProgress | undefined;
   advisorLabel: string;
-  /**
-   * NGƯỜI GÁC CỔNG — nhân vật của nhiệm vụ NPC, người phải qua trước.
-   *
-   * Khác `quest.npc`: cái đó là người canh giữ nhiệm vụ ĐANG bấm vào. Tấm khoá
-   * nhắc tên người gác cổng, nên mặt hiện ra cũng phải là mặt người ấy — hiện
-   * nhầm mặt là chỉ sai đường.
-   */
-  advisorNpc: DialogueActor | null;
   cluebook: string;
   advisorOutro: string;
   advisorOutroAudio: string | null;
@@ -1121,24 +1112,48 @@ export function QuestPanel({
             ref={oAvatar}
             className="relative flex w-1/3 shrink-0 items-center justify-center overflow-hidden p-2"
           >
-            {/* KHUNG TRÒN, dùng lại đúng `Face` của đoạn chat.
-                Không tự dựng một cách cắt ảnh thứ hai: `Face` đã lo cả chuỗi
-                lùi bốn nấc (tư thế đang cần → tư thế nghỉ → ảnh đại diện → chữ
-                cái đầu tên) lẫn phép cắt phần ĐẦU ra khỏi spritesheet. Dán
-                thẳng URL vào một thẻ `img` tròn thì với nhân vật chỉ có
-                spritesheet, ta được cả một dải khung hình bị nén vào vòng
-                tròn. */}
-            <Face
-              actor={advisorNpc}
-              role="npc"
-              pose="wait"
-              name={advisorLabel}
-              size={coAvatar}
-              /* Vòng tròn ăn đúng màu lòng bảng, nên với ảnh nền trong suốt
-                 nó biến mất hẳn vào nền — một phần ba bên trái và hai phần ba
-                 bên phải cùng một màu, chỉ có người gác cửa nổi lên giữa. */
-              nen="var(--q-inner-bg, rgba(10,31,51,0.95))"
-            />
+            {/* MẶT CỦA CHÍNH NHIỆM VỤ NÀY — người canh giữ mà người dựng đã
+                chọn cho nó (`quest.npc`), không phải người gác cổng của màn.
+
+                Trước đây chỗ này hiện mặt người gác cổng, với lý do "tấm khoá
+                nhắc tên ai thì hiện mặt người ấy". Nhìn từ màn chơi thật thì lý
+                do đó sai: mọi nhiệm vụ trong màn đều dùng CHUNG một người gác
+                cổng, nên mở cánh nào cũng thấy đúng một khuôn mặt — và tấm bảng
+                thành ra không nói gì về cánh cửa đang đứng trước.
+
+                CHƯA CHỌN AI thì để TRỐNG, không lùi về mặt người khác: một
+                khuôn mặt sai còn tệ hơn không có khuôn mặt nào, vì nó nói một
+                điều không đúng mà chẳng có gì báo là nó đang đoán.
+
+                Vẫn dùng `Face` của đoạn chat: nó đã lo cả chuỗi lùi (tư thế
+                đang cần → tư thế nghỉ → ảnh đại diện → chữ cái đầu tên) lẫn
+                phép cắt phần ĐẦU ra khỏi spritesheet. Dán thẳng URL vào một thẻ
+                `img` tròn thì với nhân vật chỉ có spritesheet, ta được cả một
+                dải khung hình bị nén vào vòng tròn. */}
+            {quest.npc ? (
+              <Face
+                actor={quest.npc}
+                role="npc"
+                pose="wait"
+                name={questLabel(quest, locale, t)}
+                size={coAvatar}
+                /* Vòng tròn ăn đúng màu lòng bảng, nên với ảnh nền trong suốt
+                   nó biến mất hẳn vào nền — một phần ba bên trái và hai phần ba
+                   bên phải cùng một màu, chỉ có người canh giữ nổi lên giữa. */
+                nen="var(--q-inner-bg, rgba(10,31,51,0.95))"
+              />
+            ) : (
+              <span
+                aria-hidden
+                className="block shrink-0 rounded-full"
+                style={{
+                  width: coAvatar,
+                  height: coAvatar,
+                  background: "var(--q-inner-bg, rgba(10,31,51,0.95))",
+                  boxShadow: "inset 0 0 0 1px var(--q-inner-ring, rgba(27,68,99,1))",
+                }}
+              />
+            )}
           </div>
 
           {/* HAI PHẦN BA bên phải: đúng chữ như cũ. */}

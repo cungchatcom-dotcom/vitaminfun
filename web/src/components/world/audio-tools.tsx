@@ -309,11 +309,28 @@ export function QuestionAudioPanel({
  */
 export function QuestAudioPanel({
   questId,
+  npcId,
   worldId,
   locale,
   onError,
 }: {
   questId: string;
+  /**
+   * NGƯỜI CANH GIỮ hiện tại của nhiệm vụ — chỉ dùng làm TÍN HIỆU TẢI LẠI.
+   *
+   * Giọng đọc đề bài là giọng của người này, và câu trả lời cho "đã có giọng
+   * chưa" nằm trong `status` do server trả về. Nhưng `status` chỉ được hỏi một
+   * lần lúc mở bảng: người dựng chọn người canh giữ ở ô ngay phía trên, lưu
+   * xong, mà bảng này vẫn đang cầm câu trả lời của lúc chưa chọn ai — nút sinh
+   * tiếng vẫn mờ với dòng chữ "chưa gán người canh giữ", và chỉ đóng popup rồi
+   * mở lại mới đúng.
+   *
+   * Nhận nó qua prop để `reload()` chạy lại đúng lúc người canh giữ đổi. Không
+   * tự đọc lại `status` theo nhịp: một cái đồng hồ hỏi server mỗi vài giây để
+   * bắt một thay đổi do chính người dùng vừa gây ra là cách đắt nhất để biết
+   * một điều mà React đã biết sẵn.
+   */
+  npcId?: string | null;
   /** World đang dựng — dàn nhân vật đọc phương án lấy từ đây. */
   worldId?: string;
   locale: string;
@@ -336,7 +353,10 @@ export function QuestAudioPanel({
     } catch {
       setStatus(null);
     }
-  }, [questId, ids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+    // `npcId` không được dùng trong thân hàm, nhưng CÓ MẶT ở đây là cố ý: đổi
+    // người canh giữ là đổi giọng đọc đề bài, và câu trả lời ấy chỉ server mới
+    // có. Xem ghi chú ở prop.
+  }, [questId, npcId, ids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     void reload();

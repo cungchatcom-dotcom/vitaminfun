@@ -246,6 +246,10 @@ export function QuestEditorDialog({
                 thì không ai nối được hai việc đó lại. */}
             <QuestAudioPanel
               questId={quest.id}
+              // Đổi người canh giữ ở ô ngay trên là đổi giọng đọc đề bài —
+              // truyền xuống để bảng bên dưới hỏi lại server, thay vì đứng im
+              // với câu trả lời của lúc chưa chọn ai.
+              npcId={quest.npc_character_id}
               worldId={worldId}
               locale={locale}
               onError={setErrorKey}

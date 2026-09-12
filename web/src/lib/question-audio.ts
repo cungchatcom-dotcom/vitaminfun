@@ -41,14 +41,48 @@ export const stageAudioStatus = (stageId: string, characterIds: string[] = []) =
 export const listQuestionAudio = (questionId: string) =>
   request<QuestionAudio[]>(`/questions/${questionId}/audio`);
 
+/**
+ * TRẦN CHỜ cho các lệnh SINH TIẾNG. Năm phút, thay cho mặc định 15 giây.
+ *
+ * Mười lăm giây là trần đúng cho một lời gọi API bình thường: quá ngần ấy thì
+ * gần như chắc chắn có gì đó hỏng. Nhưng sinh tiếng không phải một lời gọi bình
+ * thường — nó là một MẺ VIỆC: tám mươi câu phán, mỗi câu một vòng đi về tới nhà
+ * cung cấp giọng, năm câu chạy song song. Mẻ ấy mất cả phút, và ở giây thứ mười
+ * lăm trình duyệt bỏ cuộc trong khi server vẫn đang làm tiếp.
+ *
+ * Triệu chứng đúng như người dùng báo: màn hình hiện "máy chủ không phản hồi",
+ * nhưng đóng popup mở lại thì thấy tám mươi câu đã thu xong. Không mất tiền,
+ * không mất dữ liệu — chỉ mất lòng tin, vì màn hình vừa nói dối.
+ *
+ * Năm phút chứ không phải vô hạn: đó cũng là trần của chính lớp proxy
+ * `/api/be/*` (mặc định của `fetch` trong Node), nên client bỏ cuộc SAU proxy
+ * thì thông báo lỗi vẫn là thông báo thật.
+ *
+ * Sau nginx còn một trần nữa — `proxy_read_timeout` mặc định 60 giây. Xem
+ * `docs/DEPLOY.md §7`.
+ */
+const TTS_TIMEOUT_MS = 300_000;
+
 export const generateQuestAudio = (questId: string, body: GenerateInput) =>
-  request<AudioReport>(`/quests/${questId}/audio`, { method: 'POST', body });
+  request<AudioReport>(`/quests/${questId}/audio`, {
+    method: 'POST',
+    body,
+    timeoutMs: TTS_TIMEOUT_MS,
+  });
 
 export const generateStageAudio = (stageId: string, body: GenerateInput) =>
-  request<AudioReport>(`/stages/${stageId}/audio`, { method: 'POST', body });
+  request<AudioReport>(`/stages/${stageId}/audio`, {
+    method: 'POST',
+    body,
+    timeoutMs: TTS_TIMEOUT_MS,
+  });
 
 export const generateQuestionAudio = (questionId: string, body: GenerateInput) =>
-  request<AudioReport>(`/questions/${questionId}/audio`, { method: 'POST', body });
+  request<AudioReport>(`/questions/${questionId}/audio`, {
+    method: 'POST',
+    body,
+    timeoutMs: TTS_TIMEOUT_MS,
+  });
 
 /**
  * Sinh tiếng cho LỜI CHIA TAY của màn, bằng giọng người canh giữ nhiệm vụ này.
@@ -60,6 +94,7 @@ export const generateQuestOutroAudio = (questId: string, body: { overwrite?: boo
   request<AudioReport>(`/quests/${questId}/outro-audio`, {
     method: 'POST',
     body: { target: 'prompt', ...body },
+    timeoutMs: TTS_TIMEOUT_MS,
   });
 
 /**
@@ -76,6 +111,7 @@ export const generateVerdictAudio = (
   request<AudioReport>(`/quests/${questId}/verdict-audio`, {
     method: 'POST',
     body: { target: 'prompt', ...body },
+    timeoutMs: TTS_TIMEOUT_MS,
   });
 
 /**
@@ -88,6 +124,7 @@ export const generateLockedAudio = (questId: string, body: { overwrite?: boolean
   request<AudioReport>(`/quests/${questId}/locked-audio`, {
     method: 'POST',
     body: { target: 'prompt', ...body },
+    timeoutMs: TTS_TIMEOUT_MS,
   });
 
 /** Dịch vụ giọng đọc còn sống không, và còn bao nhiêu ký tự. KHÔNG tốn credit. */
