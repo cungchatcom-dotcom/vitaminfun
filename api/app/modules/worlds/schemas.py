@@ -305,6 +305,14 @@ class WorldUpdate(BaseModel):
     #: gửi một khoá không được làm mất mười khoá kia.
     balance_json: dict[str, Any] | None = None
 
+    #: LỜI PHÁN của người canh giữ — ba danh sách câu, dùng chung cả world.
+    #:
+    #: `{"praise": [...], "wrong": [...], "moveOn": [...]}`. Gửi lên thì THAY
+    #: HẲN nhóm được gửi — khác `balance_json` gộp theo khoá: ở đây một khoá là
+    #: cả một danh sách, và "gộp" hai danh sách thì không có nghĩa nào đúng.
+    #: Gửi `{}` = xoá hết, quay về bộ mặc định trong `messages/`.
+    verdict_json: dict[str, list[str]] | None = None
+
 
 class WorldOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -356,6 +364,9 @@ class WorldOut(BaseModel):
 
     #: Đã hợp nhất với giá trị mặc định — giao diện không phải tự bù khoá thiếu.
     balance: dict[str, Any]
+
+    #: Bộ câu phán của world. `{}` = chưa đặt, màn chơi dùng bộ trong `messages/`.
+    verdict_json: dict[str, list[str]] = Field(default_factory=dict)
 
     lobby_json: dict[str, Any] = Field(default_factory=dict)
     #: URL ảnh của từng khối, dựng sẵn theo `media_id` bên trong `lobby_json`.
@@ -520,6 +531,8 @@ class StageCreate(BaseModel):
     background_media_id: uuid.UUID | None = None
     #: Video mở màn. `None` = vào thẳng, y như trước khi có tính năng này.
     intro_video_media_id: uuid.UUID | None = None
+    #: Bố cục màn hội thoại. `None` = kế thừa màn đầu của world.
+    dialogue_json: dict[str, Any] | None = None
     advisor_portrait_media_id: uuid.UUID | None = None
     advisor_outro_i18n: I18nText = Field(default_factory=dict)
     cluebook_title_i18n: I18nText = Field(default_factory=dict)
@@ -583,6 +596,12 @@ class StageUpdate(BaseModel):
     #: Xoá vùng đi được về "cả bản đồ đi được". Cần cờ riêng vì `null` trong
     #: PATCH nghĩa là "không gửi trường này". Cùng nếp với `clear_character_height`.
     clear_collision: bool | None = None
+    #: Bố cục màn hội thoại — GHI ĐÈ CẢ CỤC, cùng luật với `collision`: trình
+    #: thiết kế luôn cầm bản đầy đủ đang trên màn hình họ.
+    dialogue_json: dict[str, Any] | None = None
+    #: Trả bố cục về KẾ THỪA màn đầu của world. Cờ riêng vì `null` trong PATCH
+    #: nghĩa là "không gửi". Cùng nếp với `clear_collision`.
+    clear_dialogue: bool | None = None
     #: Âm thanh. GỘP theo từng khối, không thay cả cục: gửi `{"walk": {...}}`
     #: chỉ đụng tới tiếng bước chân, nhạc nền giữ nguyên. Cùng luật với
     #: `lobby_json`, và gộp ở mức KHỐI chứ không sâu hơn — chỗ gọi luôn gửi trọn
@@ -649,6 +668,16 @@ class StageOut(StageBrief):
     advisor_outro_show_transcript: bool = True
     cluebook_title_i18n: I18nText = Field(default_factory=dict)
     cluebook_i18n: I18nText = Field(default_factory=dict)
+    #: Bố cục hội thoại ĐÃ ĐẶT RIÊNG. `None` = đang kế thừa màn đầu của world,
+    #: và trình thiết kế đọc chính cái `None` đó để biết có nên hiện nút gỡ.
+    dialogue_json: dict[str, Any] | None = None
+    #: Bố cục THẬT SỰ dùng — đã giải xong chuỗi kế thừa. Giao diện vẽ theo cái
+    #: này; ô chỉnh thì đọc `dialogue_json` để biết đâu là của riêng màn.
+    dialogue_effective: dict[str, Any] = Field(default_factory=dict)
+    #: URL ảnh nền từng khối hội thoại, dựng sẵn theo `media_id` bên trong —
+    #: cùng nếp với `audio_urls`. Khối lưu id chứ không lưu URL, mà trình thiết
+    #: kế thì phải vẽ ra được ngay.
+    dialogue_urls: dict[str, str] = Field(default_factory=dict)
     #: Vùng đi được. `None` = chưa vẽ, tức CẢ BẢN ĐỒ đi được.
     collision: CollisionMap | None = None
     #: Âm thanh. Object rỗng = màn không có tiếng nào.
@@ -698,6 +727,9 @@ class QuestCreate(BaseModel):
     #: Bán kính phạm vi kích hoạt. None = mặc định của cảnh.
     trigger_radius: int | None = Field(default=None, ge=20, le=1200)
     icon_media_id: uuid.UUID | None = None
+    #: NGƯỜI CANH GIỮ nhiệm vụ — một `character` với `kind = 'npc'`, không phải
+    #: một tấm ảnh. `null` trong PATCH = GỠ khỏi nhiệm vụ.
+    npc_character_id: uuid.UUID | None = None
     icon_size: int | None = Field(default=None, ge=16, le=2000)
     #: Nhịp thở của ảnh. None = mặc định của cảnh, 0 = tắt hẳn.
     pulse_percent: int | None = Field(default=None, ge=0, le=50)
@@ -722,6 +754,12 @@ class QuestUpdate(BaseModel):
     scene_y: int | None = None
     trigger_radius: int | None = Field(default=None, ge=20, le=1200)
     icon_media_id: uuid.UUID | None = None
+    #: NGƯỜI CANH GIỮ nhiệm vụ — một `character` với `kind = 'npc'`, không phải
+    #: một tấm ảnh. `null` trong PATCH = GỠ khỏi nhiệm vụ.
+    npc_character_id: uuid.UUID | None = None
+    #: CÂU KHOÁ — người gác cửa nói gì khi học sinh tới nhiệm vụ chưa mở.
+    #: `{}` = dùng câu tự sinh trong `messages/`.
+    locked_message_i18n: I18nText | None = None
     icon_size: int | None = Field(default=None, ge=16, le=2000)
     pulse_percent: int | None = Field(default=None, ge=0, le=50)
     pulse_period_ms: int | None = Field(default=None, ge=400, le=4_000)
@@ -765,6 +803,17 @@ class QuestQuestionOut(BaseModel):
     question_deleted: bool = False
     question_prompt: str | None = None
 
+    #: MÃ trong file nội dung của chính câu hỏi này.
+    #:
+    #: Đi kèm ra đây để bộ chọn câu hỏi biết nhiệm vụ này TRƯỚC ĐÂY lấy câu từ
+    #: đâu, rồi mở sẵn đúng chỗ đó. Không có nó thì lần nào mở bộ chọn cũng là
+    #: cả kho, và người dựng phải tự lọc lại từ đầu.
+    #:
+    #: Không suy được từ `quests.quest_code`: cột kia là mã người dựng ĐẶT cho
+    #: nhiệm vụ, thường vẫn trống, còn cái này là mã câu hỏi THẬT SỰ mang.
+    stage_code: str | None = None
+    quest_code: str | None = None
+
 
 class QuestOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -780,12 +829,18 @@ class QuestOut(BaseModel):
     scene_y: int | None
     trigger_radius: int | None
     icon_media_id: uuid.UUID | None
+    npc_character_id: uuid.UUID | None = None
+    locked_message_i18n: I18nText = Field(default_factory=dict)
     icon_size: int | None
     #: Nhịp thở của ảnh. `null` = mặc định của cảnh, `0` = tắt hẳn.
     pulse_percent: int | None
     pulse_period_ms: int | None
     #: URL ảnh, dựng sẵn để giao diện không phải tra bảng media.
     icon_url: str | None = None
+    #: Tên và ảnh đại diện của người canh giữ, dựng sẵn để danh sách nhiệm vụ
+    #: hiện được ai đang đứng ở đó mà không phải tra thêm.
+    npc_name_i18n: I18nText = Field(default_factory=dict)
+    npc_avatar_url: str | None = None
     energy_cost: int
 
     questions: list[QuestQuestionOut]

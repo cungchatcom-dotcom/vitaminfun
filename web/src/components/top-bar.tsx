@@ -52,18 +52,46 @@ export function TopBar({ accent }: { accent: 'teacher' | 'student' | 'admin' }) 
       </div>
 
       <div className="flex items-center gap-4 text-sm">
-        {/* Quản lý nhân vật CHỈ hiện với người dựng nội dung. Học sinh CHỌN
-            nhân vật lúc vào world, không sửa chúng — một lối vào mà bấm thì
-            gặp 403 còn tệ hơn là không có lối nào. */}
-        {(user.role === 'teacher' || user.role === 'admin') && (
-          <Link
-            href={localizedPath('/teacher/characters', locale)}
-            className="text-slate-300 no-underline transition hover:text-lagoon-400"
-          >
-            {t('characters')}
-          </Link>
-        )}
-        <LocaleSwitcher />
+        {/* Lối vào của NGƯỜI DỰNG NỘI DUNG. Học sinh không thấy: các trang này
+            đều chặn ở server, và một lối vào mà bấm thì gặp 403 còn tệ hơn là
+            không có lối nào.
+
+            Ba mục đầu xếp theo độ RỘNG của thứ chúng mở ra: world chứa màn chứa
+            nhiệm vụ, kho câu hỏi nuôi các nhiệm vụ ấy, nhân vật dùng xuyên suốt.
+            Từ rộng tới hẹp là thứ tự người ta đi khi dựng một world mới.
+
+            Mục thứ tư — Báo cáo — đứng cuối vì nó thuộc về NỬA KIA của công
+            việc: ba mục trước là dựng nội dung, mục này là xem nội dung ấy chạy
+            ra sao khi có học sinh chơi.
+
+            `<Link>` chứ không phải `<button onClick={router.push}>`: đây là điều
+            hướng, nên phải mở được tab mới bằng chuột giữa và hiện địa chỉ đích. */}
+        {(user.role === 'teacher' || user.role === 'admin') &&
+          (
+            [
+              ['/teacher/worlds', 'worlds'],
+              ['/teacher/questions', 'questions'],
+              ['/teacher/characters', 'characters'],
+              ['/teacher/reports', 'reports'],
+            ] as const
+          ).map(([href, key]) => (
+            <Link
+              key={key}
+              href={localizedPath(href, locale)}
+              className="text-slate-300 no-underline transition hover:text-lagoon-400"
+            >
+              {t(key)}
+            </Link>
+          ))}
+        {/* ẨN TẠM ô đổi ngôn ngữ với HỌC SINH — chưa bỏ.
+            Màn chơi dạy tiếng Anh, và một cái nút đổi sang tiếng Việt ngay trên
+            đầu là lối tắt ra khỏi chính thứ đang học. Giáo viên và admin vẫn
+            đổi được: họ soạn nội dung ở cả hai thứ tiếng.
+
+            Bật lại = xoá đúng điều kiện này. Component vẫn nguyên, đường
+            `/vi/...` vẫn chạy — gõ tay vào thanh địa chỉ vẫn sang được tiếng
+            Việt, nên đây là ẩn cái NÚT, không phải khoá ngôn ngữ. */}
+        {user.role !== 'student' && <LocaleSwitcher />}
         <span className="text-slate-300">{user.display_name}</span>
         <button
           type="button"

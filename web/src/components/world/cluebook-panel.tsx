@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 
 import { MediaField } from '@/components/media-field';
 import { Card, SectionTitle } from '@/components/ui/primitives';
@@ -14,6 +15,13 @@ import type { Stage, updateStage } from '@/lib/worlds';
  * nhiệm vụ NPC, và bảng hội thoại chuyển sang bước cuối — bước không hỏi gì cả.
  * Vì thế chúng nằm chung một thẻ, dù lưu vào ba cột khác nhau: người dựng soạn
  * chúng cùng lúc, và đọc lại cũng cùng lúc.
+ *
+ * ## Ở trong popup NHIỆM VỤ NPC, không ở cột cấu hình màn
+ *
+ * Ba trường này thuộc về `stages`, nhưng khoảnh khắc chúng vang lên thuộc về
+ * nhiệm vụ NPC — và giọng đọc lời chia tay lấy từ chính người canh giữ của
+ * nhiệm vụ ấy. Để chúng ở cột cấu hình màn thì soạn lời chia tay ở một chỗ,
+ * sinh giọng cho nó ở một chỗ khác, mà hai chỗ ấy không nhìn thấy nhau.
  *
  * ## Ba ô, ba hậu quả KHÁC NHAU khi bỏ trống
  *
@@ -42,11 +50,23 @@ export function CluebookPanel({
   stage,
   locale,
   onPatch,
+  bare = false,
+  outroVoice,
 }: {
   stage: Stage;
   locale: string;
   /** Vá một mẩu vào màn chơi. Chỗ gọi lo việc lưu và báo lỗi. */
   onPatch: (payload: Parameters<typeof updateStage>[1]) => void;
+  /** Bỏ khung `Card` — dùng khi đã nằm trong một popup có khung riêng. */
+  bare?: boolean;
+  /**
+   * Nút sinh giọng cho lời chia tay, đặt cùng hàng với nút Gỡ tệp.
+   *
+   * Nhận vào từ ngoài chứ không tự dựng: bảng này soạn CHỮ và giữ TỆP, nó
+   * không biết gì về nhà cung cấp giọng đọc hay nhiệm vụ nào đang mở. Popup
+   * nhiệm vụ biết cả hai, nên nút do popup đưa vào.
+   */
+  outroVoice?: ReactNode;
 }) {
   const t = useTranslations();
 
@@ -60,8 +80,10 @@ export function CluebookPanel({
     onPatch({ [field]: { ...before, [locale]: next } });
   }
 
+  const Shell = bare ? BareShell : Card;
+
   return (
-    <Card>
+    <Shell>
       <SectionTitle>{t('designer.cluebook.title')}</SectionTitle>
       <p className="mt-1 text-[11px] leading-snug text-slate-500">
         {t('designer.cluebook.intro')}
@@ -96,6 +118,7 @@ export function CluebookPanel({
             url: stage.advisor_outro_audio_url ?? null,
           }}
           onChange={(next) => onPatch({ advisor_outro_audio_media_id: next.mediaId })}
+          actions={outroVoice}
         />
         <label className="flex items-start gap-2 border-t border-abyss-800 pt-2 text-xs text-slate-300">
           <input
@@ -153,8 +176,13 @@ export function CluebookPanel({
         emptyKey="designer.cluebook.bodyEmpty"
         hintKey="designer.cluebook.bodyHint"
       />
-    </Card>
+    </Shell>
   );
+}
+
+/** Khung tối giản, cùng dáng với các khối khác trong popup sửa nhiệm vụ. */
+function BareShell({ children }: { children: ReactNode }) {
+  return <div className="rounded-xl border border-abyss-800 p-3">{children}</div>;
 }
 /**
  * Dòng chú thích dưới một ô văn bản đa ngữ.

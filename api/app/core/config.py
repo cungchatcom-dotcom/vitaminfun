@@ -51,6 +51,37 @@ class Settings(BaseSettings):
     jwt_access_token_minutes: int = 60 * 12
     jwt_refresh_token_days: int = 30
 
+    #: Cho phép người lạ TỰ mở tài khoản (`POST /auth/signup`).
+    #:
+    #: Một biến, hai phía: API từ chối thẳng khi tắt, còn web đọc cùng biến ấy
+    #: từ `.env` ở gốc repo để giấu nút Đăng ký. Giấu nút mà không chặn endpoint
+    #: là một cánh cửa vẫn mở cho bất kỳ ai biết gõ `curl`; chặn endpoint mà
+    #: không giấu nút là một cái nút bấm vào chỉ để nhận lỗi.
+    #:
+    #: Tài khoản tự mở LUÔN là học sinh — xem `signup()` trong auth/service.py.
+    allow_self_signup: bool = True
+
+    # ---------- Đọc chữ thành tiếng ----------
+    #
+    # Rỗng = chưa cấu hình, và khi đó `POST /voices/sync` từ chối thẳng thay vì
+    # gọi ra ngoài rồi nhận 401. Không có mặc định giả: một khoá API bịa ra chỉ
+    # đẩy lỗi xuống tận lúc gọi, ở một chỗ khó lần ra hơn nhiều.
+    elevenlabs_api_key: str = ""
+
+    #: Bao nhiêu câu được đọc CÙNG LÚC khi sinh cả mẻ.
+    #:
+    #: Đây là một HỒ BƠI LUỒNG, không phải từng đợt: luồng nào xong là nhận câu
+    #: tiếp ngay. Chia thành đợt mười câu rồi chờ đủ mới sang đợt sau thì cả đợt
+    #: phải đứng chờ câu chậm nhất — một câu dài kéo chín câu ngắn đứng im.
+    #:
+    #: Nhà cung cấp có trần số request ĐỒNG THỜI theo hạng tài khoản, và trần đó
+    #: thấp hơn người ta tưởng: hạng thấp chỉ vài luồng, hạng cao mới tới mười
+    #: lăm. Năm là mức đi được ở gần hết các hạng.
+    #:
+    #: Đặt quá tay cũng không vỡ mẻ: gặp 429 thì lùi lại rồi thử tiếp — xem
+    #: `_post()` trong `providers.py`. Cái giá của việc đặt quá tay chỉ là chậm.
+    elevenlabs_concurrency: int = 5
+
     # ---------- Lưu trữ media (dùng từ Bước 2) ----------
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_path: str = "./storage"
@@ -60,6 +91,13 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_workers: int = 1
+
+    #: Bao lâu quét một lần để chốt các lượt chơi đã hết giờ, tính bằng giây.
+    #:
+    #: `0` = tắt hẳn vòng quét. Để tắt được là có chủ ý: khi chạy test, khi chạy
+    #: một tiến trình chỉ để migrate, hay khi ai đó muốn dời việc này sang một
+    #: cron riêng bên ngoài.
+    run_sweep_seconds: int = 60
     api_prefix: str = "/api/v1"
     api_reload: bool = False
     cors_origins: str = "http://localhost:3000"
@@ -75,6 +113,19 @@ class Settings(BaseSettings):
     seed_teacher_email: str = "teacher@vitaminfun.local"
     seed_student_email: str = "student@vitaminfun.local"
     seed_default_password: str = "vitaminfun123"
+
+    # ---------- Báo cáo ----------
+    #: Múi giờ dùng để cắt NGÀY trong báo cáo của giáo viên.
+    #:
+    #: "Hôm nay có bao nhiêu người chơi" là một câu hỏi về múi giờ, không phải
+    #: về dữ liệu: mốc lưu trong database là `timestamptz`, còn ranh giới nửa
+    #: đêm thì tuỳ nơi người đọc đang đứng. Máy chủ chạy ở UTC mà cắt theo UTC
+    #: thì với lớp học ở Việt Nam, bảy giờ đầu mỗi ngày bị tính sang hôm trước
+    #: — và giáo viên sẽ thấy con số "hôm nay" tụt xuống vào đúng 7 giờ sáng.
+    #:
+    #: Một biến ở `.env` chứ không viết cứng: cùng bản mã này có thể phục vụ một
+    #: trung tâm ở múi giờ khác.
+    reports_timezone: str = "Asia/Bangkok"
 
     # ---------- Kiểm tra ----------
     @field_validator("database_url")

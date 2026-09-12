@@ -5,17 +5,25 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useCurrentUser } from '@/components/auth-context';
 import { Badge } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api-error';
 import { pickText } from '@/lib/i18n-text';
 import {
+  abandonRun,
+  appendDialogue,
+  getDialogue,
+  retryQuest,
+  buyHint,
+  getResult,
   getRun,
   saveDraft,
   savePosition,
   startRun,
   submitQuest,
   type Run,
+  type RunResult,
   type Snapshot,
   type SnapshotQuest,
 } from '@/lib/play';
@@ -23,9 +31,12 @@ import { questLabel } from '@/lib/quest-label';
 import { localizedPath } from '@/lib/routes';
 
 import { MusicControls } from './music-controls';
-import { QuestPanel } from './quest-panel';
+import { QuestPanel, type HintKind } from './quest-panel';
+import type { ChatLine } from './quest-chat';
 import { StageIntro } from './stage-intro';
 
+import { readDialogue } from '@/game/dialogue';
+import { themeVars } from '@/game/dialogue-theme';
 import { EventBus, GAME_EVENTS } from '@/game/EventBus';
 import type { StageSceneData } from '@/game/scenes/StageScene';
 
@@ -91,6 +102,40 @@ const PhaserCanvas = dynamic(
  *
  * Cửa vào màn mở khi cả hai xong; luật ghép nằm trong `StageIntro`.
  */
+/**
+ * Lớp KÍNH của mấy cụm HUD nổi trên cảnh.
+ *
+ * Mờ chứ không đặc: phía sau là đáy biển thật, và dán một mảng xám kín lên bốn
+ * góc là che mất đúng cảnh mà cả màn chơi dựng ra. Cùng chất liệu với bảng hội
+ * thoại — một thứ kính cho cả màn, không phải mỗi chỗ một kiểu.
+ */
+const HUD_GLASS =
+  'bg-abyss-950/55 ring-1 ring-white/10 backdrop-blur-md shadow-lg shadow-abyss-950/40';
+
+/**
+ * MỜ ĐI khi không ai đụng tới, RÕ khi rê chuột vào.
+ *
+ * Ba cụm HUD nằm đè lên cảnh, và cảnh mới là thứ đáng nhìn. Nhưng chúng cũng
+ * không được biến mất hẳn: người chơi phải liếc thấy đồng hồ mà không cần đi
+ * tìm nó. Mờ một nửa là giữ được cả hai — đọc lướt vẫn ra, mà không cắt ngang
+ * khung cảnh.
+ *
+ * `focus-within` đi cùng `hover`: bấm Tab tới nút "Rời màn" cũng phải làm cụm
+ * hiện rõ, nếu không thì người dùng bàn phím đang thao tác trên một thứ mờ tịt.
+ */
+const HUD_FADE =
+  'opacity-55 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100';
+
+/**
+ * Cả CỤM rõ lên là một chuyện; cái NÚT đang trỏ vào phải nổi thêm một nấc nữa.
+ *
+ * Chỉ mờ-rõ theo cụm thì rê vào một hàng bốn biểu tượng, cả bốn cùng sáng đều —
+ * và người chơi không biết mình đang trỏ trúng cái nào cho tới lúc bấm. Một nấc
+ * nữa ở chính cái đang trỏ mới trả lời được câu "bấm bây giờ là bấm vào gì".
+ */
+const HUD_ITEM =
+  'transition hover:bg-white/12 hover:text-white hover:ring-white/30 focus-visible:bg-white/12';
+
 export function StagePlay({
   stageId,
   introVideoUrl,
@@ -133,7 +178,14 @@ export function StagePlay({
     // Chiều cao của cả màn chơi đặt ở ĐÂY, không ở trong: tấm màn phủ
     // `absolute inset-0` lên chính khung này, nên nó phải là khung có kích
     // thước thật — bên trong chỉ việc lấp đầy.
-    <div className="relative h-[calc(100vh-8rem)] min-h-[32rem] w-full">
+    // LẤP ĐẦY chỗ được cho, không tự tính chiều cao.
+    //
+    // Bản trước viết `calc(100vh-8rem)` — trừ đi đúng chiều cao của thanh điều
+    // hướng và dải chơi thử. Đó là một con số chép tay về một thứ nằm ở file
+    // khác: bỏ thanh điều hướng đi, hay dải chơi thử xuống dòng, là nó sai ngay
+    // mà không ai biết. Giờ trang bọc ngoài lo chiều cao (`h-dvh` + flex), ở đây
+    // chỉ việc lấp đầy.
+    <div className="relative size-full">
       <StageRunView stageId={stageId} introDone={introDone} />
 
       {introVideoUrl !== null && !introDone && (
@@ -156,6 +208,7 @@ export function StagePlay({
  *   - Server giữ đáp án, chấm điểm, và đếm giờ
  */
 function StageRunView({ stageId, introDone }: { stageId: string; introDone: boolean }) {
+  const me = useCurrentUser();
   const t = useTranslations();
   const locale = useLocale();
 
@@ -164,6 +217,17 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
   const [clock, setClock] = useState(0);
+  const [dangKhoiDongLai, setDangKhoiDongLai] = useState(false);
+  /**
+   * Đếm số lần LÀM LẠI một nhiệm vụ — chỉ để làm `key` cho `QuestPanel`.
+   *
+   * Làm lại là dựng lại bảng từ số không: về câu đầu, quên hết bong bóng, nạp
+   * lại đoạn chat (giờ đã trống). Bảng ấy giữ cả chục biến trạng thái cho nhịp
+   * nói, cho tiếng, cho hẹn giờ — đặt lại từng cái là một danh sách sẽ thiếu
+   * đúng cái vừa thêm tuần sau. Đổi `key` thì React gỡ hẳn và dựng mới, và
+   * không có cái nào sót lại được.
+   */
+  const [soLanLamLai, setSoLanLamLai] = useState(0);
 
   /**
    * MỐC hết giờ theo đồng hồ của chính máy này (`Date.now()`), không phải một
@@ -204,6 +268,45 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
         setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR'),
       );
   }, [stageId, applyRun]);
+
+  /**
+   * CHƠI LẠI TỪ ĐẦU, ngay giữa trận.
+   *
+   * Hai việc, đúng thứ tự: CHỐT lượt đang dở rồi mới MỞ lượt mới.
+   *
+   * Chốt trước là bắt buộc. `start_run` thấy một lượt còn giờ thì trả về chính
+   * nó — đó là luật "chơi tiếp" dựng lên cho những lần mất mạng, đóng nhầm tab.
+   * Không chốt thì bấm Chơi lại chẳng có gì xảy ra, mà nhìn từ ngoài thì giống
+   * hệt một cái nút hỏng.
+   *
+   * Chốt bằng `abandon` chứ không xoá: điểm chiến lực kiếm được trong lượt dở
+   * VẪN ĐƯỢC GIỮ (cộng ngay lúc nộp từng câu, xem `settle_run`), chỉ mất phần
+   * thưởng cuối màn và mảnh bản đồ. Bỏ dở giữa chừng thì đúng là như vậy.
+   *
+   * KHÔNG tải lại trang — khác với nút "Chơi lại" ở bảng kết quả. Tải lại thì
+   * đoạn phim mở màn chạy lại từ đầu, mà người bấm Chơi lại giữa trận là người
+   * đã xem nó rồi. Thay vào đó `PhaserCanvas` mang `key={run.id}`: lượt mới là
+   * một `run.id` mới, nên React gỡ cảnh cũ và dựng cảnh mới — nhân vật về chỗ
+   * xuất phát, ổ khoá đóng lại, đồng hồ đếm từ đầu.
+   */
+  async function khoiDongLai() {
+    if (!run || dangKhoiDongLai) return;
+    setDangKhoiDongLai(true);
+    try {
+      await abandonRun(run.id);
+      const moi = await startRun(stageId);
+      // Bảng nhiệm vụ đang mở thuộc về lượt CŨ. Không đóng thì nó đứng đó với
+      // một `quest_id` của đề bài đã chốt xong.
+      setActiveQuestId(null);
+      setTyping(false);
+      applyRun(moi);
+      setErrorKey(null);
+    } catch (error) {
+      setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
+    } finally {
+      setDangKhoiDongLai(false);
+    }
+  }
 
   // Đồng hồ trên máy chỉ để HIỂN THỊ. Mốc thật là `started_at` ở server; hết
   // giờ thì chính server chốt lượt chơi khi có request tới.
@@ -318,42 +421,104 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
     [run, activeQuestId],
   );
 
+  /**
+   * BÁO cho cảnh Phaser, và KHÔNG để nó làm hỏng việc đang làm.
+   *
+   * `EventBus.emit` gọi tai nghe ĐỒNG BỘ, nên một tai nghe ném lỗi sẽ bắn ngược
+   * vào giữa luồng chấm bài — bong bóng trả lời đã hiện, người canh giữ im bặt,
+   * và không ai biết vì sao. Mấy cú bắn này chỉ là hiệu ứng nhìn: một dấu ✓ trên
+   * bản đồ, một ánh chớp. Chúng không được quyền quyết định cuộc trò chuyện có
+   * đi tiếp hay không.
+   *
+   * Gốc rễ đã sửa ở `StageScene` (gỡ tai nghe khi cảnh chết). Đây là lớp chắn
+   * thứ hai, cho cái tai nghe hỏng tiếp theo mà hôm nay chưa ai viết.
+   */
+  const bao = useCallback((event: string, payload?: unknown) => {
+    try {
+      EventBus.emit(event, payload as never);
+    } catch (error) {
+      console.error('[stage] tai nghe canh Phaser nem loi', event, error);
+    }
+  }, []);
+
   const onSubmitQuest = useCallback(
     async () => {
       if (!run || !activeQuestId) throw new Error('no run');
       const result = await submitQuest(run.id, activeQuestId);
 
-      // Nạp lại trạng thái để bảng tiến độ và năng lượng khớp server, thay vì
-      // tự suy ra ở client — client không biết đủ để suy đúng.
-      const fresh = await getRun(run.id);
-      applyRun(fresh);
+      /**
+       * VÁ TẠI CHỖ, không tải lại cả lượt chơi.
+       *
+       * Bản trước gọi thêm `GET /runs/{id}` sau mỗi lần nộp để "cho chắc".
+       * Lượt gọi ấy nặng 66 KB, trong đó 62 KB là ĐỀ BÀI ĐÃ ĐÓNG BĂNG — thứ
+       * không bao giờ đổi trong suốt một lượt chơi. Nhân với mỗi câu trả lời
+       * của mỗi học sinh trong một lớp trăm em thì đó là phần lớn băng thông
+       * của cả hệ, để đồng bộ một thay đổi cỡ một dòng.
+       *
+       * Vẫn KHÔNG tự suy: mọi con số dưới đây đều do server vừa gửi về.
+       *
+       * `setRun` chứ không `applyRun`: `applyRun` đặt lại mốc hết giờ theo
+       * `seconds_remaining`, mà nộp bài không đụng tới đồng hồ — đặt lại là
+       * đẩy mốc đi mỗi lần nộp.
+       */
+      setRun((truoc) =>
+        truoc === null
+          ? truoc
+          : {
+              ...truoc,
+              status: result.run_status as typeof truoc.status,
+              my_energy_remaining: result.my_energy,
+              // Quỹ được CẤP cũng phải đi theo: chính lần nộp qua cổng NPC là
+              // lần nó khác 0 lần đầu, và thiếu nó thì ô năng lượng mất mẫu số
+              // đúng vào giây nó vừa có nghĩa.
+              my_energy_granted: result.my_energy_granted,
+              my_progress: truoc.my_progress.map((p) =>
+                p.quest_id === activeQuestId
+                  ? result.quest
+                  : // Mở khoá là mở HẾT, nên một cờ đủ cho cả danh sách.
+                    result.unlocked && p.locked
+                    ? { ...p, locked: false }
+                    : p,
+              ),
+            },
+      );
 
       if (result.quest_completed) {
-        EventBus.emit(GAME_EVENTS.QUEST_COMPLETED, { questId: activeQuestId });
+        bao(GAME_EVENTS.QUEST_COMPLETED, { questId: activeQuestId });
       }
 
-      // Vừa qua NPC thì cả màn mở ra.
-      //
-      // So sánh TRƯỚC và SAU thay vì hỏi "nhiệm vụ này có phải NPC không":
-      // server là nơi giữ luật mở khoá, nên cứ nhìn vào cái nó vừa trả về. Hôm
-      // nào luật đổi — thêm điều kiện, đổi cổng — chỗ này không phải sửa.
+      // Vừa qua NPC thì cả màn mở ra. So TRƯỚC với SAU chứ không hỏi "nhiệm vụ
+      // này có phải NPC không": server là nơi giữ luật mở khoá.
       const wasLocked = run.my_progress.some((p) => p.locked);
-      if (wasLocked && !fresh.my_progress.some((p) => p.locked)) {
-        EventBus.emit(GAME_EVENTS.QUESTS_UNLOCKED);
+      if (wasLocked && result.unlocked) {
+        bao(GAME_EVENTS.QUESTS_UNLOCKED);
       }
-      if (fresh.status === 'won') {
-        EventBus.emit(GAME_EVENTS.STAGE_WON);
+      if (result.run_status === 'won') {
+        bao(GAME_EVENTS.STAGE_WON);
       }
 
       // Trả kèm tình trạng TỪNG CÂU vừa chấm. Bảng nhiệm vụ cần biết "câu vừa
       // rồi đúng chưa" để đi tiếp hay nói lại, mà `prop` của nó chỉ mới sang ở
       // lượt vẽ sau — trong lúc `await` thì nó vẫn đang cầm bản cũ.
-      return {
-        result,
-        questions: fresh.my_progress.find((p) => p.quest_id === activeQuestId)?.questions ?? [],
-      };
+      return { result, questions: result.quest.questions };
     },
-    [run, activeQuestId, applyRun],
+    [run, activeQuestId, bao],
+  );
+
+  /**
+   * Mua một gợi ý cho câu hỏi — tốn năng lượng.
+   *
+   * Nạp lại cả lượt chơi sau đó, không tự trừ con số ở client: năng lượng là
+   * của SERVER, và một phép trừ thứ hai ở đây là một chỗ để hai bên lệch nhau.
+   */
+  const onBuyHint = useCallback(
+    async (questionId: string, kind: HintKind) => {
+      if (!run) throw new Error('no run');
+      const bought = await buyHint(run.id, questionId, kind);
+      applyRun(await getRun(run.id));
+      return bought.text;
+    },
+    [run, applyRun],
   );
 
   const sceneData: StageSceneData | null = useMemo(() => {
@@ -463,57 +628,36 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
     run.my_progress.find((p) => p.quest_id === advisorQuest?.id)?.completed ?? false;
 
   return (
-    // Xếp DỌC, không xếp chồng: thanh trên và thanh dưới là thành phần thật của
-    // bố cục, canvas nhận đúng phần còn lại.
-    //
-    // Trước đây HUD phủ `absolute inset-0` lên canvas, nên hai thanh che mất mép
-    // trên và mép dưới của cảnh — camera hiện trọn thế giới thật, nhưng người
-    // chơi vẫn thấy như bị cắt.
-    <div className="flex size-full flex-col overflow-hidden">
-      <header className="flex flex-wrap items-center gap-4 border-b border-abyss-800 bg-abyss-950/85 px-5 py-2.5 text-sm">
-          <span className="font-semibold text-orichalcum-400">
-            {pickText(run.snapshot.stage.name_i18n, locale)}
-          </span>
-
-          {/* Năng lượng KHÔNG còn ở đây — nó nằm trong cụm biểu tượng góc dưới,
-              cạnh sổ tay. Hai chỗ cùng hiện một con số thì có ngày chúng lệch
-              nhau, mà kể cả không lệch thì cũng chỉ là hai chỗ để mắt phải đi
-              tìm cùng một thứ. */}
-
-          <span className={`font-mono ${clock < 30 ? 'text-coral-500' : 'text-slate-300'}`}>
-            ⏱ {String(Math.floor(clock / 60)).padStart(2, '0')}:
-            {String(clock % 60).padStart(2, '0')}
-          </span>
-
-          <span className="text-slate-300">
-            {t('game.questsDone', { done: doneCount, total: run.snapshot.quests.length })}
-          </span>
-
-          {/* Cố ý KHÔNG hiện điểm chiến lực trong trận — xem GAME_DOMAIN §1.6. */}
-
-          {run.is_trial && <Badge tone="warning">🧪 {t('preview.banner')}</Badge>}
-
-          {/* Rời trận thì về đúng bản đồ world vừa đi ra, không phải về
-              bản đồ thiên hà. Người chơi đang dở một world; ném họ lên tận màn
-              chọn world là bắt đi lại hai bước để làm cái việc họ gần như chắc
-              chắn muốn làm tiếp — chơi màn kế bên. */}
-          <Link
-            href={localizedPath(`/play/world/${run.world_id}`, locale)}
-            className="ml-auto text-slate-400 hover:text-slate-100"
-          >
-            {t('game.leave')}
-          </Link>
-        </header>
-
-      {/* Khu giữa: canvas nằm dưới, bảng câu hỏi phủ lên — nhưng chỉ phủ trong
-          khu này, không phủ lên hai thanh HUD. */}
-      <div className="relative min-h-0 flex-1">
+    /**
+     * TRỌN MÀN HÌNH, HUD nổi ở BA GÓC.
+     *
+     * Bản trước xếp dọc: một thanh HUD đặc chiếm hết bề ngang ở trên, canvas
+     * nhận phần còn lại. Đổi lại thì cảnh — thứ duy nhất đáng nhìn ở màn này —
+     * mất một dải ngang chỉ để chứa bốn con số và hai đường dẫn.
+     *
+     * Giờ canvas lấp đầy khung, HUD nổi lên trên thành ba cụm ở ba góc:
+     *
+     *     trên-trái   tên màn · đồng hồ · số nhiệm vụ
+     *     trên-phải   Chơi lại · Rời màn
+     *     dưới-phải   nhạc · sổ tay · năng lượng · trợ giúp
+     *
+     * `pointer-events-none` ở lớp bọc, `pointer-events-auto` ở từng cụm: đi lại
+     * trong màn là BẤM VÀO CẢNH, nên một lớp phủ trong suốt nuốt cú bấm ở bốn
+     * góc là làm hỏng đúng thao tác chính.
+     */
+    <div className="relative size-full overflow-hidden">
+      {/* Khu chơi: canvas nằm dưới, bảng câu hỏi phủ lên. */}
+      <div className="absolute inset-0">
         {/* Bảng câu hỏi mở = khoá di chuyển. Đang trả lời mà nhân vật vẫn đi
             được thì họ tự đi ra khỏi phạm vi và bảng đóng ngang giữa chừng. */}
         {/* Tấm màn còn che thì KHOÁ cả chuột lẫn bàn phím: cảnh Phaser nghe
             phím ở tầng document, nên bấm mũi tên trong lúc xem video là nhân vật
             đi lang thang phía sau và học sinh vào màn ở một chỗ họ không chọn. */}
         <PhaserCanvas
+          // Lượt MỚI là một cảnh MỚI. `PhaserCanvas` cố ý không dựng lại khi dữ
+          // liệu đổi — nếu không thì mỗi lần nộp bài là nạp lại cả game — nên
+          // `run.id` là đúng cái khoá để nói "lần này thì dựng lại thật".
+          key={run.id}
           sceneData={sceneData}
           typing={typing}
           locked={activeQuestId !== null || !introDone}
@@ -521,12 +665,21 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
           ducked={activeQuest !== null && questHasSound(activeQuest, run.snapshot)}
         />
 
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center p-4 sm:items-center">
+        {/* CHỪA CHỖ cho ba cụm HUD: đệm dọc đủ để bảng không bao giờ trèo lên
+            hàng trên và hàng dưới. Bảng nằm trên HUD theo thứ tự chồng, nên
+            không chừa thì nó che mất đồng hồ đúng lúc người ta cần liếc xem còn
+            bao nhiêu thời gian. */}
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-center px-4 py-14 sm:items-center">
           {activeQuest && run.status === 'playing' && (
             <QuestPanel
+              // Làm lại = một bảng MỚI. Xem `soLanLamLai`.
+              key={`${activeQuest.id}:${soLanLamLai}`}
               quest={activeQuest}
               progress={activeProgress}
               advisorLabel={advisorLabel}
+              // Mặt người GÁC CỔNG cho tấm bảng "đang khoá". Lấy từ ĐỀ BÀI ĐÃ
+              // ĐÓNG BĂNG như mọi thứ khác của màn.
+              advisorNpc={advisorQuest?.npc ?? null}
               cluebook={cluebook}
               advisorOutro={advisorOutro}
               // Tiếng và cờ transcript đều lấy từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG, như mọi
@@ -534,8 +687,40 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
               // lượt đang chơi vẫn nghe đúng cái nó bắt đầu.
               advisorOutroAudio={run.snapshot.stage.advisor_outro_audio_url ?? null}
               advisorOutroShowTranscript={run.snapshot.stage.advisor_outro_show_transcript}
+              // Bố cục hội thoại cũng từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG: giáo viên căn lại
+              // giữa chừng thì lượt đang chơi vẫn giữ đúng cái nó bắt đầu.
+              dialogue={run.snapshot.stage.dialogue}
+              dialogueUrls={run.snapshot.stage.dialogue_urls ?? {}}
+              // Nhân vật đến từ `run`, KHÔNG từ snapshot: đó là lựa chọn của
+              // người chơi và đổi được giữa hai lượt.
+              playerName={
+                run.character ? pickText(run.character.name_i18n, locale) : t('game.you')
+              }
+              player={run.character ?? null}
+              // ĐOẠN CHAT nằm ở server, khoá theo (lượt chơi, học sinh, nhiệm
+              // vụ). `QuestPanel` không biết mạng là gì — nó chỉ gọi hai hàm
+              // này, cùng ranh giới với `onSaveDraft` và `onSubmitQuest`.
+              onLoadDialogue={() =>
+                getDialogue(run.id, activeQuest.id).then((thread) => thread.lines as ChatLine[])
+              }
+              onAppendDialogue={(lines) =>
+                appendDialogue(run.id, activeQuest.id, lines).then(
+                  (thread) => thread.lines as ChatLine[],
+                )
+              }
+              // Lời của người canh giữ đổi theo LƯỢT và theo NGƯỜI: chơi lại
+              // nghe dãy khác, hai bạn cùng lớp nghe dãy khác nhau. Cố định
+              // suốt một lượt nên vào lại giữa chừng vẫn nghe đúng câu đã nghe.
+              variantSeed={`${run.id}:${me?.id ?? 'anon'}`}
               onSaveDraft={onSaveDraft}
               onSubmitQuest={onSubmitQuest}
+              onBuyHint={onBuyHint}
+              hintCost={run.hint_cost}
+              energy={run.my_energy_remaining}
+              onRetryQuest={async () => {
+                applyRun(await retryQuest(run.id, activeQuest.id));
+                setSoLanLamLai((n) => n + 1);
+              }}
               onClose={() => setActiveQuestId(null)}
               onTypingChange={setTyping}
             />
@@ -553,8 +738,73 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
               worldId={run.world_id}
               status={run.status}
               shard={run.snapshot.stage.map_shard_index}
+              // Tổng nhiệm vụ lấy từ đề bài đã đóng băng: bảng kết quả chỉ trả
+              // về số nhiệm vụ ĐÃ QUA, mà "3" một mình thì không nói lên gì.
+              questTotal={run.snapshot.quests.length}
+              theme={readDialogue(run.snapshot.stage.dialogue).theme}
             />
           )}
+        </div>
+
+        {/* ── HUD ba góc ───────────────────────────────────────────── */}
+        <div className="pointer-events-none absolute inset-0 z-20">
+          {/* TRÊN-TRÁI: mình đang ở đâu, còn bao lâu, được mấy nhiệm vụ. */}
+          <div
+            className={`pointer-events-auto absolute top-3 left-3 flex items-center gap-3 rounded-2xl px-3.5 py-2 text-sm ${HUD_GLASS} ${HUD_FADE}`}
+          >
+            <span className="font-semibold text-orichalcum-400">
+              {pickText(run.snapshot.stage.name_i18n, locale)}
+            </span>
+
+            {/* Năng lượng KHÔNG ở đây — nó nằm trong cụm góc dưới, cạnh sổ tay.
+                Hai chỗ cùng hiện một con số thì có ngày chúng lệch nhau, mà kể
+                cả không lệch thì cũng chỉ là hai chỗ để mắt phải đi tìm cùng
+                một thứ. */}
+            <span className={`font-mono ${clock < 30 ? 'text-coral-500' : 'text-slate-300'}`}>
+              ⏱ {String(Math.floor(clock / 60)).padStart(2, '0')}:
+              {String(clock % 60).padStart(2, '0')}
+            </span>
+
+            <span className="text-slate-300">
+              {t('game.questsDone', { done: doneCount, total: run.snapshot.quests.length })}
+            </span>
+
+            {/* Cố ý KHÔNG hiện điểm chiến lực trong trận — xem GAME_DOMAIN §1.6. */}
+
+            {run.is_trial && <Badge tone="warning">🧪 {t('preview.banner')}</Badge>}
+          </div>
+
+          {/* TRÊN-PHẢI: hai đường RA khỏi lượt đang chơi, HAI NÚT RỜI NHAU.
+              Chung một viên kính thì trông như một khối, mà hai việc này khác
+              hẳn nhau: một cái chốt lượt đang dở rồi chơi lại từ đầu, một cái đi
+              ra khỏi màn. Tách ra thì rê chuột vào cái nào cũng rõ ngay mình sắp
+              bấm vào cái gì. */}
+          <div className="pointer-events-auto absolute top-3 right-3 flex items-center gap-2">
+            {/* Hỏi lại một câu trước khi chơi lại: nó chốt lượt đang dở, và đó
+                là việc không lùi được. */}
+            <button
+              type="button"
+              disabled={dangKhoiDongLai}
+              onClick={() => {
+                if (!window.confirm(t('game.restartConfirm'))) return;
+                void khoiDongLai();
+              }}
+              className={`rounded-2xl px-3.5 py-2 text-sm text-slate-300 disabled:cursor-not-allowed disabled:opacity-50 ${HUD_GLASS} ${HUD_FADE} ${HUD_ITEM}`}
+            >
+              {dangKhoiDongLai ? t('common.loading') : t('game.restart')}
+            </button>
+
+            {/* Rời trận thì về đúng bản đồ world vừa đi ra, không phải về bản đồ
+                thiên hà. Người chơi đang dở một world; ném họ lên tận màn chọn
+                world là bắt đi lại hai bước để làm cái việc họ gần như chắc chắn
+                muốn làm tiếp — chơi màn kế bên. */}
+            <Link
+              href={localizedPath(`/play/world/${run.world_id}`, locale)}
+              className={`rounded-2xl px-3.5 py-2 text-sm text-slate-300 ${HUD_GLASS} ${HUD_FADE} ${HUD_ITEM}`}
+            >
+              {t('game.leave')}
+            </Link>
+          </div>
         </div>
 
         {/* Hiện SUỐT màn chơi, kể cả khi đã hết giờ hay thua.
@@ -582,46 +832,190 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
   );
 }
 
-/** Màn kết thúc (S6) — lối sang bảng điểm và màn xem lại. */
+/**
+ * MÀN KẾT THÚC (S6) — bảng nhỏ nổi lên ngay trong cảnh, không chuyển trang.
+ *
+ * ## Vì sao là bảng nổi chứ không phải một trang riêng
+ *
+ * Hết màn là một khoảnh khắc trong lúc chơi, không phải một chặng mới. Ném học
+ * sinh sang một URL khác nghĩa là tải lại cả trang, mất cảnh, mất nhạc — rồi
+ * bấm "chơi lại" để tải ngược về. Bảng này nổi trên chính cái cảnh vừa chơi,
+ * và hai cái nút đưa đi đúng hai nơi người ta muốn tới.
+ *
+ * ## Chỉ CON SỐ, không đáp án
+ *
+ * Bảng này cố ý KHÔNG hiện đáp án đúng, cũng không hiện từng câu sai ở đâu.
+ * Không phải để giấu — mà để **chơi lại còn có nghĩa**. Nói ra đáp án ngay sau
+ * lượt đầu thì lượt thứ hai chỉ còn là gõ lại thứ vừa đọc được, và điểm của nó
+ * không đo được gì nữa.
+ *
+ * Hệ quả: cả con số cũng phải đủ để biết mình đứng ở đâu mà không đủ để suy ra
+ * bài — "3/4 nhiệm vụ, 50/50 điểm" nói được cả hai điều đó.
+ *
+ * ## Số đến sau, và có thể không đến
+ *
+ * Tiêu đề với hai cái nút vẽ NGAY. Bảng điểm là một cú gọi mạng, và nếu nó
+ * hỏng thì học sinh vẫn phải ra khỏi màn được — một bảng kết thúc chỉ hiện ra
+ * khi mạng còn sống là cách nhốt người ta lại trong một màn đã chơi xong.
+ */
 function StageOver({
   runId,
   worldId,
   status,
   shard,
+  questTotal,
+  theme,
 }: {
   runId: string;
   worldId: string;
   status: string;
   shard: number;
+  questTotal: number;
+  /** BỘ ÁO của màn, đọc từ đề bài đã đóng băng. Xem `dialogue-theme.ts`. */
+  theme: string | null | undefined;
 }) {
   const t = useTranslations();
   const locale = useLocale();
+  const me = useCurrentUser();
   const won = status === 'won';
 
+  const [result, setResult] = useState<RunResult | null>(null);
+
+  useEffect(() => {
+    // `catch` rỗng có chủ ý: xem ghi chú "Số đến sau" ở trên. Không có số thì
+    // bảng vẫn là một bảng kết thúc dùng được.
+    getResult(runId)
+      .then(setResult)
+      .catch(() => undefined);
+  }, [runId]);
+
+  // Dòng của CHÍNH người đang ngồi đây. Bảng kết quả trả về cả phòng; đối chiếu
+  // theo `id` của người dùng chứ không lấy phần tử đầu — phòng nhiều người đến
+  // ở Bước 7, và lúc đó "phần tử đầu" là một người khác.
+  const mine = result?.players?.find((p) => p.user_id === me.id) ?? null;
+
   return (
-    <section className="pointer-events-auto w-full max-w-md rounded-2xl border border-abyss-700 bg-abyss-900/95 p-6 text-center shadow-2xl backdrop-blur">
+    <section
+      className="pointer-events-auto w-full max-w-md"
+      /**
+       * CÙNG BỘ ÁO với bảng hội thoại. Đây là tấm bảng cuối cùng học sinh nhìn
+       * thấy của một lượt chơi; để nó mặc bộ mặc định trong khi cả màn đã đổi
+       * theme là hụt đúng ở nhịp kết.
+       *
+       * Cùng bộ biến, cùng giá trị lùi, nên `classic` ra đúng tấm bảng cũ.
+       */
+      style={{
+        ...themeVars(theme),
+        padding: 'var(--q-frame-pad, 0px)',
+        borderRadius: 'var(--q-frame-radius, 1rem)',
+        background: 'var(--q-frame-bg, transparent)',
+        boxShadow: 'var(--q-frame-shadow, 0 25px 50px -12px rgba(4,18,31,0.45))',
+      }}
+    >
+      <div
+        className="p-6 text-center backdrop-blur"
+        style={{
+          borderRadius: 'var(--q-inner-radius, 1rem)',
+          background: 'var(--q-inner-bg, rgba(10,31,51,0.95))',
+          boxShadow: 'inset 0 0 0 1px var(--q-inner-ring, rgba(27,68,99,1))',
+        }}
+      >
       <p className="text-4xl" aria-hidden>
         {won ? '🗺' : '💧'}
       </p>
-      <h2 className="mt-3 text-lg font-bold text-slate-100">
+      <h2
+        className="mt-3 text-lg font-bold"
+        style={{ color: 'var(--q-header-ink, #f1f5f9)' }}
+      >
         {won ? t('game.victory') : t(`game.defeat.${status}`)}
       </h2>
-      <p className="mt-2 text-sm text-slate-400">
+      <p className="mt-2 text-sm" style={{ color: 'var(--q-muted, #94a3b8)' }}>
         {won ? t('game.shardEarned', { shard }) : t('game.keptPoints')}
       </p>
 
+      {result && (
+        <dl
+          className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border p-4 text-left sm:grid-cols-3"
+          // Khối số dùng lại màu của KHỐI ĐÁP ÁN: cùng một vai — một mảng chữ
+          // đặt trên nền bảng — nên không cần một bộ biến thứ hai cho nó.
+          style={{
+            borderColor: 'var(--q-opt-ring, #123049)',
+            background: 'var(--q-opt-bg, rgba(4,18,31,0.4))',
+          }}
+        >
+          <Figure label={t('game.result.quests')} value={`${mine?.quests_completed ?? 0}/${questTotal}`} />
+          <Figure
+            label={t('game.result.score')}
+            value={`${round(mine?.score ?? 0)}/${mine?.max_score ?? 0}`}
+          />
+          <Figure label={t('game.result.skillPts')} value={`+${mine?.skill_pts_earned ?? 0}`} />
+          <Figure label={t('game.result.time')} value={clock(result.duration_seconds)} />
+          <Figure
+            label={t('game.result.shards')}
+            value={`${result.my_shards_owned}/${result.world_shard_total}`}
+          />
+          <Figure label={t('game.result.worldSkillPts')} value={String(result.my_world_skill_pts)} />
+        </dl>
+      )}
+
       <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <Link href={localizedPath(`/play/run/${runId}/review`, locale)}>
-          <Button variant="primary">{t('game.review')}</Button>
-        </Link>
+        {/* Tải lại cả trang, không phải gọi `startRun` lần nữa.
+            Một lượt mới cần một cảnh Phaser mới: nhân vật về chỗ xuất phát, ổ
+            khoá đóng lại, đồng hồ đếm từ đầu. `PhaserCanvas` cố ý KHÔNG dựng
+            lại cảnh khi dữ liệu đổi (nếu không thì mỗi lần nộp bài là nạp lại
+            cả game), nên cách duy nhất trung thực để bắt đầu lại là dựng lại
+            trang. Cùng URL, nên không mất gì ngoài vài trăm mili giây. */}
+        <Button
+          variant="primary"
+          onClick={() => window.location.reload()}
+          style={{
+            background: 'var(--q-cta-bg, #0ea5e9)',
+            color: 'var(--q-cta-ink, #04121f)',
+            boxShadow: 'inset 0 0 0 2px var(--q-cta-ring, transparent)',
+          }}
+          className="hover:brightness-110"
+        >
+          {t('game.playAgain')}
+        </Button>
         {/* Nút này vẫn luôn mang chữ "về world" — chỉ có đích là sai, nó
             trỏ về bản đồ thiên hà. Giờ nó đi đúng chỗ tên nó nói. */}
         <Link href={localizedPath(`/play/world/${worldId}`, locale)}>
           <Button variant="secondary">{t('game.backToWorld')}</Button>
         </Link>
       </div>
+      </div>
     </section>
   );
+}
+
+/** Một con số của bảng kết quả: nhãn nhỏ ở trên, số to ở dưới. */
+function Figure({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-[11px]" style={{ color: 'var(--q-muted, #64748b)', opacity: 0.85 }}>
+        {label}
+      </dt>
+      <dd
+        className="font-mono text-sm font-semibold"
+        style={{ color: 'var(--q-opt-ink, #e2e8f0)' }}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/** `192` → `03:12`. `null` (chưa chốt xong) → `--:--`. */
+function clock(seconds: number | null | undefined): string {
+  if (seconds == null || seconds < 0) return '--:--';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/** `8` chứ không phải `8.0`; `7.5` vẫn là `7.5`. Điểm từng phần có số lẻ. */
+function round(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
 /**
@@ -705,7 +1099,15 @@ function CornerBubble({
             ? 'cursor-not-allowed border-abyss-800 bg-abyss-950/60 text-slate-700'
             : open
               ? 'border-lagoon-500 bg-abyss-900 text-lagoon-400'
-              : 'border-abyss-700 bg-abyss-950/80 text-slate-400 hover:text-slate-100'
+              : // Rê vào thì ĐỔI CẢ VIỀN LẪN NỀN, và NỞ RA một nhịp.
+              //
+              // Chỉ đổi màu chữ thì vô dụng: một biểu tượng emoji không nhận
+              // màu `text-*`, nên rê vào sổ tay hay trợ giúp trông y như không
+              // rê. Đổi viền thì có thấy, nhưng một nét 1px trên vòng tròn 36px
+              // vẫn phải nhìn kỹ mới ra. Nở ra thì mắt bắt được ngay cả khi
+              // đang nhìn chỗ khác — và đó đúng là tình huống: người chơi đang
+              // nhìn cảnh, tay mới rê tới góc.
+              'border-abyss-700 bg-abyss-950/80 text-slate-400 hover:scale-110 hover:border-lagoon-400 hover:bg-abyss-800 hover:text-slate-100'
         }`}
       >
         {icon}
@@ -738,7 +1140,10 @@ function CornerTools({
   const HELP = ['click', 'keys', 'walkToQuest', 'enterZone', 'boundary', 'energy'] as const;
 
   return (
-    <div className="absolute right-4 bottom-4 flex items-end gap-2">
+    // GÓC DƯỚI-PHẢI. Bảng hội thoại rộng tối đa `3xl` và căn giữa, nên ở một
+    // màn hình rộng nó không với tới góc này — cụm công cụ vẫn bấm được trong
+    // lúc đang nói chuyện với người canh giữ.
+    <div className={`absolute right-3 bottom-3 z-20 flex items-end gap-2 ${HUD_FADE}`}>
       {/* Cùng cụm với sổ tay và năng lượng, và cùng một tuỳ chọn với bản đồ
           thiên hà: tắt nhạc ở ngoài kia thì vào đây vẫn tắt. */}
       <MusicControls className="h-9" />

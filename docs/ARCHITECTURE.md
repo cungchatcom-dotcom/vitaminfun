@@ -311,6 +311,22 @@ def visible_worlds(user):
 
 Viết điều kiện này rải rác ở từng endpoint là cách chắc chắn nhất để có ngày một endpoint quên nó và lộ world nháp cho học sinh.
 
+### Tự mở tài khoản
+
+Khách ở màn đăng nhập tự mở được tài khoản: ba ô — email, họ tên, mật khẩu — rồi `POST /auth/signup` trả về đúng `LoginResponse` của `/auth/login`, nên mở xong là đã đăng nhập, không có bước thứ hai để hỏng ở giữa.
+
+- **Vai trò viết cứng là `student`**, không nhận từ request. Một trường `role` trong biểu mẫu đăng ký — dù là trường ẩn — là trao quyền dựng nội dung cho bất kỳ ai điền xong ba ô.
+- **Email chỉ kiểm bằng regex thô** (`EMAIL_RE` trong `auth/service.py`): có `@`, có tên miền, không khoảng trắng. Không regex nào nhận đúng tập RFC 5322, và thứ duy nhất chứng minh một email dùng được là gửi thư tới đó — việc của bước xác minh, không phải của biểu mẫu này.
+- **Mỗi ô một mã lỗi riêng** (`SIGNUP_EMAIL_INVALID`, `SIGNUP_NAME_REQUIRED`, `SIGNUP_PASSWORD_TOO_SHORT`, `SIGNUP_EMAIL_TAKEN`). Gộp cả bốn về `VALIDATION_FAILED` là bắt người đăng ký đoán xem mình sai ở đâu trên một biểu mẫu ba ô.
+- **Độ dài mật khẩu tối thiểu chỉ áp ở ĐĂNG KÝ**, không áp ở đăng nhập: tài khoản do quản trị viên tạo trước đó có thể ngắn hơn và vẫn phải vào được.
+
+**Tắt bằng MỘT biến `.env`: `ALLOW_SELF_SIGNUP=false`.** Cùng một biến cho cả hai phía, vì `.env` ở gốc repo phục vụ cả `api/` lẫn `web/`:
+
+- API từ chối `POST /auth/signup` bằng `SIGNUP_DISABLED` (403) — đây mới là cái chốt;
+- web giấu nút Đăng ký và cho `/signup` chuyển hướng về `/login` (`lib/signup.ts`).
+
+Giấu nút mà không chặn endpoint là một cánh cửa vẫn mở cho ai biết gõ `curl`; chặn endpoint mà không giấu nút là một cái nút bấm vào chỉ để nhận lỗi. Hai trang ấy khai `export const dynamic = 'force-dynamic'`: không có nó, Next dựng sẵn chúng lúc `next build` và cái công tắc trong `.env` sẽ gạt mà đèn không đổi. Đổi biến thì **khởi động lại cả API lẫn web** — không cần build lại.
+
 Không có `tenant_id`. Đây là **đảo ngược có chủ ý** so với bản kế hoạch trước: khi còn định gộp vào LMS đa trung tâm thì `tenant_id` là bắt buộc; giờ vitaminfun đứng riêng với đúng ba vai trò, mang theo cột đó nghĩa là mọi bảng có một cột luôn cùng giá trị và mọi truy vấn có một điều kiện thừa. Nếu sau này cần bán cho trung tâm, thêm lại là một migration — đắt, nhưng không đắt bằng việc mang nó suốt chặng đường mà không dùng.
 
 ---

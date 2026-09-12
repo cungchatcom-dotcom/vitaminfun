@@ -148,8 +148,8 @@ Ba thứ chặn không cho biến nó thành trò đoán mò:
 | Chặn bằng | Cụ thể |
 |---|---|
 | **Năng lượng đội** | Mỗi lần sai trừ `energyCost.wrongAnswer` khỏi quỹ chung. Đoán bừa là làm hại đồng đội |
-| **Trần số lần thử** | `balance_json.maxAttemptsPerQuest`, mặc định `3`. Hết lượt thì nhiệm vụ khoá lại trong lượt chơi đó |
-| **Điểm giảm dần** | `balance_json.attemptPenalty = [1.0, 0.6, 0.3]` — đúng ngay lần đầu ăn đủ điểm, lần hai còn 60%, lần ba còn 30% |
+| **Trần số lần thử** | `balance_json.maxAttemptsPerQuestion`, mặc định `2` — tính theo TỪNG CÂU. Hết lượt thì người canh giữ chuyển sang câu khác, câu đó 0 điểm; nhiệm vụ vẫn qua được nếu các câu khác đủ điểm (§3f) |
+| **Điểm giảm dần** | `balance_json.attemptPenalty = [1.0, 0.6]` — đúng ngay lần đầu ăn đủ điểm, đúng ở lần hai còn 60%. Mảng này phải dài đúng bằng `maxAttemptsPerQuestion`: một phần tử thứ ba không bao giờ tới lượt chỉ làm người đọc tưởng còn lần thử thứ ba |
 
 Không có ba thứ này thì một câu trắc nghiệm 3 lựa chọn luôn được giải sau tối đa 3 lần bấm, và điểm chiến lực mất hết ý nghĩa — nó sẽ đo độ kiên nhẫn chứ không đo trình độ tiếng Anh.
 
@@ -300,6 +300,25 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
   `quest_drafts` (bảng nháp, không có điểm); bấm Nộp bài mới chấm cả cụm. Quay
   lại sửa câu nào cũng được cho tới lúc nộp. Một lần nộp = một lượt thử cho mỗi
   câu CHƯA đúng; câu đã đúng và câu chưa chọn đều không bị chấm.
+- **`duration_seconds` là THỜI GIAN LÀM BÀI, đã chặn trần bằng giới hạn giờ của
+  màn** — không phải khoảng cách từ lúc bắt đầu tới lúc chốt. Hai thứ ấy chỉ
+  bằng nhau khi lượt được chốt đúng lúc đồng hồ cạn, mà nhánh hết giờ thì hầu
+  như không bao giờ: lời chốt đến từ request kế tiếp của người chơi, hoặc từ
+  vòng quét dọn — cả hai đều đến muộn. Chậm mười tám giây thì một màn 5 phút
+  ghi "5:18"; một tab bị bỏ quên ghi mười bảy ngày.
+  - Trần đọc từ **đề bài đã đóng băng** của chính lượt ấy
+    (`snapshot_json.stage.time_limit_seconds`), cùng nguồn với
+    `seconds_remaining()` — người dựng sửa giới hạn giờ giữa chừng thì lượt đang
+    chơi vẫn được chấm theo luật nó đã bắt đầu.
+  - `ended_at` đi theo (`started_at + duration_seconds`), không để lệch: hai
+    trường cùng nói một việc mà trừ nhau ra số thứ ba thì mọi chỗ đọc hiệu của
+    chúng đều mâu thuẫn với cột kia.
+  - Luật nằm ở `play/service.py::thoi_luong_choi()` — MỘT chỗ. Báo cáo đọc
+    thẳng cột, không chặn trần lần thứ hai bằng `stages.time_limit_seconds`
+    hiện tại: đó sẽ là một luật thứ hai đọc một nguồn khác, và hạ giới hạn giờ
+    của màn sẽ làm mọi lượt chơi cũ tự nhiên ngắn lại trong báo cáo.
+  - Dữ liệu ghi trước bản vá được nắn lại một lần bằng
+    `scripts/fix_run_durations.py` (chạy được nhiều lần, có sao lưu).
 - **Nhiệm vụ đang khoá thì KHÔNG lưu nháp — chặn ở phía giao diện, trước khi gửi.**
   Server đã từ chối bằng `ADVISOR_LOCKED` (đúng: nháp cũng là ghi vào lượt chơi),
   nhưng bảng "đang khoá" vẫn có hẹn giờ tự lưu 800ms chạy trước cái `return` sớm
@@ -307,6 +326,24 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
   là bắn một request chắc chắn hỏng, và lời từ chối rơi ra thành unhandled
   rejection. **Chặn** chứ không bọc `try/catch` cho im: nuốt lỗi ở đây thì giấu
   luôn những lần lưu nháp hỏng thật, mà lưu nháp hỏng thật là mất bài người chơi.
+- **CÂU KHOÁ soạn được cho TỪNG nhiệm vụ** (`quests.locked_message_i18n`, JSONB,
+  mặc định `{}`). Để trống thì bảng "đang khoá" dùng câu tự sinh trong
+  `messages/` như cũ; có chữ thì đọc đúng chữ ấy. Ba mươi sáu cánh cửa dùng
+  chung một câu thì tới cánh thứ ba người gác cửa không còn là một nhân vật nữa
+  — mà mọi câu vẫn phải **gọi đúng tên nhiệm vụ gác cửa** ("clear *Lyra's
+  Warning* first"), vì đó là thông tin người chơi cần, không phải lời từ chối.
+  Bộ câu mẫu nằm ở `scripts/seed_locked_messages.py`: nó đọc tên cánh cửa từ
+  chính cơ sở dữ liệu và xoay vòng sáu khuôn câu, nên đổi tên nhiệm vụ gác cửa
+  là chạy lại script, không phải sửa tay.
+  - **Người NÓI câu ấy là NGƯỜI GÁC CỬA của màn** (nhiệm vụ `phase='advisor'`),
+    nên tiếng cũng thu bằng giọng của người ấy — `POST /quests/{id}/locked-audio`
+    tự tra `giong_gac`, giao diện không truyền giọng vào. Không có cột audio
+    riêng: bản thu nằm ở `voice_lines` khoá theo `(voice_id, sha256(text))` như
+    mọi câu khác, nên sửa chữ là tự khắc cần thu lại, và hai nhiệm vụ trùng chữ
+    thì dùng chung một file.
+  - `QuestOut` dựng TAY từng trường ở `_quests_out`, nên thêm cột ở model là
+    CHƯA đủ: thiếu một dòng ở đó thì ô "Câu khoá" của trình dựng luôn mở ra
+    trống dù cơ sở dữ liệu có chữ.
 - **NHIỆM VỤ NPC đi theo luật riêng: từng câu một, và KHÔNG có trần lượt thử.**
   Nó là một cuộc hội thoại, không phải một bài tập — bảng không có nút Nộp bài,
   chỉ có **Tiếp**, bấm là chấm ngay câu đang nói. Sai thì hiện
@@ -572,7 +609,7 @@ Cả hai ràng buộc đều tính tới `question_id` vì một nhiệm vụ ch
 
 `UNIQUE (...) WHERE is_correct` là **partial index của PostgreSQL**: cho phép nhiều dòng sai, nhưng nhiều nhất **một** dòng đúng cho mỗi (lượt chơi, người, nhiệm vụ). Đây là chỗ luật "đúng rồi thì thôi, không ăn điểm hai lần" được database bảo đảm. Viết nó thành `if await already_correct(...)` trong service thì có ngày hai request đến cùng lúc lọt qua cả hai lần kiểm tra và cộng điểm hai lần — kiểu lỗi chỉ xuất hiện khi đông người chơi và gần như không tái hiện được.
 
-**Trạng thái một nhiệm vụ suy ra từ nhật ký, không lưu riêng:** có dòng `is_correct` → xong · đủ `maxAttemptsPerQuest` dòng sai → khoá · còn lại → đang làm. Một nguồn sự thật, không có gì để lệch nhau.
+**Trạng thái một nhiệm vụ suy ra từ nhật ký, không lưu riêng:** có dòng `is_correct` → xong · đủ `maxAttemptsPerQuestion` dòng sai → hết lượt câu đó · còn lại → đang làm. Một nguồn sự thật, không có gì để lệch nhau.
 
 `quest_answers.user_id` cũng là dữ liệu để cưỡng chế luật *"mọi thành viên phải hoàn thành ≥1 nhiệm vụ thì màn mới tính hoàn thành"* — đếm nhóm theo `user_id`, lọc `is_correct`.
 
@@ -637,6 +674,45 @@ Hai trục **vuông góc** nhau, và đó là lý do chúng là hai cột chứ 
 **`question_type` lạ thì BỎ QUA cả dòng**, không lặng lẽ hạ về `text`. Hạ xuống thì một bài nghe do người soạn cố ý viết ra sẽ thành một bài đọc, cả lớp làm xong mà không ai biết mình vừa làm sai đề. Bỏ qua kèm lý do thì sửa đúng một ô rồi nhập lại.
 
 Mã lựa chọn giữ đúng **số cột** chứ không đánh lại theo thứ tự các ô có chữ: cột `accepted_answers` ghi số đó, nên một ô trống ở giữa mà đánh số lại sẽ làm mọi đáp án lệch một bậc mà không có gì báo.
+
+### Xin giúp: một giá, trả một lần
+
+`POST /play/runs/{run}/questions/{question}/hints/{kind}` trả đoạn chữ và trừ
+`balance.energyCost.hint` năng lượng. Hai loại, MỘT giá:
+
+- `translation` — bản dịch, nằm trong `answer_json`;
+- `transcript` — lời thoại của câu nghe, tức `content.prompt`.
+
+**Lời thoại bị GẠN KHỎI đề bài** trước khi gửi xuống máy học sinh: đã thu tiền
+thì không được gửi kèm, không thì mở tab mạng của trình duyệt là đọc được miễn
+phí. `build_snapshot` đặt `content.prompt = None` cho câu nghe — trừ khi giáo
+viên đã bật `show_transcript`, vì khi đó chính họ quyết định câu này hiện chữ
+sẵn và không còn gì để bán. `answer_key_json` thì giữ nguyên cả `content`, và đó
+là chỗ endpoint đi lấy. Đọc từ `stage_runs.answer_key_json` — đề
+bài đã đóng băng — chứ không hỏi lại bảng `questions`: giáo viên sửa bản dịch
+giữa chừng thì lượt đang chơi vẫn đọc đúng cái nó bắt đầu, cùng luật với ảnh
+nền, tiếng và bố cục hội thoại.
+
+**Nhiệm vụ NPC thì miễn phí** (`_phase_of() == advisor`). Đó là màn khởi động,
+và `_grant_energy()` chỉ chạy SAU KHI qua nó — nên ở đó học sinh luôn có 0 năng
+lượng. Tính tiền là khoá gợi ý đúng chỗ họ cần nhất mà không cho đường nào kiếm
+ra tiền để mở.
+
+**Trả một lần, xem mãi.** `stage_run_players.hints_json` nhớ ai đã mua gì trong
+lượt đó (`{"<question_id>": ["translation"]}`). Học sinh đóng bảng câu hỏi rồi
+mở lại mà bị trừ tiếp là một cái bẫy, và cái duy nhất họ học được từ nó là đừng
+bao giờ xin giúp nữa — tức đúng ngược cái mà năng lượng sinh ra để khuyến khích.
+
+Một cột JSONB trên chính người chơi trong lượt đó, không phải một bảng riêng: nó
+chỉ có nghĩa trong phạm vi một lượt, chết theo lượt, và không ai truy vấn ngược
+nó bao giờ.
+
+`POST` chứ không `GET`: nó TIÊU một thứ, mà một đường `GET` thì trình duyệt,
+proxy hay một cú tải lại trang đều có quyền gọi lại mà không hỏi ai.
+
+Đề bài mang `has_translation: bool` — chỉ cái CÓ hay KHÔNG, không mang chữ nào.
+Giao diện cần nó để biết có nên vẽ cái nút Dịch: một cái nút bấm vào rồi báo
+"câu này không có bản dịch" là đã tiêu mất một nhịp chú ý của người đang bí.
 
 **`question_content_translation` đi vào `answer_json`, không vào `content_json`.** Cùng luật với `hint`: content bị đóng băng vào đề bài rồi gửi thẳng xuống máy học sinh, nên mọi thứ phải TRẢ BẰNG NĂNG LƯỢNG mới được xem đều không được nằm ở đó. Gửi kèm là phát không, và mở tab mạng của trình duyệt là thấy.
 
@@ -762,6 +838,400 @@ Nên nó đi đường riêng: `GET /play/stages/{id}/intro`, gọi lúc **rende
 
 ---
 
+## 3f. HỘI THOẠI VỚI NGƯỜI CANH GIỮ — dữ liệu của màn S5
+
+Mỗi nhiệm vụ là một cuộc nói chuyện, không phải một tờ bài tập. Phần nhìn thấy được mô tả ở [UI_META_SCREENS §S5](./UI_META_SCREENS.md); ở đây là dữ liệu đứng sau nó.
+
+### Phần lớn cơ chế ĐÃ CHẠY
+
+Trước khi thêm gì, ghi lại cho rõ những thứ không cần làm lại:
+
+| Đã có | Ở đâu |
+|---|---|
+| Vòng hỏi–đáp từng câu, sai thì đứng lại, đúng thì sang câu chưa xong | `quest-panel.tsx` → `nextStep()`, đang chạy cho `phase = advisor` |
+| Lời chê riêng cho từng câu | `content.wrong_answer_message`, đã có trong lược đồ câu hỏi |
+| Miễn trần số lần thử cho nhiệm vụ NPC | `_grade_one` → `not is_gate` |
+| Cộng điểm từng câu rồi so `pass_score` ở cuối nhiệm vụ | `submit_quest` |
+| Nhật ký từng lần thử để dựng lại hội thoại | `quest_answers` (`attempt_no`, `response_json`, `is_correct`) |
+| Câu đang gõ dở | `quest_drafts` |
+| Ảnh đại diện nhân vật người chơi | `characters.avatar_media_id`, có sẵn ô tải kèm cropper |
+| Khối kéo–thả–đổi-cỡ có ảnh nền và khung nội dung | `LobbySaved` trong `web/src/game/world.ts` |
+
+Việc thật là **mở vòng của nhiệm vụ NPC ra cho mọi nhiệm vụ**, cộng ba mẩu dữ liệu dưới đây.
+
+### Luật số lần thử — chỉnh số, không sửa code
+
+```
+balance_json.maxAttemptsPerQuestion   3  ->  2
+balance_json.attemptPenalty     [1.0, 0.6, 0.3]  ->  [1.0, 0.6]
+```
+
+Nghĩa là: sai **một** lần được làm lại; sai lần thứ hai thì người canh giữ chuyển sang câu khác, câu đó 0 điểm. Đúng ngay lần đầu ăn đủ điểm, đúng ở lần hai còn 60%.
+
+Nhiệm vụ NPC không chịu trần này — không qua nó thì cả màn đứng lại.
+
+**Sai đến hết lượt vẫn KHÔNG lộ đáp án.** Đây là chỗ dễ bị "cho tử tế một chút" nhất, nên viết ra: ba người ngồi cạnh có thể chưa làm tới câu đó, và một đáp án đọc được là một lần chơi lại mất nghĩa. Cùng lý lẽ với §1.6 và với việc hoãn màn xem lại bài.
+
+### `stages.dialogue_json` — bố cục, một bộ cho cả màn
+
+Cùng hình dạng với `worlds.lobby_json`, sáu khối:
+
+```
+npcAvatar · npcBubble · playerBubble · npcVerdict · playerAvatar · answerBox
+```
+
+Người canh giữ có tối đa **hai** bong bóng — câu hỏi (`npcBubble`) và lời phán đúng/sai (`npcVerdict`, đứng ngay dưới bong bóng của học sinh) — còn học sinh có **một**. Vì sao tách làm hai: xem [UI_META_SCREENS §S5b](./UI_META_SCREENS.md).
+
+Mỗi khối là một `LobbySaved`: `x`, `y`, `w`, `h`, `media_id` (ảnh nền của khối), và `content` — khối con thật sự vẽ chữ, mang `x`, `y`, `w`, `h` **tính bằng phần trăm của khối cha**, cộng `color` và `font`.
+
+Phần trăm chứ không phải pixel, vì kéo bong bóng to ra thì chữ phải to theo cùng nhịp; lưu pixel là mỗi lần đổi cỡ khối phải căn lại chữ. Lý lẽ đầy đủ ở chú thích `LobbyContentSaved`.
+
+**`NULL` = kế thừa bố cục của màn ĐẦU TIÊN trong world** — đúng nếp `character_height`. Căn một lần ở màn 1, cả world theo, và sửa lại màn 1 sau đó vẫn lan xuống. Không sao chép giá trị xuống từng màn lúc tạo: sao chép là mất đúng cái đó.
+
+Cột khai báo `JSONB(none_as_null=True)`, không để mặc định. Mặc định của SQLAlchemy biến `None` của Python thành JSON `null` — một GIÁ TRỊ nằm trong ô, không phải một ô rỗng. Đọc thì vẫn ra `None` nên không ai thấy gì, cho tới ngày có người viết `WHERE dialogue_json IS NULL` và câu đó trả về sai. Cùng lý do cho `collision_json`.
+
+**URL ảnh nền của từng khối đi RIÊNG**, trong `dialogue_urls`, cùng nếp `audio_urls`: khối lưu `media_id` chứ không lưu URL — id thì bền, URL thì đổi khi kho ảnh đổi — nên server tra một lượt cho cả sáu khối (`worlds/service.py::block_urls`, dùng chung với khối phòng chờ). Trong đề bài đóng băng thì URL cũng đóng băng, vì đổi file giữa chừng thì hai máy đang chơi cùng màn sẽ thấy hai thứ khác nhau.
+
+Lưu ở MÀN chứ không ở nhiệm vụ vì một màn có một bộ mặt. Năm nhiệm vụ nhân ba mươi màn là 150 lần căn tay cho một world — sẽ không ai làm hết, và world sẽ có 150 màn hội thoại lệch nhau.
+
+### `characters.voice_id` — giọng đọc của nhân vật
+
+Trỏ vào `voices`, một **bản sao danh mục** giọng lấy về từ nhà cung cấp. Một cột
+cho CẢ HAI vai: nhân vật học sinh và người canh giữ đều là một dòng `characters`,
+nên cả hai gán giọng bằng cùng một chỗ.
+
+Bản sao chứ không gọi thẳng: nếu mỗi lần mở ô chọn giọng lại phải gọi ra
+ElevenLabs thì màn hình đứng chờ vài giây, và một sự cố mạng bên họ là không ai
+đặt được giọng cho nhân vật nào. Đồng bộ bằng tay qua `POST /voices/sync` — danh
+mục giọng gần như không đổi, và một tác vụ nền âm thầm gọi API tính tiền là thứ
+không ai nhớ mình đã bật.
+
+Đồng bộ là CẬP NHẬT theo khoá `(provider, external_id)`, không xoá-rồi-nạp-lại:
+nhân vật đang trỏ vào những dòng đó, và thay `id` của một giọng là gỡ giọng khỏi
+mọi nhân vật đang dùng nó. Giọng nhà cung cấp đã bỏ thì Ở LẠI trong kho — nhân
+vật đang dùng vẫn nói được bằng chính mã đó.
+
+`provider` là chuỗi TỰ DO, không phải enum. Thêm minimax hay gemini-tts là thêm
+một lớp trong `modules/voices/providers.py` cộng một dòng trong `PROVIDERS` —
+không migration, không sửa giao diện, vì danh sách dịch vụ đi xuống client qua
+`GET /voices/providers`.
+
+Chỉ đồng bộ giọng **tiếng Anh** (`labels.language == "en"`). Tài khoản có cả
+giọng tiếng Việt, mà game này dạy tiếng Anh — kéo hết về là bắt người dựng cuộn
+qua ba mươi giọng họ không bao giờ dùng.
+
+`preview_url` trỏ THẲNG sang nhà cung cấp, không qua kho media: nó là tài sản
+của họ, đổi khi họ đổi, và tải về là giữ một bản sao sẽ cũ đi.
+
+### `question_audios` — tiếng đọc, khoá theo GIỌNG
+
+Một dòng là `(câu hỏi, giọng, chỗ cần đọc)`. Hai chỗ được đọc:
+
+| `target` | đọc gì | giọng của ai |
+|---|---|---|
+| `prompt` | đề bài | NGƯỜI CANH GIỮ của nhiệm vụ |
+| `option` | một phương án trả lời | NHÂN VẬT HỌC SINH người dựng chọn |
+
+**Khoá theo giọng, không theo màn chơi.** Cùng một câu hỏi lắp vào world khác,
+màn khác, người canh giữ khác — nếu cùng giọng thì bản thu cũ dùng lại được
+ngay, không tốn thêm một lượt gọi API nào. Giọng khác thì coi như chưa có, vì
+đúng là chưa có: một câu đọc bằng giọng nam trung niên không thay được cho giọng
+nữ trẻ. Khoá theo màn thì mỗi màn một bản sao của cùng một file, và tiền trả cho
+nhà cung cấp nhân lên theo số màn dùng lại câu hỏi đó.
+
+**Nhiều giọng cho PHƯƠNG ÁN.** Phương án là thứ học sinh nói ra, mà học sinh nào
+cũng vào màn bằng nhân vật của mình. Sinh cho một giọng rồi thì em chọn nhân vật
+khác sẽ gặp một khoảng im — nên người dựng chọn TRƯỚC những nhân vật cần phủ, và
+mỗi giọng một bản.
+
+Chỉ câu **có phương án để chọn** mới sinh phần đáp án. Câu gõ chữ thì thứ học
+sinh nói ra là thứ họ tự nghĩ, không đọc sẵn được.
+
+#### Ô trống đọc thành một tiếng BÍP
+
+Để nguyên `{{1}}` thì máy đọc ra "dấu ngoặc nhọn một". Thay bằng chữ `blank` thì
+lời đề mọc thêm một từ tiếng Anh học sinh phải học cách bỏ qua. Cả hai đều dạy
+nhầm, nên chỗ khuyết **không** đi qua máy đọc chữ nữa:
+
+1. Cắt lời đề tại mỗi ô trống — `"The gate is made of {{1}} and {{2}}."` ra
+   `["The gate is made of", ␣, "and", ␣]`. Khúc chỉ có dấu câu thì bỏ; gửi một
+   dấu chấm sang nhà cung cấp là trả tiền cho một tiếng thở.
+2. Đọc các khúc chữ **cùng một lượt**, xin về **PCM thô** thay vì mp3.
+3. Chèn tiếng bíp — 880 Hz, 500 ms, có vuốt hai đầu và khoảng lặng hai bên — rồi
+   gói tất cả thành **WAV**.
+
+**Ô trống viết bằng hai cách, và phải nhận cả hai.** `{{1}}` là mã ô của câu
+`GAP_FILL` do trình soạn sinh ra; `___` là thứ người soạn gõ tay thẳng vào lời đề
+của câu trắc nghiệm — và trong kho hiện tại cách thứ hai ĐÔNG HƠN (11 câu so với
+2). Bỏ sót một cách thì không có lỗi nào ném ra: câu vẫn sinh được audio, chỉ là
+máy đọc nguyên mấy cái gạch dưới. Gạch dưới GIỮA TỪ (`text_file`) không tính —
+phải từ hai gạch liền trở lên.
+
+**Các khúc đi cả loạt xuống nhà cung cấp, không phải từng cái một.** Đọc rời thì
+`"The team"` bị hạ giọng ở cuối như đã hết câu và `"Orion yet."` mở đầu như vừa
+hít vào — ghép lại nghe rời rạc. ElevenLabs có sẵn ba tham số cho đúng bệnh này:
+`previous_text` / `next_text` (chữ đứng trước và sau, KHÔNG đọc ra, chỉ để biết
+câu đang đi tới đâu) và `previous_request_ids` (tối đa ba mã lượt gần nhất, để
+nối đúng hơi và cao độ của tiếng vừa sinh chứ không chỉ đoán từ chữ). Vì thế
+`speak_parts()` nhận cả danh sách khúc, chứ không phải `speak()` gọi nhiều lần.
+
+Xin PCM vì nối hai file mp3 bằng cách dán byte thì mối nối không rơi đúng biên
+khung: lúc chạy, lúc ra tiếng lụp bụp, tuỳ trình duyệt. PCM thì mỗi mẫu là một
+con số, và `wave` của thư viện chuẩn gói lại — không thêm ffmpeg, không thêm gói
+ngoài. Đổi lại WAV nặng hơn mp3 chừng mười lần, chấp nhận được vì **chỉ câu điền
+khuyết** đi đường này; câu thường vẫn một lần gọi, vẫn ra mp3.
+
+Độ to của bíp **bám theo giọng vừa đọc**, không phải một con số cố định: đo trên
+hai giọng thật của cùng nhà cung cấp cho ra 1800 và 5000 RMS — gần ba lần. Một
+mức tuyệt đối thì hoặc chìm dưới giọng này, hoặc quát vào tai người nghe giọng
+kia. Câu chỉ có mỗi ô trống thì không gọi nhà cung cấp lần nào: chẳng có chữ nào
+để đọc, và tiếng bíp là của ta.
+
+Trên màn hình người dựng, ô trống hiện thành một vệt `▁▁▁` — không phải chữ, nên
+không phải dịch.
+
+#### Gọi nhà cung cấp: HỒ BƠI LUỒNG, và giữ phần làm được
+
+ElevenLabs **không có API gộp lô** — mỗi câu một request. Tám mươi câu gọi nối
+đuôi nhau là tám mươi lượt đi về, mỗi lượt một hai giây: vài phút chờ, và đủ lâu
+để proxy cắt request giữa chừng.
+
+Nên phần gọi mạng chạy song song, chặn bởi `ELEVENLABS_CONCURRENCY` (mặc định
+**5**). Là một **hồ bơi luồng**, không phải từng đợt: luồng nào xong nhận câu
+tiếp ngay. Chia đợt mười câu rồi chờ đủ mới sang đợt sau thì cả đợt đứng chờ câu
+chậm nhất — một câu dài kéo chín câu ngắn đứng im.
+
+Năm vì trần số request đồng thời của nhà cung cấp thấp hơn người ta tưởng và
+thay đổi theo hạng tài khoản. Đặt quá tay không vỡ mẻ: gặp `429` thì lùi theo cấp
+số nhân, tôn trọng `Retry-After`, thử tối đa bốn lần — cái giá chỉ là chậm.
+
+Chỉ phần GỌI MẠNG song song. Lưu file và ghi database vẫn tuần tự: một phiên
+SQLAlchemy không dùng được từ nhiều tác vụ cùng lúc.
+
+**`return_exceptions=True` là phần bắt buộc.** Không có nó thì câu thứ bốn mươi
+hỏng là `gather` huỷ cả mẻ — ba mươi chín câu đã đọc xong, đã trả tiền, chưa kịp
+lưu, mất sạch. Có nó thì giữ được bao nhiêu lưu bấy nhiêu rồi báo số hỏng; bấm
+lại lần sau thì `existing_lines` thấy phần đã lưu và bỏ qua, tức **chỉ chạy lại
+phần hỏng** — không cần một nút riêng nào cho việc đó.
+
+`GET /voices/health` kiểm tra dịch vụ mà **không tốn một ký tự nào**: chỉ hỏi
+thông tin tài khoản. Phân biệt được ba thứ trước đây hiện ra y hệt nhau — chưa
+đặt khoá, khoá sai, mạng không tới — và kèm số ký tự **còn lại**, thứ đáng biết
+trước khi bấm sinh cả mẻ.
+
+#### LỜI PHÁN — chữ của WORLD, tiếng của từng NGƯỜI CANH GIỮ
+
+`worlds.verdict_json` có **TÁM nhóm**, xếp theo đúng thứ tự chúng xảy ra:
+
+| nhóm | khoảnh khắc | trước đây |
+|---|---|---|
+| `greet` | học sinh vừa tới, trước đề bài đầu | **im lặng** |
+| `praise` | trả lời đúng | có |
+| `wrong` | sai, còn lượt | có |
+| `moveOn` | hết lượt, bỏ câu | có |
+| `next` | đúng rồi, nối sang câu sau | **im lặng** |
+| `passed` | hết câu và ĐẠT điểm sàn | chung một câu |
+| `failed` | hết câu nhưng KHÔNG đạt | chung một câu |
+| `revisit` | đi ngang nhiệm vụ đã xong | có |
+
+Bốn ô "im lặng"/"chung một câu" là chỗ cuộc trò chuyện hụt hơi: khen xong thì đề
+bài mới hiện ra không một lời nối, và làm xong cả nhiệm vụ thì người đạt lẫn
+người trượt nghe **đúng cùng một câu**.
+
+`VERDICT_GROUPS` bên `tts.py` phải khớp `FALLBACK` bên `quest-panel.tsx`: thiếu
+một nhóm ở danh sách kia là nhóm ấy không bao giờ được sinh tiếng, và màn chơi im
+lặng đúng vào lúc đó mà không báo gì.
+
+#### Không lặp câu TRONG CÙNG một nhiệm vụ
+
+`pickLine` băm theo từng câu hỏi, nên hai câu liền nhau vẫn có thể rơi trúng cùng
+một chỉ số. Đo trên mười câu hỏi với mười biến thể: chỉ ra **7 câu riêng biệt**,
+tức ba lần nghe lại câu vừa nghe.
+
+`pickDistinct` lấy một **điểm xuất phát** và một **bước nhảy**, cả hai băm từ
+hạt giống, rồi đi tới theo thứ tự câu hỏi.
+
+Hạt giống là `run.id : user.id : quest.id : nhóm`. Ba đòi hỏi kéo ngược chiều
+nhau, và ba mảnh này giải đúng từng cái:
+
+| đòi hỏi | mảnh giải |
+|---|---|
+| vào lại giữa chừng nghe đúng câu đã nghe | cố định suốt một lượt |
+| chơi lại nghe dãy khác | `run.id` đổi mỗi lượt |
+| hai bạn cùng lớp nghe khác nhau | `user.id` |
+| không lặp trong một nhiệm vụ | bước nhảy **nguyên tố cùng nhau** với `n` |
+
+Nguyên tố cùng nhau là điều kiện BẮT BUỘC, không phải làm đẹp: bước 2 trên mười
+câu chỉ chạm được năm câu rồi quay vòng, và lời hứa "không lặp" gãy.
+
+Đo trên mười biến thể: **40 dãy khác nhau** (10 điểm xuất phát × 4 bước hợp lệ:
+1, 3, 7, 9). Sáu lượt chơi lại ra sáu dãy khác nhau; gọi lại ba lần trong cùng
+một lượt ra y hệt nhau.
+
+`Math.random()` hỏng ngay ở đòi hỏi thứ nhất: mở lại bảng là người canh giữ nói
+một câu khác cho cùng một lần thử, mà học sinh thì nhớ họ đã nói gì.
+
+Câu chê cộng thêm số lần thử, nên sai hai lần cùng một câu cũng nghe hai câu chê
+khác nhau.
+
+
+`worlds.verdict_json` = `{"praise": [...], "wrong": [...], "moveOn": [...]}`.
+Rỗng = dùng bộ 12 câu mặc định trong `messages/`, tức mọi world đang chạy không
+đổi gì.
+
+**Chữ ở world** vì đây là giọng điệu của cả thế giới ấy, không phải phản hồi cho
+một bài cụ thể. Đặt ở từng câu hỏi thì một world trăm câu là trăm chỗ phải gõ
+cùng một giọng điệu. Câu chê CHỈ hợp với một bài thì đã có
+`content_json.wrong_answer_message` — nó thắng bộ của world.
+
+**Tiếng theo từng nhiệm vụ** vì mỗi nhiệm vụ một người canh giữ, mỗi người một
+giọng. Nhưng bản thu khoá theo `(voice_id, băm của đoạn chữ)` trong bảng
+`voice_lines`, nên:
+
+- Hai nhiệm vụ khác nhau, hai người canh giữ khác nhau, **cùng một giọng** → bản
+  thu dùng lại, bấm sinh chỉ báo "đã có sẵn", không tốn một xu.
+- Sửa chữ một câu → băm đổi → chỉ câu ấy cần thu lại. Bản thu cũ tự khắc không
+  còn khớp với câu nào, không cần ai đi dọn.
+
+Khoá theo `(world, vị trí trong danh sách)` thì mất cả hai tính chất: đổi chữ mà
+bản thu cũ vẫn được phát, và người canh giữ nói một câu không còn trên màn hình.
+
+Đề bài đóng băng mang theo **cả ba nhóm** (`snapshot.quests[].verdict`) chứ không
+gộp phẳng — màn chơi chọn câu theo nhóm. Kèm `verdict_audio` là bảng
+`câu chữ → URL`, đã tra sẵn theo giọng của chính người canh giữ ấy.
+
+**Có tiếng thì chờ nghe hết mới sang bong bóng sau.** Không chờ thì câu tiếp
+theo hiện đè lên tiếng đang nói. Có trần 12 giây: trình duyệt chặn tự phát hay
+tệp hỏng thì cuộc trò chuyện vẫn phải đi tiếp — im lặng đứng mãi là hỏng nặng
+hơn chồng tiếng.
+
+#### Lời chia tay sinh giọng ở NHIỆM VỤ NPC
+
+`stages.advisor_outro_audio_media_id` là tiếng của **màn**, nhưng nút sinh nó nằm
+ở panel giọng đọc của **nhiệm vụ NPC** — `POST /quests/{id}/outro-audio`.
+
+Vì hai lẽ. Thứ nhất, giọng đọc nằm ở người canh giữ, mà người canh giữ nằm ở
+nhiệm vụ: bắt màn tự đi tìm "nhiệm vụ nào có NPC" là chép lại một luật đã có chỗ
+của nó. Thứ hai, đó đúng là khoảnh khắc lời chia tay vang lên — qua được nhiệm vụ
+NPC, nghe lời chia tay, rồi nhận sổ tay. Cùng một người nói cả đề bài lẫn lời
+chia tay, nên hai nút ở cùng một chỗ.
+
+Chỉ nhiệm vụ NPC. Nhiệm vụ thường cũng gán được người canh giữ, nhưng lời chia
+tay chỉ vang lên đúng một lần trong màn, ở cổng vào — hiện nút ở mọi nhiệm vụ thì
+cùng một đoạn tiếng xuất hiện bảy lần trong một màn bảy nhiệm vụ.
+
+**Không** vào `question_audios`: đây không phải một câu hỏi, và cũng không cần
+kho tái dùng theo giọng — mỗi màn một lời chia tay riêng, không có chuyện lắp lời
+này sang màn khác. Nó đi qua đúng `speak()` như mọi đoạn chữ khác, nên một ô
+trống trong đó cũng ra tiếng bíp, và file rơi vào `stage-outro` — cùng thư mục
+với tệp người dựng tự tải lên ở bảng sổ tay.
+
+Đọc bản **tiếng Anh** của `advisor_outro_i18n`. Người canh giữ nói tiếng Anh kể
+cả khi học sinh xem giao diện tiếng Việt; chữ tiếng Việt cạnh trình phát là bản
+dịch để đọc theo, không phải lời thoại.
+
+#### Một câu, MỘT tiếng đọc đang dùng
+
+`questions.audio_media_id` là bản thu **đang dùng** — thứ ô tệp nghe hiện và thứ
+học sinh nghe. `question_audios` **không** phải một danh sách song song để chọn
+giữa: nó là cái KHO, nhớ lại "câu này từng được thu bằng những giọng nào", để
+lắp câu vào màn khác với cùng giọng thì không phải thu lại.
+
+Hai vai này từng bị lẫn, và hậu quả nhìn thấy được: một câu đã có tệp giáo viên
+tự tải lên, rồi sinh thêm tiếng máy đọc, thì popup hiện HAI trình phát với HAI
+nội dung khác nhau và không cái nào nói nó là cái đang dùng. Người dựng nghe thử
+cái này, học sinh nghe cái kia.
+
+Nên:
+
+- Sinh xong → bản vừa sinh thành bản đang dùng.
+- Bấm sinh mà **đã có sẵn** bản thu đúng giọng đó → không gọi nhà cung cấp,
+  không tốn một xu, nhưng vẫn trỏ `audio_media_id` sang nó. "Sinh tiếng đọc" với
+  người dựng nghĩa là *cho câu này nói bằng giọng ấy*; bấm xong không có gì đổi
+  thì họ chỉ biết là nút hỏng.
+- Giao diện chỉ có MỘT trình phát. Danh sách giọng đã thu là những cái **chip**
+  đánh dấu cái đang dùng, bấm là đổi — đổi thì miễn phí, vì bản thu đã có sẵn.
+
+#### Sinh giọng CŨNG LÀ tải file lên
+
+Tiếng **đề bài** vừa sinh được gắn thẳng vào `questions.audio_media_id` — chính
+cột mà ô tải tệp nghe đọc, và chính cột mà đường chơi phát cho học sinh.
+
+Với người dựng, "tải lên một file mp3" và "bấm nút sinh giọng" là cùng một việc:
+sau cả hai, câu này phải CÓ tiếng để học sinh nghe. Không nối hai chỗ lại thì
+file nằm trong kho `question_audios` mà ô tải lên vẫn kêu *"chưa có tệp nghe"*,
+còn học sinh thì vẫn chỉ đọc chữ — hai kho tiếng cho cùng một câu, và không cái
+nào nói cho ai biết cái kia tồn tại.
+
+Chỉ đề bài. Phương án không có cột nào tương ứng trên câu hỏi, và cũng không nên
+có: chúng thuộc về từng phương án, không thuộc về cả câu.
+
+**KHÔNG nhét vào `content_json`.** Cột đó bị đóng băng vào đề bài rồi gửi thẳng
+xuống máy học sinh; audio thì sinh sau, sinh dần, và sinh lại được — nhét vào đó
+là mỗi lần sinh một file lại phải sửa nội dung câu hỏi mà giáo viên đang soạn.
+
+Ba mức sinh — `/questions/{id}/audio`, `/quests/{id}/audio`, `/stages/{id}/audio`
+— mỗi mức có `GET` xem tình trạng và `POST` để sinh. `GET` là phần bắt buộc:
+giao diện phải biết trước "đã có tiếng chưa" để còn hỏi *"tạo lại không?"*, mà
+hỏi sau khi đã gọi API là hỏi sau khi đã tiêu tiền. Mức MÀN bỏ qua nhiệm vụ chưa
+có giọng và kể tên ra; mức NHIỆM VỤ thì báo lỗi — bấm vào đúng một nhiệm vụ mà
+nó im lặng không làm gì là tệ hơn.
+
+### Người canh giữ là một NHÂN VẬT, không phải một tấm ảnh
+
+`quests.npc_character_id` → `characters`. `NULL` = chưa gán ai; hội thoại vẫn chạy với khung avatar trống.
+
+Ban đầu chỗ này là một cột ảnh chân dung tĩnh. Nhưng người canh giữ cần **nhiều tư thế** — một lúc đang nói, một lúc đang chờ học sinh trả lời — và nhân vật của học sinh còn nhiều hơn. Bảy tấm, tất cả đều là spritesheet để chạy được hoạt ảnh.
+
+Đó đúng là thứ `character_actions` đã làm từ lâu, và chú thích trong model đã nói trước:
+
+> `action_key` là chuỗi **TỰ DO** ("idle", "walk", "run", "jump", "talk"…), không phải enum: thêm một hành động mới là việc của người dựng nội dung, **không phải của một migration**.
+
+Nên bảy tư thế là bảy `action_key` mới — không tốn cột nào, không tốn migration nào, và dùng lại nguyên ô tải spritesheet của màn quản lý nhân vật.
+
+| vai | tư thế |
+|---|---|
+| `npc` | `say` · `wait` |
+| `player` | `listen` · `think` · `answer` · `right` · `wrong` |
+
+Tên nằm ở `DIALOGUE_POSES` trong `web/src/game/character.ts`, cạnh `ACTION_SUGGESTIONS` — cùng một loại thứ, cùng một chỗ.
+
+**Ba nấc lùi khi thiếu ảnh**, dừng ở nấc đầu tiên có: tư thế đang cần → tư thế NGHỈ của vai đó (`wait` / `listen`) → `characters.avatar_media_id`. Người dựng tải đúng **một** tấm cũng đã có hội thoại chạy được, và tải thêm tấm nào thì tấm đó tự nhận việc. `frames = 1` vốn đã hợp lệ, nên một ảnh tĩnh chỉ là spritesheet một khung.
+
+### `characters.kind` — một bảng, hai vai trò
+
+`'player'` (mặc định) hoặc `'npc'`.
+
+Không tách bảng `npcs` riêng: cả hai vai dùng **chung toàn bộ** bộ máy spritesheet — tải ảnh, cắt khung, xem trước, đổi `frame_rate`. Tách ra là chép cả bộ đó lần thứ hai, rồi hai bản lệch nhau ở đúng chỗ ai đó sửa một bên.
+
+Cái giá: mọi chỗ liệt kê nhân vật cho học sinh **chọn** phải lọc `kind = 'player'`. Trong mã nguồn hiện có đúng bốn chỗ gọi `select(Character)`, và chỉ một trong số đó là danh sách để chọn (`/worlds/{id}/characters`) — nên cái giá đó đếm được, và nó nhỏ.
+
+`stages.advisor_portrait_media_id` giữ nguyên, nhưng từ đây nó là di sản: nhiệm vụ NPC cũng gán người canh giữ qua `npc_character_id` như mọi nhiệm vụ khác.
+
+Ảnh nền của cuộc hội thoại **không có cột mới**: mặc định là `stages.background_media_id`. Cuộc nói chuyện diễn ra đúng chỗ học sinh đang đứng, và không ai phải tải thêm ảnh.
+
+Tấm nền của CẢNH CHƠI thì Phaser tự nạp, và nạp hỏng thì **thử lại đúng một lần** (`retryBackground()`). Nền là một file có thể vài megabyte; một lượt tải trượt — mạng trường học chập chờn, server vừa khởi động lại — thì học sinh chơi hết cả màn trên một khung hình đen, không có nút nào để thử lại và không có gì nói cho họ biết chuyện gì vừa xảy ra. Một lần chứ không phải vòng lặp: file hỏng thật thì thử mãi cũng thế, mà mỗi lần là thêm vài megabyte trên đường truyền vốn đã yếu.
+
+Màn HỘI THOẠI thì **không vẽ ảnh nền nào cả**: nó là một tấm bảng trong suốt phủ lên chính cảnh Phaser đang chạy. Vẽ thêm một tấm nền nữa lên trên cảnh là che mất đúng chỗ học sinh đang đứng — mà cả màn hội thoại dựng lên là để cuộc trò chuyện diễn ra TRONG cảnh đó.
+
+Hệ quả cho trình thiết kế: nó không có cảnh Phaser nào phía sau, nên nó tự vẽ ảnh nền của màn DƯỚI tấm bảng (`BackgroundLayer`, ghim khung hình đầu). Không có nó thì giáo viên căn bong bóng trên một khoảng đen và không biết chữ của mình sẽ nằm đè lên cái gì.
+
+### Lời của NPC chọn theo HASH, không phải ngẫu nhiên
+
+Ba tập câu ở `messages/` — chào, khen, chê — cộng đường ghi đè `content.wrong_answer_message` cho từng câu.
+
+Chọn câu nào thì tính từ `hash(question_id, attempt_no)`, **không** `Math.random()`. Hệ quả: học sinh thoát ra vào lại thấy đúng cuộc hội thoại đã diễn ra, chứ không phải một bản khác mang cùng nội dung.
+
+Để làm được thế, `QuestionProgress` mang thêm **`attempts_used`** — số dòng `quest_answers` của chính người này cho câu đó. Không suy được từ `attempts_left`: trường đó là `null` ở nhiệm vụ NPC, mà nhiệm vụ NPC lại đúng là chỗ người ta thử nhiều lần nhất.
+
+Đó cũng là lý do **không cần lưu transcript**. `quest_answers` đã giữ đủ để dựng lại từng lượt hỏi–đáp kể cả những lần sai; lưu thêm khung chat nghĩa là một lượt ghi database cho mỗi tin nhắn, để đổi lấy một kết quả y hệt.
+
+### `RunOut.character` phải gửi thêm `avatar_url`
+
+Hiện chỉ có `id`, `name_i18n`, `sprites`. Bong bóng bên phải cần khuôn mặt, mà `characters.avatar_media_id` thì đã có sẵn từ lâu — chỉ chưa ai đưa nó xuống đường này.
+
+---
+
 ## 4. Bảng và code copy từ LMS
 
 `⭐` = copy sang `api/`, không viết lại từ đầu. Chi tiết mức độ copy: [ARCHITECTURE §5](./ARCHITECTURE.md).
@@ -792,7 +1262,7 @@ Mỗi luật trong tài liệu thiết kế phải có **đúng một chỗ** ch
 | Sai thì được thử lại | Ghi thêm dòng `quest_answers` với `attempt_no` tăng dần |
 | Đúng rồi thì không ăn điểm lần hai | `UNIQUE (stage_run_id, user_id, quest_id) WHERE is_correct` |
 | Không nộp trùng do bấm hai lần | `UNIQUE (stage_run_id, user_id, quest_id, attempt_no)` |
-| Trần số lần thử mỗi nhiệm vụ | Service đếm dòng, so với `balance_json.maxAttemptsPerQuest` |
+| Trần số lần thử mỗi CÂU | Service đếm dòng, so với `balance_json.maxAttemptsPerQuestion` |
 | Trong trận không lộ điểm/đáp án/giải thích | Schema phản hồi của endpoint nộp bài **không có** các trường đó |
 | Xem chi tiết chỉ khi màn đã kết thúc | `GET /play/runs/{id}/review` chặn nếu `status == "playing"` |
 | Không xem được bài của người khác | `review` lọc `quest_answers.user_id == current_user.id` |
@@ -843,8 +1313,8 @@ giới hạn ở stages.skill_pts_max
                    { "minRemainingPct": 25, "bonus": 0.1 } ],
   "energyBonus": [ { "minRemainingPct": 50, "bonus": 0.2 },
                    { "minRemainingPct": 25, "bonus": 0.1 } ],
-  "maxAttemptsPerQuest": 3,           // hết lượt thì nhiệm vụ khoá trong lượt chơi đó
-  "attemptPenalty": [1.0, 0.6, 0.3],  // hệ số điểm theo lần thử thứ 1, 2, 3
+  "maxAttemptsPerQuestion": 2,        // sai 1 lần được làm lại; lần 2 thì NPC chuyển câu (§3f)
+  "attemptPenalty": [1.0, 0.6],       // hệ số điểm theo lần thử thứ 1, 2
   "replayRatio": 1.0,                 // chơi lại được bao nhiêu phần điểm. 1.0 = cộng đủ mỗi lần
   "replayCapMultiplier": null,        // trần tích luỹ mỗi màn (bội số của skill_pts_max). null = không trần
   "lobbyCountdownSeconds": 30,        // chờ đủ người rồi tự bắt đầu
@@ -948,4 +1418,4 @@ Ghi ra để không bị mở rộng phạm vi giữa chừng:
 - [x] Giáo viên/admin chơi thử bằng giao diện học sinh — chốt 2026-08-25
 - [x] Trong trận chỉ báo xong/chưa xong, chi tiết để dành đến hết màn (§1.6) — chốt 2026-08-25
 - [x] Sai thì thử lại được, có trần và có phạt điểm (§1.7) — chốt 2026-08-25
-- [ ] Cân bằng lại `energyCost.wrongAnswer`, `maxAttemptsPerQuest`, `attemptPenalty` sau buổi test đầu
+- [ ] Cân bằng lại `energyCost.wrongAnswer`, `maxAttemptsPerQuestion`, `attemptPenalty` sau buổi test đầu

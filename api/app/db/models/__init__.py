@@ -25,8 +25,12 @@ from app.db.models.character import Character, CharacterAction, WorldCharacter
 from app.db.models.progress import MapShardOwned, StageProgress, WorldProgress
 from app.db.models.question import PromptKind, Question, QuestionStatus, QuestionType
 from app.db.models.room import HeroKey, Room, RoomMember, RoomMode, RoomStatus
+from app.db.models.dialogue_message import DialogueKind, DialogueMessage, DialogueRole
 from app.db.models.run import QuestAnswer, QuestDraft, RunStatus, StageRun, StageRunPlayer
 from app.db.models.user import User, UserRole, UserStatus
+from app.db.models.question_audio import AudioTarget, QuestionAudio
+from app.db.models.voice_line import VoiceLine, line_hash
+from app.db.models.voice import Voice, VoiceAge, VoiceGender
 
 __all__ = [
     "Base",
@@ -49,6 +53,13 @@ __all__ = [
     # kho câu hỏi & media
     "Question",
     "PromptKind",
+    "AudioTarget",
+    "QuestionAudio",
+    "Voice",
+    "VoiceLine",
+    "line_hash",
+    "VoiceAge",
+    "VoiceGender",
     "QuestionStatus",
     "QuestionType",
     "MediaAsset",
@@ -66,6 +77,9 @@ __all__ = [
     # lượt chơi
     "StageRun",
     "StageRunPlayer",
+    "DialogueKind",
+    "DialogueMessage",
+    "DialogueRole",
     "QuestAnswer",
     "QuestDraft",
     "RunStatus",

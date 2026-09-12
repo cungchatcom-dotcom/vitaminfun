@@ -346,6 +346,33 @@ export function QuestionEditor({
           }}
         />
 
+        {/* CÂU CHÊ RIÊNG của bài này.
+            Nằm trong `content` chứ không phải một cột riêng: nó là một phần của
+            đề bài, đóng băng cùng đề bài, và KHÔNG tiết lộ đáp án — nên gửi
+            xuống máy học sinh được. Xem `import_world_01.py`.
+
+            Để trống thì người canh giữ dùng bộ câu chê của WORLD. Đây là chỗ
+            viết một câu chê CHỈ hợp với bài này, ví dụ nhắc đúng cái bẫy mà bài
+            đang giăng ra. */}
+        <label className="field mt-4">
+          <span className="field-label">{t("question.editor.wrongMessage")}</span>
+          <textarea
+            className="field-input"
+            rows={2}
+            placeholder={t("question.editor.wrongMessageHint")}
+            value={(content.wrong_answer_message as string) ?? ""}
+            onChange={(event) =>
+              setContent((before) => ({
+                ...before,
+                // Xoá trắng = GỠ hẳn khoá, không để lại chuỗi rỗng: một chuỗi
+                // rỗng vẫn là "có câu riêng", và người canh giữ sẽ nói một câu
+                // trống thay vì lùi về bộ của world.
+                wrong_answer_message: event.target.value || undefined,
+              }))
+            }
+          />
+        </label>
+
         <label className="field mt-4">
           <span className="field-label">{t("question.editor.explanation")}</span>
           <textarea

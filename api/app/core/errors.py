@@ -46,6 +46,20 @@ class ErrorCode:
     AUTH_ACCOUNT_SUSPENDED = "AUTH_ACCOUNT_SUSPENDED"
     AUTH_REQUIRED = "AUTH_REQUIRED"
 
+    # --- Tự mở tài khoản ---
+    #: Máy chủ này tắt chức năng tự đăng ký (`ALLOW_SELF_SIGNUP=false`).
+    SIGNUP_DISABLED = "SIGNUP_DISABLED"
+    #: Email đã có người dùng. Ở ĐĂNG KÝ thì nói thẳng được — khác hẳn đăng
+    #: nhập: người ta đang tự khai email của mình, và bắt đoán "sai ở đâu" trên
+    #: một biểu mẫu ba ô là cách chắc chắn nhất để họ bỏ đi.
+    SIGNUP_EMAIL_TAKEN = "SIGNUP_EMAIL_TAKEN"
+    #: Chuỗi nhập vào không có dạng một địa chỉ email.
+    SIGNUP_EMAIL_INVALID = "SIGNUP_EMAIL_INVALID"
+    #: Mật khẩu ngắn hơn mức tối thiểu.
+    SIGNUP_PASSWORD_TOO_SHORT = "SIGNUP_PASSWORD_TOO_SHORT"
+    #: Chưa điền họ tên.
+    SIGNUP_NAME_REQUIRED = "SIGNUP_NAME_REQUIRED"
+
     # --- Phân quyền ---
     PERMISSION_DENIED = "PERMISSION_DENIED"
     ROLE_REQUIRED = "ROLE_REQUIRED"

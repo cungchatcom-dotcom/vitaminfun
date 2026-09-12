@@ -10,7 +10,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Vitaminfun — Lost in Atlantis',
+  title: 'Vitaverse — Play to Learn',
   description: 'Học tiếng Anh qua trò chơi phiêu lưu',
 };
 

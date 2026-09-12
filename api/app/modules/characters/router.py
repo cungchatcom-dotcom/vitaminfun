@@ -11,9 +11,9 @@ hành — cùng nếp với world và màn chơi.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 
 from app.core.deps import CurrentUserDep, DbDep, require_role
@@ -24,9 +24,11 @@ from app.db.models import (
     MediaAsset,
     PublishStatus,
     UserRole,
+    Voice,
     World,
     WorldCharacter,
 )
+from app.modules.voices.schemas import VoiceOut
 from app.modules.characters.schemas import (
     CharacterActionIn,
     CharacterIdsIn,
@@ -70,12 +72,21 @@ async def _out(db: DbDep, character: Character) -> CharacterOut:
     media = await _media(db, {character.avatar_media_id, *(a.media_id for a in actions)})
     avatar = media.get(character.avatar_media_id) if character.avatar_media_id else None
 
+    voice = (
+        await db.scalar(select(Voice).where(Voice.id == character.voice_id))
+        if character.voice_id
+        else None
+    )
+
     return CharacterOut(
         id=character.id,
+        kind=character.kind,
         name_i18n=character.name_i18n or {},
         bio_i18n=character.bio_i18n or {},
         avatar_media_id=character.avatar_media_id,
         avatar_url=avatar.url if avatar else None,
+        voice_id=character.voice_id,
+        voice=VoiceOut.model_validate(voice) if voice else None,
         position=character.position,
         status=character.status,
         actions=[
@@ -104,8 +115,19 @@ async def _get(db: DbDep, character_id: uuid.UUID) -> Character:
 
 
 @router.get("/characters", response_model=list[CharacterOut], summary="Danh sách nhân vật")
-async def list_characters(db: DbDep) -> list[CharacterOut]:
-    characters = list(await db.scalars(select(Character).order_by(Character.position, Character.id)))
+async def list_characters(
+    db: DbDep, kind: Literal["player", "npc"] | None = Query(default=None)
+) -> list[CharacterOut]:
+    """Nhân vật, lọc được theo vai.
+
+    Không lọc = trả cả hai vai, vì màn quản lý cần thấy hết. Bộ chọn NPC ở
+    trình thiết kế nhiệm vụ thì gọi kèm `?kind=npc`, và màn chọn nhân vật của
+    học sinh đi đường khác (`/worlds/{id}/characters`) nên không đụng tới đây.
+    """
+    query = select(Character).order_by(Character.position, Character.id)
+    if kind is not None:
+        query = query.where(Character.kind == kind)
+    characters = list(await db.scalars(query))
     return [await _out(db, c) for c in characters]
 
 
@@ -117,9 +139,11 @@ async def list_characters(db: DbDep) -> list[CharacterOut]:
 )
 async def create_character(payload: CharacterCreate, db: DbDep) -> CharacterOut:
     character = Character(
+        kind=payload.kind,
         name_i18n=payload.name_i18n,
         bio_i18n=payload.bio_i18n,
         avatar_media_id=payload.avatar_media_id,
+        voice_id=payload.voice_id,
         position=payload.position,
         # Nhân vật mới là bản NHÁP: nó chưa có ảnh, chưa có hành động nào, và
         # học sinh chọn phải nó thì màn chơi không có gì để vẽ.
@@ -142,13 +166,23 @@ async def update_character(
 ) -> CharacterOut:
     character = await _get(db, character_id)
 
-    for field in ("name_i18n", "bio_i18n", "avatar_media_id", "position", "status"):
+    for field in (
+        "kind",
+        "name_i18n",
+        "bio_i18n",
+        "avatar_media_id",
+        "voice_id",
+        "position",
+        "status",
+    ):
         value = getattr(payload, field)
         if value is not None:
             setattr(character, field, value)
 
     if payload.clear_avatar:
         character.avatar_media_id = None
+    if payload.clear_voice:
+        character.voice_id = None
 
     await db.commit()
     await db.refresh(character)
@@ -250,7 +284,11 @@ async def _world_characters(db: DbDep, world_id: uuid.UUID) -> list[CharacterOut
         await db.scalars(
             select(Character)
             .join(WorldCharacter, WorldCharacter.character_id == Character.id)
-            .where(WorldCharacter.world_id == world_id)
+            # CHỈ nhân vật chơi được. Người canh giữ ở chung bảng, và không lọc
+            # ở đây thì một NPC lỡ gán vào world sẽ hiện ra ở màn học sinh CHỌN
+            # nhân vật — chọn được, rồi đi lại trong cảnh bằng spritesheet mà
+            # nó không có.
+            .where(WorldCharacter.world_id == world_id, Character.kind == "player")
             .order_by(WorldCharacter.position, Character.position, Character.id)
         )
     )

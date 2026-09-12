@@ -19,6 +19,100 @@ export const ACTION_SUGGESTIONS = ['idle', 'walk', 'run', 'jump', 'talk', 'win',
 export const DEFAULT_ACTION = 'idle';
 
 /**
+ * TƯ THẾ TRONG MÀN HỘI THOẠI — bảy hành động, hai vai.
+ *
+ * Vẫn là `action_key` như mọi hành động khác, nên không cần cột mới, không cần
+ * migration, và dùng lại nguyên ô tải spritesheet của màn quản lý nhân vật.
+ * Chỉ là một bộ tên chuẩn nữa, giống hệt `ACTION_SUGGESTIONS`.
+ *
+ * Tách theo VAI vì trình soạn chỉ nên gợi ý những tư thế hợp với vai đang sửa:
+ * một người canh giữ không cần tư thế "suy nghĩ", và nhân vật học sinh không
+ * cần tư thế "đang hỏi".
+ */
+export const DIALOGUE_POSES = {
+  /** Người canh giữ: đang nói, và đang chờ học sinh trả lời. */
+  npc: ['say', 'wait'] as const,
+  /**
+   * Nhân vật học sinh, theo đúng thứ tự một vòng hỏi–đáp:
+   * nghe đề → nghĩ → trả lời → nghe khen hoặc nghe chê.
+   */
+  player: ['listen', 'think', 'answer', 'right', 'wrong'] as const,
+} as const;
+
+export type DialogueRole = keyof typeof DIALOGUE_POSES;
+export type DialoguePose =
+  | (typeof DIALOGUE_POSES)['npc'][number]
+  | (typeof DIALOGUE_POSES)['player'][number];
+
+/**
+ * Tư thế lùi về khi chưa ai tải spritesheet cho tư thế đang cần.
+ *
+ * Hai nấc, dừng ở nấc đầu tiên có ảnh:
+ *
+ *   1. tư thế đang cần,
+ *   2. tư thế NGHỈ của vai đó (`wait` / `listen`),
+ *
+ * rồi mới tới `characters.avatar_media_id` — một tấm tĩnh, nhưng còn hơn một
+ * khung trống. Người dựng tải đúng MỘT tấm cũng đã có hội thoại chạy được, và
+ * tải thêm tấm nào thì tấm đó tự nhận việc.
+ */
+export const DIALOGUE_REST: Record<DialogueRole, DialoguePose> = {
+  npc: 'wait',
+  player: 'listen',
+};
+
+/**
+ * TRẠNG THÁI cuộc hội thoại tại một thời điểm — bốn điều đang đúng.
+ *
+ * Không phải một enum "khoảnh khắc": hai bên có hai trục ĐỘC LẬP. Người canh
+ * giữ đang đọc hay đang chờ không phụ thuộc vào việc học sinh đã chọn gì; ép
+ * chúng thành một danh sách cặp có sẵn thì sẽ đẻ ra những cặp không bao giờ
+ * xảy ra — và đó đúng là chỗ trình thiết kế từng nói dối: nó vẽ người canh giữ
+ * `say` lúc lời khen đã hiện, trong khi màn chơi lúc đó vẽ `wait`.
+ */
+export interface DialogueState {
+  /** Người canh giữ đang đọc một câu — ba chấm đang chạy. */
+  speaking: boolean;
+  /** Học sinh vừa bấm Trả lời, đang chờ chấm. */
+  submitting: boolean;
+  /** Lời phán ĐÃ hiện thành chữ. `null` = chưa phán gì. */
+  verdict: 'praise' | 'wrong' | null;
+  /** Học sinh đã chọn hoặc gõ được gì đó chưa. */
+  drafted: boolean;
+}
+
+/**
+ * TƯ THẾ của hai bên, suy từ trạng thái hội thoại.
+ *
+ * Một hàm, hai chỗ gọi: màn chơi (`quest-panel.tsx`) và khung xem trước của
+ * trình thiết kế. Trước đây mỗi bên tự suy lấy, và hai bản đã lệch nhau ở đúng
+ * chỗ khó thấy nhất — người dựng căn xong một cảnh không có thật.
+ *
+ * Người canh giữ chỉ `say` lúc ĐANG ĐỌC. Lời phán hiện thành chữ rồi thì họ
+ * `wait` — đọc xong là chờ, đó là trạng thái mặc định của một người vừa hỏi.
+ *
+ * Học sinh đi đúng một vòng: chưa chọn gì thì `listen`, chọn rồi thì `think`,
+ * đang nộp thì `answer`, rồi `right` hoặc `wrong` theo lời phán.
+ */
+export function dialoguePoses(state: DialogueState): {
+  npc: DialoguePose;
+  player: DialoguePose;
+} {
+  return {
+    npc: state.speaking ? 'say' : 'wait',
+    player: state.submitting
+      ? 'answer'
+      : state.verdict === 'praise'
+        ? 'right'
+        : state.verdict === 'wrong'
+          ? 'wrong'
+          : state.drafted
+            ? 'think'
+            : 'listen',
+  };
+}
+
+/**
  * Chỗ đặt CHÂN nhân vật so với ĐIỂM VA CHẠM, theo hệ toạ độ thế giới.
  *
  * Điểm va chạm — thứ `canWalk()` xét — nằm CAO HƠN gót chân chừng này. Trong
@@ -40,6 +134,29 @@ export const HERO_FOOT_Y = 22;
  * cái họ vừa kiểm không phải là cái học sinh sẽ gặp.
  */
 export const HERO_SPEED = 280;
+
+/**
+ * Bề rộng và chiều cao MỘT khung, suy từ khổ cả tấm.
+ *
+ * Tấm dải ngang `n` khung thì mỗi khung rộng `ảnh ÷ n`, cao bằng cả ảnh.
+ *
+ * Suy LẠI mỗi lần số khung đổi, không đông cứng lúc tải lên: ai tải ảnh lên khi
+ * ô "Số khung" còn là 1 thì bề rộng khung bằng cả tấm — với một tấm 5128px thì
+ * con số đó vượt trần và server từ chối bằng một câu chẳng chỉ ra chỗ nào sai.
+ *
+ * Ở đây chứ không ở màn quản lý nhân vật, vì cùng phép tính này còn cần cho
+ * việc dựng tư thế hội thoại ra xem trước. Server có bản Python của riêng nó
+ * (`actors_of`) — hai ngôn ngữ thì không tránh được, nhưng trong một ngôn ngữ
+ * thì một bản là đủ.
+ */
+export function frameSize(
+  sheetW: number | null | undefined,
+  sheetH: number | null | undefined,
+  frames: number,
+): { frame_width?: number; frame_height?: number } {
+  if (!sheetW || !sheetH || frames < 1) return {};
+  return { frame_width: Math.round(sheetW / frames), frame_height: sheetH };
+}
 
 export interface SpriteSheet {
   media_url?: string | null;

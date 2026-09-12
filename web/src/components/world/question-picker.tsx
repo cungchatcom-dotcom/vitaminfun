@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { QUESTION_TYPE_META } from '@/components/question/registry';
 import { Badge, EmptyState, Skeleton } from '@/components/ui/primitives';
@@ -11,6 +11,20 @@ import {
   listQuestions,
   type QuestionSummary,
 } from '@/lib/questions';
+
+/** Tiền tố khoá trong `localStorage`. */
+const MEMORY = 'vf.picker.';
+
+/** Bộ lọc đã nhớ cho một nhiệm vụ, hoặc `null` nếu chưa có gì. */
+function remembered(key?: string): { stage: string; quest: string } | null {
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(MEMORY + key);
+    return raw ? (JSON.parse(raw) as { stage: string; quest: string }) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Bộ chọn câu hỏi để lắp vào một nhiệm vụ — **chọn nhiều**.
@@ -23,6 +37,9 @@ export function QuestionPicker({
   selected,
   alreadyIn,
   stageCode,
+  memoryKey,
+  suggestedStageCode,
+  suggestedQuestCode,
   onToggle,
 }: {
   selected: Set<string>;
@@ -34,8 +51,29 @@ export function QuestionPicker({
    * Đây là chỗ "vào một màn thì tự hiện câu hỏi của màn đó" thành hình: người
    * dựng vừa nhập một file nghìn câu, và thứ họ cần lúc lắp nhiệm vụ là hai
    * mươi sáu câu của màn đang mở, không phải cả kho.
+   *
+   * Nhưng cột này THƯỜNG TRỐNG: mã màn chỉ có khi nội dung vào bằng file .xlsx.
+   * Nên nó chỉ là một trong các nguồn gợi ý — xem `suggestedStageCode`.
    */
   stageCode?: string | null;
+  /**
+   * Khoá để NHỚ bộ lọc, thường là id nhiệm vụ.
+   *
+   * Người dựng mở đi mở lại đúng một nhiệm vụ, và mỗi lần lại phải lọc lại từ
+   * đầu là một việc tay thừa. Nhớ trong `localStorage` chứ không trong database:
+   * đây là thói quen của MỘT người trên MỘT máy, không phải thuộc tính của
+   * nhiệm vụ — người khác mở cùng nhiệm vụ ấy có thể đang tìm thứ khác.
+   */
+  memoryKey?: string;
+  /**
+   * Mã màn / mã nhiệm vụ suy ra từ những câu ĐÃ CÓ trong nhiệm vụ và trong màn.
+   *
+   * Đây là bằng chứng thật về "nhiệm vụ này lấy câu từ đâu", và nó dùng được
+   * ngay cả khi `stages.stage_code` còn trống — đúng tình trạng của gần hết
+   * nội dung hiện tại.
+   */
+  suggestedStageCode?: string | null;
+  suggestedQuestCode?: string | null;
   onToggle: (question: QuestionSummary) => void;
 }) {
   const t = useTranslations();
@@ -56,8 +94,11 @@ export function QuestionPicker({
    * Chuỗi rỗng = không lọc. Danh sách mã lấy từ KHO, nên chọn được cả mã mà
    * chưa màn nào mang.
    */
-  const [locMan, setLocMan] = useState(stageCode ?? '');
-  const [locNhiemVu, setLocNhiemVu] = useState('');
+  const nho = remembered(memoryKey);
+  const [locMan, setLocMan] = useState(
+    nho?.stage ?? suggestedStageCode ?? stageCode ?? '',
+  );
+  const [locNhiemVu, setLocNhiemVu] = useState(nho?.quest ?? suggestedQuestCode ?? '');
 
   /** Mã có thật trong kho — nguồn cho hai ô chọn. */
   const [ma, setMa] = useState<{ stage_codes: string[]; quest_codes: string[] }>({
@@ -78,9 +119,29 @@ export function QuestionPicker({
 
   // Đổi màn thì mã nhiệm vụ cũ gần như chắc chắn không thuộc màn mới, và giữ nó
   // lại là một danh sách rỗng mà không có gì giải thích vì sao.
+  //
+  // Bỏ qua LẦN CHẠY ĐẦU: lúc đó `locMan` chưa hề đổi, nó chỉ vừa được đặt từ bộ
+  // nhớ — xoá đi là xoá đúng thứ vừa khôi phục.
+  const dauTien = useRef(true);
   useEffect(() => {
+    if (dauTien.current) {
+      dauTien.current = false;
+      return;
+    }
     setLocNhiemVu('');
   }, [locMan]);
+
+  // Nhớ lại lựa chọn cho lần sau. Chỉ hai ô MÃ: từ khoá tìm và bộ lọc dạng bài
+  // là thứ người dựng gõ cho một lần tra cứu, khôi phục lại chúng ở lần mở sau
+  // là hiện một danh sách đã lọc mà không ai nhớ vì sao.
+  useEffect(() => {
+    if (!memoryKey) return;
+    try {
+      localStorage.setItem(MEMORY + memoryKey, JSON.stringify({ stage: locMan, quest: locNhiemVu }));
+    } catch {
+      // Trình duyệt chặn lưu trữ thì thôi, đây chỉ là một tiện nghi.
+    }
+  }, [memoryKey, locMan, locNhiemVu]);
 
   const load = useCallback(
     async (signal: AbortSignal) => {

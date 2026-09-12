@@ -5,18 +5,25 @@ import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/button';
+import { InlineName } from '@/components/ui/inline-name';
 import { Modal } from '@/components/ui/modal';
 import { ApiError } from '@/lib/api-error';
-import { pickText } from '@/lib/i18n-text';
+import { questLabel } from '@/lib/quest-label';
 import type { QuestionSummary } from '@/lib/questions';
 import {
   addQuestQuestions,
   removeQuestQuestion,
   updateQuest,
   updateQuestQuestion,
+  updateStage,
   type Quest,
+  type Stage,
 } from '@/lib/worlds';
 
+import { OutroVoiceButton, QuestAudioPanel } from './audio-tools';
+import { CluebookPanel } from './cluebook-panel';
+import { LockedMessageField } from './locked-message-field';
+import { NpcField, useNpcs } from './npc-field';
 import { QuestionPicker } from './question-picker';
 import { QuestionViewer } from './question-viewer';
 
@@ -30,26 +37,41 @@ const DEFAULT_POINTS = 10;
  *           điểm qua ải, năng lượng)
  *   Phải  : danh sách câu hỏi đang có + kho câu hỏi để lắp thêm
  *
- * Tên, ảnh và bán kính CỐ Ý không ở đây — chúng nằm ở bảng bên phải màn thiết
- * kế. Nguyên tắc: thứ gì đổi hình dáng trên bản đồ thì phải sửa ở chỗ nhìn thấy
- * bản đồ; sửa trong popup che mất cảnh là sửa mù.
+ * Ảnh và bán kính CỐ Ý không ở đây — chúng nằm ở bảng bên phải màn thiết kế.
+ * Nguyên tắc: thứ gì đổi HÌNH DÁNG trên bản đồ thì phải sửa ở chỗ nhìn thấy bản
+ * đồ; sửa trong popup che mất cảnh là sửa mù. Cái tên thì không đổi hình dáng gì
+ * cả, nên nó sửa được ngay ở tiêu đề — và phải sửa được, vì màn gán câu hỏi cũng
+ * sửa đúng cái tên ấy.
  *
  * Mọi thay đổi lưu ngay, không có nút "Lưu": một nút Lưu là thêm một chỗ để
  * mất công.
  */
 export function QuestEditorDialog({
   quest,
+  stage,
+  worldId,
   locale,
   stageCode,
   onChanged,
+  onStagePatch,
   onReload,
   onClose,
 }: {
   quest: Quest;
+  /**
+   * Màn chơi chứa nhiệm vụ này — CHỈ để soạn lời chia tay và sổ tay.
+   *
+   * Ba trường ấy thuộc về `stages`, nhưng khoảnh khắc chúng vang lên thuộc về
+   * nhiệm vụ NPC, và giọng đọc lấy từ chính người canh giữ ở cột bên trái.
+   */
+  stage: Stage;
+  /** World đang dựng — dàn nhân vật đọc phương án lấy từ đây. */
+  worldId?: string;
   locale: string;
   /** Mã màn chơi đang mở — bộ chọn câu hỏi lọc sẵn theo nó. */
   stageCode?: string | null;
   onChanged: (quest: Quest) => void;
+  onStagePatch: (payload: Parameters<typeof updateStage>[1]) => void;
   onReload: () => Promise<void>;
   onClose: () => void;
 }) {
@@ -58,6 +80,21 @@ export function QuestEditorDialog({
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [picked, setPicked] = useState<Map<string, QuestionSummary>>(new Map());
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const npcs = useNpcs();
+
+  /**
+   * NGƯỜI GÁC CỬA của màn đã có giọng chưa.
+   *
+   * Câu khoá do người gác cửa nói — nhiệm vụ `advisor` của màn — chứ không phải
+   * người canh giữ của chính nhiệm vụ đang sửa. Hầu hết nhiệm vụ thường không
+   * gán NPC nào, nên hỏi giọng của chúng thì nút sinh tiếng sẽ luôn mờ.
+   */
+  const gacCoGiong = Boolean(
+    npcs?.find(
+      (npc) =>
+        npc.id === stage.quests.find((q) => q.phase === 'advisor')?.npc_character_id,
+    )?.voice_id,
+  );
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -95,16 +132,43 @@ export function QuestEditorDialog({
     }
   }
 
-  const name = pickText(quest.name_i18n, locale);
   const alreadyIn = new Set(quest.questions.map((q) => q.question_id));
+
+  /**
+   * NHIỆM VỤ NÀY, và MÀN NÀY, trước giờ lấy câu từ mã nào.
+   *
+   * Đọc từ chính những câu đã lắp — đó là bằng chứng thật, và nó có sẵn ngay cả
+   * khi `stages.stage_code` còn trống, đúng tình trạng của gần hết nội dung
+   * hiện tại. Suy từ `quests.quest_code` thì không được: cột kia là mã người
+   * dựng ĐẶT cho nhiệm vụ, và thường vẫn trống.
+   *
+   * Nhiệm vụ trống thì lùi ra cả màn: mở một nhiệm vụ chưa có câu nào mà kho
+   * hiện đúng bộ câu của màn đang dựng vẫn hơn là hiện cả nghìn câu.
+   */
+  const maNhiemVuDaDung = firstCode(quest.questions, 'quest_code');
+  const maManDaDung =
+    firstCode(quest.questions, 'stage_code') ??
+    firstCode(stage.quests.flatMap((q) => q.questions), 'stage_code');
 
   return (
     <Modal label={t('designer.edit')} onClose={onClose}>
       <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-900 shadow-2xl">
         <header className="flex items-center justify-between gap-4 border-b border-abyss-800 px-5 py-3">
-          <h2 className="font-semibold text-slate-100">
-            {name || quest.quest_object_key}
-            <span className="ml-2 font-mono text-xs text-slate-500">#{quest.order_index}</span>
+          {/* Tiêu đề SỬA ĐƯỢC tại chỗ, ghi vào `name_i18n` — cùng cột mà màn
+              gán câu hỏi sửa và cùng cột màn chơi của học sinh đọc. Hai màn
+              quản trị là hai cách sửa CÙNG MỘT nhiệm vụ; để một bên đọc được
+              mà không sửa được thì người dựng phải nhớ "đổi tên thì sang màn
+              kia", và đó là thứ không ai nhớ. */}
+          <h2 className="flex min-w-0 items-center gap-2 font-semibold text-slate-100">
+            <InlineName
+              value={questLabel(quest, locale, t)}
+              title={t('stage.builder.renameQuest')}
+              className="truncate font-semibold text-slate-100"
+              onCommit={(next) =>
+                void patch({ name_i18n: { ...quest.name_i18n, [locale]: next } })
+              }
+            />
+            <span className="font-mono text-xs text-slate-500">#{quest.order_index}</span>
           </h2>
           <button
             type="button"
@@ -122,9 +186,17 @@ export function QuestEditorDialog({
           </p>
         )}
 
-        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[18rem_1fr]">
+        {/* `minmax(0,1fr)` chứ KHÔNG phải `1fr`.
+
+            `1fr` lấy chiều rộng NỘI DUNG làm sàn: cột phải không chịu hẹp hơn
+            câu hỏi dài nhất trong danh sách, nên cả thân popup mọc ra thanh
+            cuộn ngang — mà thân này là `overflow-y-auto`, và trình duyệt tự
+            nâng `overflow-x` lên `auto` theo. `min-w-0` trên từng cột là vế còn
+            lại của cùng một luật: con của grid/flex mặc định không co dưới
+            `min-content`. */}
+        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[22rem_minmax(0,1fr)]">
           {/* ============ CỘT TRÁI: tuỳ chỉnh nhiệm vụ ============ */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {/* MÃ NHIỆM VỤ trong file nội dung. Khác `quest_object_key`: cái
                 kia là tên vật thể trong cảnh do giáo viên đặt, còn cái này là
                 địa chỉ do bộ phận nội dung đặt trong bảng tính, và nó là thứ
@@ -158,6 +230,68 @@ export function QuestEditorDialog({
                 }}
               />
             </Field>
+
+            {/* NGƯỜI CANH GIỮ — thứ duy nhất đổi theo nhiệm vụ trong cuộc hội
+                thoại. Bố cục các khối là của cả màn chơi (`stages.dialogue_json`),
+                còn khuôn mặt thì mỗi nhiệm vụ một người. */}
+            <NpcField
+              quest={quest}
+              npcs={npcs}
+              locale={locale}
+              onPick={(id) => void patch({ npc_character_id: id })}
+            />
+
+            {/* SINH TIẾNG ĐỌC. Ngay dưới ô chọn người canh giữ, vì giọng đọc đề
+                bài chính là giọng của người vừa chọn ở trên — hai ô cách xa nhau
+                thì không ai nối được hai việc đó lại. */}
+            <QuestAudioPanel
+              questId={quest.id}
+              worldId={worldId}
+              locale={locale}
+              onError={setErrorKey}
+            />
+
+            {/* LỜI CHIA TAY & SỔ TAY — chỉ ở nhiệm vụ NPC, vì đó là nhiệm vụ
+                duy nhất dẫn tới khoảnh khắc trao sổ tay.
+
+                Ngay dưới bảng giọng đọc, vì nút sinh tiếng cho lời chia tay nằm
+                ở đó: soạn xong câu chữ thì cuộn lên vài dòng là bấm đọc được.
+                Trước đây hai thứ này ở hai màn khác nhau và không nhìn thấy
+                nhau. */}
+            {quest.phase === 'advisor' && (
+              <CluebookPanel
+                stage={stage}
+                locale={locale}
+                onPatch={onStagePatch}
+                bare
+                outroVoice={
+                  <OutroVoiceButton
+                    questId={quest.id}
+                    // Người canh giữ đã có giọng chưa — tra từ danh sách NPC đã
+                    // nạp sẵn cho ô chọn ở trên, không hỏi server thêm lần nữa.
+                    hasVoice={Boolean(
+                      npcs?.find((npc) => npc.id === quest.npc_character_id)?.voice_id,
+                    )}
+                    ready={Boolean(stage.advisor_outro_audio_media_id)}
+                    onDone={() => void onReload()}
+                    onError={setErrorKey}
+                  />
+                }
+              />
+            )}
+
+            {/* CÂU KHOÁ — chỉ ở nhiệm vụ THƯỜNG.
+                Nhiệm vụ NPC là cổng vào, nó không bao giờ khoá, nên một ô soạn
+                câu khoá ở đó là một ô không bao giờ dùng tới. */}
+            {quest.phase !== 'advisor' && (
+              <LockedMessageField
+                quest={quest}
+                locale={locale}
+                hasVoice={gacCoGiong}
+                onPatch={(next) => patch({ locked_message_i18n: next })}
+                onError={setErrorKey}
+              />
+            )}
 
             <Field label={t('designer.phase')}>
               {/* Nhiệm vụ NPC không đổi giai đoạn được — nó là cổng vào của màn.
@@ -217,7 +351,7 @@ export function QuestEditorDialog({
           </div>
 
           {/* ============ CỘT PHẢI: câu hỏi ============ */}
-          <div className="flex min-h-0 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4">
             <div>
               <h3 className="mb-2 text-sm font-semibold tracking-wide text-slate-300 uppercase">
                 {t('stage.builder.questionCount', { count: quest.questions.length })} ·{' '}
@@ -303,6 +437,11 @@ export function QuestEditorDialog({
               <div className="min-h-64 flex-1">
                 <QuestionPicker
                   stageCode={stageCode}
+                  // Nhớ bộ lọc theo TỪNG nhiệm vụ: mở lại đúng nhiệm vụ ấy thì
+                  // kho mở sẵn đúng chỗ lần trước đã lấy câu.
+                  memoryKey={quest.id}
+                  suggestedQuestCode={maNhiemVuDaDung}
+                  suggestedStageCode={maManDaDung}
                   selected={new Set(picked.keys())}
                   alreadyIn={alreadyIn}
                   onToggle={(question) =>
@@ -326,7 +465,12 @@ export function QuestEditorDialog({
       </div>
 
       {viewingId && (
-        <QuestionViewer questionId={viewingId} onClose={() => setViewingId(null)} />
+        <QuestionViewer
+          questionId={viewingId}
+          questId={quest.id}
+          worldId={worldId}
+          onClose={() => setViewingId(null)}
+        />
       )}
     </Modal>
   );
@@ -348,4 +492,17 @@ function Field({
       {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
     </label>
   );
+}
+
+
+/** Mã đầu tiên bắt gặp trong một danh sách câu hỏi, hoặc `null`. */
+function firstCode(
+  items: { stage_code?: string | null; quest_code?: string | null }[],
+  field: 'stage_code' | 'quest_code',
+): string | null {
+  for (const item of items) {
+    const code = item[field];
+    if (code) return code;
+  }
+  return null;
 }

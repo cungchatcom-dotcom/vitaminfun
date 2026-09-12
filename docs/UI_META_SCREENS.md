@@ -248,65 +248,116 @@ Chi tiết dữ liệu khác nhau ra sao: [ARCHITECTURE §4](./ARCHITECTURE.md).
 
 ---
 
-## S5 — TRONG TRẬN: NỘP BÀI TỪNG NHIỆM VỤ
+## S5 — TRONG TRẬN: HỘI THOẠI VỚI NGƯỜI CANH GIỮ
 
-Bố cục đầy đủ của màn chơi xem [backup/Mockup Designs.md](./backup/Mockup%20Designs.md). Ở đây chỉ mô tả phần **nộp bài**, vì đó là chỗ luật "kết quả từng người là độc lập" hiện ra thành giao diện.
+Mỗi nhiệm vụ là **một cuộc nói chuyện** với người canh giữ vật thể đó, không phải một tờ bài tập bung ra giữa cảnh. Người canh giữ hỏi, học sinh trả lời, người canh giữ nói đúng hay sai rồi hỏi tiếp.
 
 ```
 +=========================================================================+
-|  ⚡ Năng lượng đội 68/100        ⏱ 02:41        Nhiệm vụ của bạn 2/4   |
-+=========================================================================+
-|                                                                         |
-|              [ cảnh 2.5D — boong tàu ]                                  |
-|                                                                         |
+|  Cột buồm chính        Câu 2/3                    ⏱ 03:12    [Rời đi]  |
 +-------------------------------------------------------------------------+
-|  NHIỆM VỤ 3 — ĐÈN PHAO CỨU SINH                          Lượt thử 1/3  |
-|  The captain shouts. What do you do?                                    |
-|                                                                         |
-|   ( ) Lower the sails!      ( ) Raise the flag!     ( ) Open the chest! |
-|                                                                         |
-|   [ 🎤 Nói ]  [ ⌨ Gõ ]                       [   NỘP BÀI   ]           |
+|                  ╭──────────────────────────────────╮                   |
+|                  │ Bão đang tới. Việc đầu tiên      │                   |
+|   ╭────────╮     │ cậu làm là gì?                   │                   |
+|   │ avatar │     ╰─╮────────────────────────────────╯                   |
+|   │  NPC   │       ▾                                                    |
+|   ╰────────╯              ╭────────────────────╮      ╭────────╮        |
+|                           │ Lower the sails!   │      │ avatar │        |
+|                           ╰──────────────────╮─╯      │ player │        |
+|                  ╭─────────────────────╮     ▾        ╰────────╯        |
+|                  │ Chuẩn! Nhanh tay lên│                                |
+|                  ╰─╮───────────────────╯                                |
+|                    ▾                                                    |
 +-------------------------------------------------------------------------+
-|  TIẾN ĐỘ ĐỘI          NV1   NV2   NV3   NV4                             |
-|  Minh (Leo)   bạn      ✓     ✓     •     -                              |
-|  Thuận (Maya)          ✓     -     ✓     -                              |
-|  Lan (Sam)             -     ✓     -     -                              |
-|  Bot (Jade)            -     -     -     -                              |
-|                        ✓ xong   • đang làm   ✗ hết lượt   - chưa làm    |
+|  [ A · Lower the sails! ]        [ B · Open the chest! ]                 |
+|  [ C · Take a nap!      ]                                               |
+|  [💡 Gợi ý]                                        [    Trả lời    ]    |
 +=========================================================================+
 ```
 
-Thanh trên cùng **không hiện điểm chiến lực**. Bảng tiến độ đội cũng chỉ hiện *xong / chưa xong*, không hiện đúng sai từng lần thử của người khác.
+Ảnh nền trải kín phía sau — mặc định là ảnh nền của màn, tức đúng chỗ học sinh đang đứng.
 
-### Phản hồi sau khi nộp — chỉ hai trạng thái
+### Vòng một câu
 
-```
-        HOÀN THÀNH                          CHƯA HOÀN THÀNH
-+-----------------------------+     +---------------------------------+
-|                             |     |                                 |
-|      ✓  MISSION COMPLETE    |     |    ✗  CHƯA HOÀN THÀNH           |
-|                             |     |                                 |
-|   Nhiệm vụ 3 — Đèn phao     |     |   Đội mất 2 điểm năng lượng     |
-|                             |     |   Bạn còn 2 lượt thử            |
-|      [  Tiếp tục  ]         |     |                                 |
-|                             |     |   [ THỬ LẠI ]    [ Để sau ]     |
-+-----------------------------+     +---------------------------------+
-```
+1. Người canh giữ hỏi. Câu **nghe** thì bong bóng mang trình phát gọn (`CompactAudio`), tự phát một lần, chữ giấu sau nút *Lời thoại* — đúng luật ở [GAME_DOMAIN §3c](./GAME_DOMAIN.md).
+2. Học sinh trả lời ở dải dưới. Dải này đổi theo dạng câu hỏi; **học sinh không bao giờ thấy tên dạng câu**.
+3. Bài trả lời hiện thành bong bóng bên phải, kiểu tin nhắn.
+4. Người canh giữ đáp — **chỉ nói đúng hay sai, không bao giờ nói đáp án**.
 
-**Không có điểm, không có đáp án đúng, không có giải thích.** Ba thứ đó để dành cho màn xem lại sau khi hết màn (S6b) — xem lý do ở [GAME_DOMAIN §1.6](./GAME_DOMAIN.md).
+### Luật sai: một lần được làm lại, hai lần thì đi tiếp
 
-Luồng khi bấm **NỘP BÀI**:
+| | nhiệm vụ NPC (`phase = advisor`) | nhiệm vụ thường |
+|---|---|---|
+| Số lần sai cho phép | **không giới hạn** | **1** |
+| Sai quá thì sao | vẫn đứng lại, hỏi tiếp cùng câu | NPC nói *"thôi được, để đó"* rồi **chuyển câu**, câu đó 0 điểm |
 
-1. Máy gửi `POST /play/runs/{id}/quests/{qid}/answer`, khoá nút chống bấm hai lần.
-2. Server chấm, trả về đúng ba trường: `{ completed, attempts_left, team_energy }`.
-3. Cả phòng nhận `{ai, nhiệm vụ nào, completed, năng lượng đội}` — bảng tiến độ cập nhật. **Bản tin không mang nội dung trả lời**, nên nhìn màn hình bạn cũng không chép được bài.
-4. Sai thì trừ năng lượng **đội**. Đây là chỗ duy nhất bài làm cá nhân chạm vào cả nhóm.
+Nhiệm vụ NPC không giới hạn vì không qua nó thì cả màn đứng lại — server đã cưỡng chế bằng `not is_gate` trong `_grade_one`.
 
-**Hết lượt thử** (`maxAttemptsPerQuest`, mặc định 3): nhiệm vụ khoá lại trong lượt chơi này, ô trong bảng tiến độ chuyển `✗`. Chơi lại màn thì làm lại từ đầu.
+Nhiệm vụ thường thì trần này là `balance_json.maxAttemptsPerQuestion` (**đặt về `2`**), và điểm giảm dần theo `attemptPenalty` (**`[1.0, 0.6]`**). Đúng ngay lần đầu ăn đủ điểm; đúng ở lần hai còn 60%.
 
-**Để sau** đóng bảng câu hỏi, người chơi đi làm nhiệm vụ khác rồi quay lại — lượt thử vẫn còn nguyên.
+**Sai lần hai vẫn KHÔNG lộ đáp án.** Ba người ngồi cạnh có thể chưa làm tới câu đó, và một đáp án đọc được là một lần chơi lại mất nghĩa. Đáp án chỉ lộ khi có luật riêng cho phép — hiện chưa có, xem §S6b.
 
-> **Đúng sớm được nhiều điểm hơn.** Lần thử 1 ăn đủ điểm, lần 2 còn 60%, lần 3 còn 30% (`balance_json.attemptPenalty`). Người chơi **không** thấy con số này trong trận, nhưng dòng `Lượt thử 1/3` cho biết thử càng nhiều càng thiệt.
+### Chốt ở cuối nhiệm vụ
+
+Hết câu cuối, server cộng điểm từng câu rồi so với `pass_score`. Qua thì người canh giữ chúc mừng và trao sổ tay; không qua thì nói tiếc, học sinh bấm lại vào vật thể để chơi lại nhiệm vụ từ đầu.
+
+Lời chia tay (`advisor_outro_i18n`) và nút trao sổ tay **không còn là một bảng riêng** — chúng là hai tin nhắn cuối của chính cuộc hội thoại.
+
+### Người canh giữ NÓI, không phải hiện ra
+
+Mỗi câu của NPC đi qua một nhịp *đang gõ* (ba chấm trong bong bóng) rồi mới hiện. Thời gian gõ theo độ dài câu, **trần khoảng 1,1 giây** — chờ ba giây cho một lời khen hai chữ thì không còn là tự nhiên, mà là chậm. Nhiều câu liên tiếp thì gõ từng câu một.
+
+Đây là khác biệt giữa *đang nói chuyện với ai đó* và *một cái đèn báo đúng/sai*. Vế thứ hai là thứ bảng câu hỏi cũ đã làm rồi.
+
+Thời gian này **đã tính vào trần giờ của màn** khi cân bằng — nó không phải phần thừa để cắt đi cho nhanh.
+
+### Vào lại giữa chừng: dựng lại nguyên cuộc hội thoại
+
+Không có bảng nào lưu khung chat, và không cần:
+
+- `quest_answers` đã là **nhật ký từng lần thử** — `question_id`, `attempt_no`, `response_json`, `is_correct`. Từ đó dựng lại được cả những lần sai.
+- `quest_drafts` giữ câu đang gõ dở.
+- Lời của NPC chọn theo **hash của `(question_id, attempt_no)`**, không phải `Math.random()`. Cùng một lần thử luôn cho ra cùng một câu, nên vào lại thấy đúng cuộc hội thoại đã diễn ra.
+
+Chọn theo hash chứ không lưu transcript: lưu nghĩa là một lượt ghi database cho **mỗi tin nhắn**, để đổi lấy một kết quả y hệt.
+
+### Lời của người canh giữ
+
+Ba tập câu, nằm ở `messages/` chứ không viết cứng: chào, khen (đúng), chê (sai). Chê có đường ghi đè riêng cho từng câu — `content.wrong_answer_message`, đã có sẵn trong lược đồ câu hỏi và đang được nhiệm vụ NPC dùng.
+
+Không lấy hai câu giống nhau liền nhau. Cách chọn theo hash ở trên lo luôn việc đó.
+
+---
+
+## S5b — TRÌNH THIẾT KẾ HỘI THOẠI (giáo viên)
+
+Màn hội thoại **không còn là sáu khối kéo thả**. Nó là một cuộc trò chuyện cuộn
+được, dựng theo Messenger — xem §S5.
+
+Một danh sách cuộn thì không có "chỗ" để căn: nó dài ra theo số câu đã hỏi. Nên
+trình thiết kế rút còn đúng những thứ vẫn còn tác dụng:
+
+| thẻ | sửa gì |
+|---|---|
+| Dữ liệu mẫu | chọn nhiệm vụ để lấy câu hỏi thật làm mẫu |
+| Khoảnh khắc | xem tư thế hai bên ở từng nhịp (đang đọc đề · đang nghĩ · đúng · sai) |
+| Người canh giữ | gán NPC cho nhiệm vụ đang xem |
+| **Ảnh nền tấm bảng** | tuỳ chọn; không có thì tấm bảng trong mờ và cảnh chơi hiện xuyên qua |
+| **Ảnh bong bóng** | hai ảnh, một cho mỗi bên; không có thì dùng lớp kính mặc định |
+| Phạm vi | đang sửa bố cục của cả world hay của riêng màn này |
+
+Khung xem trước là **chính `QuestChat`** mà học sinh nhìn thấy, với ba tin nhắn
+mẫu — đủ để thấy cả hai kiểu bong bóng và cách chúng dính thành cụm. Ít hơn thì
+không so được hai bên; nhiều hơn thì khung xem trước thành một đoạn văn, mà thứ
+người dựng đang chỉnh chỉ là màu và ảnh.
+
+Ảnh bong bóng **kéo giãn** cho vừa bong bóng chứ không lặp, và bong bóng vẫn dài
+ra theo chữ — nên ảnh phải là một khung trơn, đừng vẽ hoạ tiết ở giữa.
+
+`dialogue_json` vẫn giữ nguyên hình dạng cũ (`LobbySaved` theo khoá khối), chỉ là
+giờ chỉ ba khoá còn được đọc: `background`, `npcBubble`, `playerBubble`. Không
+đổi hình dạng vì các màn đã dựng đang mang dữ liệu ấy, và một migration để xoá
+mấy con số không ai đọc nữa là rủi ro không đổi lấy gì.
 
 ---
 
@@ -341,11 +392,41 @@ Luồng khi bấm **NỘP BÀI**:
 
 Vẫn hiện bảng thống kê, và **vẫn có nút `[ XEM LẠI BÀI LÀM ]`** — thua là lúc cần xem mình sai ở đâu nhất. Lý do giữ điểm: [GAME_DOMAIN §6](./GAME_DOMAIN.md) — học sinh trả lời đúng thì đã học được, không nên bị phạt vì đồng đội tiêu hết năng lượng.
 
-> Hiện tại code đang dùng `alert()` + `window.location.reload()` cho cả 2 trường hợp — cần thay bằng màn hình này.
+> **Đã dựng, và là một BẢNG NỔI chứ không phải một trang riêng** — `StageOver` trong `stage-play.tsx`, đọc `GET /play/runs/{id}/result`.
+>
+> Hết màn là một khoảnh khắc trong lúc chơi, không phải một chặng mới. Ném học sinh sang một URL khác nghĩa là tải lại cả trang, mất cảnh, mất nhạc — rồi bấm "chơi lại" để tải ngược về. Bảng nổi trên chính cái cảnh vừa chơi, và hai cái nút đưa đi đúng hai nơi người ta muốn tới.
+>
+> **Sáu con số, không có bảng từng người:** nhiệm vụ đã qua / tổng, điểm / điểm tối đa, chiến lực nhận, thời gian, mảnh bản đồ đang có / tổng của world, chiến lực world. Cột "Thành viên" trong bản vẽ để dành tới Bước 7 — chơi một mình thì nó là một bảng một dòng, nói lại đúng những con số ngay bên cạnh.
+>
+> **Tiêu đề và hai cái nút vẽ NGAY, con số đến sau.** Bảng điểm là một cú gọi mạng; hỏng thì học sinh vẫn phải ra khỏi màn được. Một bảng kết thúc chỉ hiện ra khi mạng còn sống là cách nhốt người ta lại trong một màn đã chơi xong.
+>
+> **"Chơi lại" tải lại cả trang**, không gọi `startRun` lần nữa. Một lượt mới cần một cảnh Phaser mới — nhân vật về chỗ xuất phát, ổ khoá đóng lại, đồng hồ đếm từ đầu — mà `PhaserCanvas` cố ý không dựng lại cảnh khi dữ liệu đổi (nếu không thì mỗi lần nộp bài là nạp lại cả game).
 
 ---
 
-## S6b — XEM LẠI BÀI CỦA MÌNH (sau khi màn kết thúc)
+## S6b — XEM LẠI BÀI CỦA MÌNH — **HOÃN, có chủ ý**
+
+`GET /play/runs/{id}/review` đã dựng xong và trả về đầy đủ: từng lần thử, đáp án đúng, lời giải thích của giáo viên. **Không có màn hình nào gọi tới nó.**
+
+Màn `/play/run/[id]/review` đã từng được dựng rồi **gỡ đi**, vì nó đánh nhau với một thứ quan trọng hơn:
+
+> **Nói ra đáp án ngay sau lượt đầu thì CHƠI LẠI không còn nghĩa gì.** Lượt thứ hai chỉ là gõ lại thứ vừa đọc được, và điểm của nó không đo được gì nữa. Mà chơi lại chính là vòng lặp học của trò chơi này — xem [GAME_DOMAIN §1.7](./GAME_DOMAIN.md).
+
+Nên bảng kết thúc chỉ đưa ra **con số**: đủ để biết mình đứng ở đâu, không đủ để suy ra bài.
+
+### Bao giờ dựng lại
+
+Khi có một luật quyết định **lúc nào thì được xem đáp án** — hết số lượt thử, hết một buổi học, hoặc giáo viên mở khoá. Chừng nào chưa có luật đó thì mở màn xem lại ra là bỏ mất cơ chế chơi lại để đổi lấy một màn hình.
+
+### Còn một lỗ
+
+Endpoint vẫn **gọi được** từ trình duyệt: một học sinh biết mở DevTools có thể lấy nguyên bộ đáp án của lượt vừa chơi. Nếu quyết định "không cho xem đáp án" là thật thì phải khoá endpoint lại — hạn cho giáo viên, hoặc gỡ hẳn cho tới khi có luật ở trên.
+
+Bản vẽ và ghi chú thiết kế giữ nguyên bên dưới, để lúc dựng lại không phải nghĩ lại từ đầu.
+
+---
+
+### Bản thiết kế (chưa dựng)
 
 `/play/run/[id]/review` — mở từ nút `[ XEM LẠI BÀI LÀM ]` trên S6. Chỉ mở khi lượt chơi đã kết thúc, **thắng hay thua đều xem được**, và **chỉ hiện bài của chính mình**.
 
@@ -388,6 +469,8 @@ Vẫn hiện bảng thống kê, và **vẫn có nút `[ XEM LẠI BÀI LÀM ]`*
 - Vào lại được bất cứ lúc nào từ lịch sử chơi của màn — không mất khi rời trang.
 
 ---
+
+## S7 — CÁNH CỔNG THỜI GIAN (End-game)
 
 ## S7 — CÁNH CỔNG THỜI GIAN (End-game)
 
@@ -437,6 +520,54 @@ Vẫn hiện bảng thống kê, và **vẫn có nút `[ XEM LẠI BÀI LÀM ]`*
 |  +-----------------------------------------------------------------------------------+  |
 +=========================================================================================+
 ```
+
+## T0b — BÁO CÁO KẾT QUẢ NGƯỜI CHƠI
+
+`/teacher/reports`. Một màn hình, hai tầng: nhìn TỔNG QUÁT trước, mở ra CHI TIẾT
+sau — vì hai câu hỏi của giáo viên đến theo đúng thứ tự đó ("lớp có chơi không?"
+rồi mới "em nào đang đuối?").
+
+```
++=========================================================================================+
+|  KẾT QUẢ NGƯỜI CHƠI    Chỉ tính lượt chơi thật · Ngày cắt lúc nửa đêm, giờ Asia/Bangkok |
++-----------------------------------------------------------------------------------------+
+|  [ World: Tất cả world  v ]   [ Tìm: họ tên hoặc email ................... ]   (dính)   |
++-----------------------------------------------------------------------------------------+
+|  NGƯỜI CHƠI HÔM NAY | LƯỢT CHƠI HÔM NAY | TỈ LỆ QUA MÀN    | ĐIỂM TRUNG BÌNH            |
+|         12          |        48         |      31%         |       64%                  |
+|  7d 34 · 30d 51     | 7d 190 · 30d 420  | Qua 15 · Hết giờ | TB 4m54s · NV 56 · CL 1.270|
++-----------------------------------------------------------------------------------------+
+|  14 NGÀY GẦN NHẤT   ▇ người chơi (cột đậm) nằm trong ▁ lượt chơi (cột mờ)               |
++-----------------------------------------------------------------------------------------+
+|  BẢNG XẾP HẠNG                                                                          |
+|  #  Người chơi        Điểm CL  Màn đã qua  Lượt  Qua màn  Thời gian  Gần nhất  [Xem >]  |
+|  1  Bé Minh           1.270        1        147     3      12h01m    12/09     [Xem >]  |
+|  ...                                                          1–50 trên N  [Trước][Sau] |
++=========================================================================================+
+```
+
+Những chỗ dễ làm sai, và đã chốt:
+
+- **Chỉ HỌC SINH, và chỉ lượt chơi THẬT.** Mọi lượt của giáo viên/admin mang cờ
+  `is_trial` nên đã bị loại; nhưng `world_progress` vẫn cộng điểm cho những lượt
+  ấy, nên bảng xếp hạng còn phải lọc thêm `role = 'student'` — không thì cô giáo
+  dựng bài cả tuần đứng hạng nhì trong bảng của lớp mình với 0 lượt chơi.
+- **Thời lượng chặn trần bằng `stages.time_limit_seconds`.** Lượt nào người chơi
+  đóng tab thì nằm ở `playing` tới khi vòng quét dọn tới, và `duration_seconds`
+  ghi cả khoảng nằm im ấy — dữ liệu thật có một lượt "dài" 17 ngày, kéo thời
+  lượng trung bình lên 48 tiếng. Trần là LUẬT CHƠI, không phải một con số chọn
+  đại: không ai chơi một màn lâu hơn giới hạn giờ của màn.
+- **Điểm trung bình tính theo PHẦN TRĂM**, không phải điểm thô: các màn có tổng
+  điểm khác nhau, trung bình của điểm thô là trung bình của những thứ không so
+  được với nhau.
+- **"Hôm nay" cắt theo `REPORTS_TIMEZONE`** (mặc định `Asia/Bangkok`), và màn
+  hình NÓI RA múi giờ ấy. Cắt theo UTC thì với lớp ở Việt Nam, bảy giờ đầu mỗi
+  ngày bị tính sang hôm trước.
+- **Ngày không ai chơi vẫn có cột 0** trong biểu đồ. Bỏ trống ngày ấy thì mười
+  bốn cột đều nhau trông như mười bốn ngày đều đặn.
+- **Điểm chiến lực riêng theo từng world.** Không lọc world thì cột ấy là TỔNG,
+  và màn hình ghi rõ điều đó ngay cạnh bảng.
+- Chi tiết một người tải KHI BẤM, không tải sẵn năm mươi bản cho một cú bấm.
 
 ## T1 — KHO CÂU HỎI
 
@@ -534,6 +665,205 @@ Màn hình quan trọng nhất của phần giáo viên — nơi kho câu hỏi 
 
 Bộ chọn câu hỏi bên phải copy từ `components/exam/question-picker.tsx` của LMS (248 dòng, khoảng 80% dùng lại được).
 
+### Lời phán: nghe thử và thu lại TỪNG CÂU
+
+Bảng *Giọng đọc* trong popup nhiệm vụ chỉ giữ ba thứ ngắn: nút sinh, bộ đếm
+`80/80`, và một nút **Xem & nghe** mở popup riêng.
+
+Danh sách không nằm trong cột trái, vì hai lý do đo được:
+
+- Cột trái rộng **22rem** và đã chứa sáu khối. Tám mươi dòng ở đó thì người dựng
+  cuộn qua hàng trăm dòng mới tới ô "Điểm qua ải" bên dưới.
+- Nghe thử cần **bề ngang**: một câu dài trong cột hẹp bị ngắt làm ba dòng, và
+  tám mươi câu như thế thì không đọc lướt được.
+
+Popup gom theo tám nhóm, mỗi dòng có ô tick · câu chữ · nút 🔊 (hoặc chữ *"chưa
+có tiếng"* — nói ra chứ không để ô trống). Chân popup có **hai nút, khác hẳn nhau
+về tiền**:
+
+| nút | làm gì | tốn tiền |
+|---|---|---|
+| *Thu N câu còn thiếu* | lấp chỗ trống, không ghi đè | chỉ phần thiếu |
+| *Thu lại N câu đã chọn* | thu lại thứ đã có | trả lần nữa → có hộp xác nhận |
+
+Server lọc danh sách gửi lên theo bộ câu THẬT của world: nhận bừa chuỗi client
+gửi là mở đường thu bất cứ gì bằng giọng của người khác.
+
+Một tiếng tại một lúc — bấm nhanh năm cái loa thì năm câu nói chồng lên nhau, mà
+đây đúng là màn người ta bấm nhanh nhiều cái loa.
+
+### Đang sinh giọng thì PHỦ MÀN HÌNH
+
+Mọi nút sinh giọng — một câu, một nhiệm vụ, cả màn, lời chia tay — đều bật một
+hộp phủ kín trong lúc chờ, và hộp đó **không đóng được**. Tự tắt khi xong.
+
+Không đóng được là chủ ý: mỗi lần sinh là một lần trả tiền cho nhà cung cấp, và
+một cái bảng chờ bấm ra ngoài được là một cái bảng người ta bấm ra ngoài rồi bấm
+Tạo lần nữa. Một mẻ cả màn mất hàng chục giây; không có gì che thì màn hình đứng
+im, và người dựng chỉ có hai cách hiểu — hoặc hỏng, hoặc mình chưa bấm.
+
+Hộp nói luôn **sắp sinh bao nhiêu bản**, lấy từ chính bộ đếm trên nút.
+
+### Nghe thử phương án: một cái loa mỗi đáp án
+
+Popup xem câu hỏi vẽ một nút 🔊 nhỏ ở mép phải MỖI phương án đã có tiếng, và một
+hàng chọn nhân vật ngay dưới các phương án.
+
+`optionAudio` là một prop của `QuestionRenderer`, không phải một lớp riêng của
+màn quản trị: đọc phương án thành tiếng là tính năng của BÀI — học sinh rồi cũng
+nghe đúng những tệp này. Vắng prop thì không loa nào mọc ra, y như trước.
+
+Nút loa nằm NGOÀI nút phương án, trong một lớp bọc `relative`: `<button>` lồng
+trong `<button>` là HTML sai và trình duyệt gỡ nó ra theo cách không ai đoán
+được.
+
+Một câu có thể đã thu bằng nhiều giọng, mà bốn cái loa chỉ phát được một giọng
+tại một lúc — nên hàng dưới nói rõ đang nghe giọng ai và đổi được. Mặc định là
+**nhân vật đầu tiên có bản thu**; chỉ liệt kê ai thật sự có, vì hiện cả dàn rồi
+bấm vào ai cũng im là tệ hơn không hiện gì. Toàn bộ trang chỉ giữ MỘT thẻ
+`<audio>` — bấm nhanh vài cái loa thì bốn phương án nói chồng lên nhau.
+
+### Nhân vật đọc phương án: lấy dàn của WORLD, tick sẵn tất cả
+
+Hàng chọn nhân vật đọc phương án lấy từ `GET /worlds/{id}/characters` — đúng
+danh sách đã chọn ở màn thiết kế world, và cũng đúng những nhân vật học sinh vào
+world này chọn được. Không lấy cả kho nhân vật: kho có người thuộc world khác,
+tick vào là sinh tiếng cho một giọng không ai nghe.
+
+**Mặc định tick HẾT.** Bỏ ai thì bấm bỏ, cần lại thì bấm lại. Bắt tick tay có
+một cách hỏng lặng lẽ: quên một người thì em nào chọn nhân vật ấy sẽ gặp một
+khoảng im giữa bài, mà không có gì trên màn hình báo.
+
+Nhân vật **chưa gán giọng** vẫn hiện trong hàng — gạch ngang, không tick được,
+rê chuột vào nói rõ vì sao. Giấu đi thì người dựng không hiểu vì sao giọng của
+người ấy không bao giờ được sinh.
+
+### Kho câu hỏi mở SẴN đúng chỗ, không mở cả kho
+
+Bộ chọn câu hỏi trong popup nhiệm vụ chọn bộ lọc mặc định theo thứ tự:
+
+1. **Bộ lọc lần trước của CHÍNH nhiệm vụ này** — nhớ trong `localStorage`, khoá
+   `vf.picker.<quest id>`. Không lưu vào database: đây là thói quen của một
+   người trên một máy, không phải thuộc tính của nhiệm vụ.
+2. **Mã mà những câu ĐÃ LẮP trong nhiệm vụ mang** (`quest_questions[].quest_code`).
+3. **Mã mà những câu đã lắp trong cả MÀN mang** (`stage_code`).
+4. `stages.stage_code`, rồi cuối cùng là không lọc.
+
+Bước 2 và 3 tồn tại vì bước 4 **gần như luôn trống**: `stages.stage_code` và
+`quests.quest_code` chỉ được điền khi nội dung vào bằng file `.xlsx`, và trong
+kho hiện tại không màn nào, không nhiệm vụ nào có mã. Bộ lọc cũ chỉ dựa vào
+`stageCode` nên rơi về rỗng, và người dựng mở popup ra là thấy cả 112 câu.
+
+Mã của chính CÂU HỎI thì có: 26 câu mang `W1-S1`. Đó mới là bằng chứng thật về
+"nhiệm vụ này lấy câu từ đâu", nên `QuestQuestionOut` trả thêm `stage_code` và
+`quest_code` để giao diện đọc được.
+
+Đo trên dữ liệu thật: nhiệm vụ NPC mở ra còn **2** dòng (đúng bộ của nó), nhiệm
+vụ thường còn **26** (đúng bộ của màn), thay vì 112.
+
+Chỉ nhớ hai ô MÃ. Từ khoá tìm và bộ lọc dạng bài là thứ gõ cho một lần tra cứu —
+khôi phục lại chúng ở lần mở sau là hiện một danh sách đã lọc mà không ai nhớ vì
+sao.
+
+### Sổ tay & lời chia tay soạn TRONG popup nhiệm vụ NPC
+
+Ba trường `advisor_outro_i18n` · `cluebook_title_i18n` · `cluebook_i18n` thuộc về
+`stages`, nhưng bảng soạn của chúng nằm trong popup **nhiệm vụ NPC**, ngay dưới
+bảng giọng đọc — không nằm ở cột cấu hình màn nữa.
+
+Vì chúng là một khoảnh khắc, không phải một nhóm cột: học sinh qua nhiệm vụ NPC →
+người canh giữ nói lời chia tay → trao sổ tay. Và giọng đọc lời chia tay lấy từ
+chính người canh giữ được chọn cách đó vài dòng. Để ở cột cấu hình màn thì soạn
+lời chia tay ở một chỗ, sinh giọng cho nó ở một chỗ khác, mà hai chỗ ấy không
+nhìn thấy nhau.
+
+Cột trái của popup nở từ 18rem lên 22rem để hai ô văn bản dùng được. Nhiệm vụ
+thường không có khối này — chỉ nhiệm vụ NPC dẫn tới khoảnh khắc trao sổ tay.
+
+Bảng giọng đọc vì thế KHÔNG chép lại đoạn lời chia tay nữa: ô soạn nằm ngay dưới
+nó trong cùng một cột, và hiện hai lần thì người dựng sửa ở một chỗ rồi thấy chỗ
+kia chưa đổi.
+
+### Một nhiệm vụ, MỘT cái tên
+
+`quests` có hai chuỗi dễ nhầm là "tên", và chúng không thay nhau được:
+
+| cột | là gì | ai nhìn thấy |
+|---|---|---|
+| `name_i18n` | **TÊN** nhiệm vụ, dịch được | học sinh, trong game |
+| `quest_object_key` | khoá vật thể trong cảnh Phaser (`a-z0-9_`) | không ai ngoài người dựng |
+
+Màn gán câu hỏi (T3) từng hiện `quest_object_key` làm tiêu đề cho nhiệm vụ
+thường, và ô sửa tại chỗ ở đó cũng ghi vào đúng cột ấy. Hậu quả: cùng một nhiệm
+vụ mang hai cái tên ở hai màn quản trị — `object_5` ở T3, *"Evidence That
+Remains"* ở trình thiết kế và trong game. Không có lỗi nào ném ra; người dựng chỉ
+đơn giản không nhận ra đó là cùng một thứ.
+
+Giờ cả ba chỗ — T3, trình thiết kế, màn chơi của học sinh — đều gọi `questLabel()`
+và đều sửa `name_i18n`. `quest_object_key` vẫn sửa được ở T3, nhưng trông đúng
+thân phận của nó: một chip chữ mono cỡ nhỏ cạnh `#N`, không phải tiêu đề. Nhiệm
+vụ NPC không có chip đó — khoá của nó cố định là `npc`.
+
+Hai màn quản trị là **hai cách sửa cùng một nhiệm vụ**, nên tiêu đề popup sửa
+nhiệm vụ cũng sửa tại chỗ được. Để một bên đọc được mà không sửa được thì người
+dựng phải nhớ "đổi tên thì sang màn kia" — và đó là thứ không ai nhớ.
+
+### Sinh TIẾNG ĐỌC: ba nút, ba tầm với
+
+Cùng một việc, ba chỗ bấm, và chỗ nào cũng nằm ngay cạnh thứ nó tác động —
+người dựng không phải nhớ "nút ấy ở màn nào":
+
+| bấm ở đâu | sinh cho | vào từ đâu |
+|---|---|---|
+| thẻ **Giọng đọc** trên trình thiết kế màn | cả màn | `/stages/[sid]/design` |
+| popup **sửa nhiệm vụ**, ngay dưới ô chọn người canh giữ | cả nhiệm vụ | bấm một nhiệm vụ → *Câu hỏi (n)* |
+| popup **xem câu hỏi**, cột phải | đúng một câu | bấm *Xem* ở danh sách câu hỏi |
+
+Mỗi chỗ đều có **hai** nút tách rời — *đề bài* và *đáp án* — vì chúng đọc bằng
+giọng của hai người khác nhau: đề bài là người canh giữ của nhiệm vụ (không cho
+chọn lại; cùng câu ấy nằm trong nhiệm vụ nào thì người của nhiệm vụ ấy đọc), đáp
+án là những nhân vật học sinh được tick bên dưới.
+
+Popup xem câu hỏi vì thế cần biết `questId`. Mở từ kho câu hỏi thì không có —
+lúc ấy phần đề bài tắt, phần đáp án vẫn sinh được.
+
+### Popup xem câu hỏi: hai cột, và KHÔNG có thanh cuộn ngang
+
+Bên trái là **câu hỏi**, bên phải là những thứ **làm với** nó (cách ra đề, sinh
+tiếng, các bản thu đã có). Xếp dọc một cột thì bản xem trước bị đẩy xuống dưới
+hai khối cấu hình — thứ người dựng mở popup ra để xem lại là thứ phải cuộn mới
+thấy.
+
+Thanh cuộn ngang là một lỗi, không phải một lựa chọn. Chỗ sinh ra nó ở đây:
+trình phát `<audio>` mặc định rộng ~300px và **không co lại được**. Xếp các bản
+thu cạnh nhau thì hễ khung hẹp là cả popup mọc thanh cuộn ngang — nên mỗi bản
+thu một hàng, trình phát `flex-1 min-w-0`.
+
+### `1fr` là một cái bẫy, dùng `minmax(0,1fr)`
+
+Đã cắn ba lần ở ba popup khác nhau, nên viết ra đây một lần:
+
+```
+grid-cols-[18rem_1fr]            ← cột phải KHÔNG chịu hẹp hơn nội dung của nó
+grid-cols-[18rem_minmax(0,1fr)]  ← đúng
+```
+
+`1fr` là viết tắt của `minmax(auto,1fr)`, mà `auto` ở vế sàn nghĩa là
+`min-content`. Cột nào có một câu hỏi dài, một trình phát audio, hay một từ
+không ngắt được thì cột ấy nở ra bằng đúng thứ đó, đẩy cả lưới rộng hơn khung.
+Thân popup lại là `overflow-y-auto`, và trình duyệt tự nâng `overflow-x` lên
+`auto` theo — thành ra một thanh cuộn ngang không ai đặt.
+
+Vế còn lại của cùng một luật: con của grid/flex mặc định `min-width: auto`, nên
+mỗi cột cũng cần `min-w-0`.
+
+**Lỗi này ẩn theo DỮ LIỆU.** Sàn là `min-content` của nội dung THẬT, nên cùng một
+popup mở ở nhiệm vụ có câu hỏi ngắn thì sạch, mở ở nhiệm vụ có câu hỏi dài thì
+tràn. Đo một nhiệm vụ rồi kết luận "không tràn" là kết luận sai — phải đo cái
+dài nhất, hoặc sửa cho nó không tràn được nữa.
+
+---
+
 ---
 
 ## Ánh xạ màn hình → route
@@ -550,7 +880,8 @@ Mọi route `/play/*` dùng chung cho học sinh và cho giáo viên/admin ở c
 | S1, S2 | `/play/world/[id]` | 6 |
 | S3 | `/play/world/[id]/stage/[sid]` | 6 |
 | S4 | `/play/room/[code]` | 7 |
-| S5 | `/play/stage/[code]` | 5 (nộp bài từng người: 8) |
+| S5 | `/play/stage/[id]` | 5 · hội thoại: đang dựng |
+| S5b | `/teacher/worlds/[id]/stages/[sid]/dialogue` | đã dựng |
 | S6 | overlay trong S5 | 8 |
-| S6b | `/play/run/[id]/review` | 8 |
+| S6b | *(chưa dựng — xem §S6b)* | 8 |
 | S7 | `/play/world/[id]/gate` | 8 |

@@ -43,8 +43,22 @@ export function middleware(request: NextRequest) {
    * Anh, và "đổi ngôn ngữ" hoá ra chỉ có tác dụng trong đúng một lần bấm.
    */
   const chosen = request.cookies.get(LOCALE_COOKIE)?.value;
+
+  /**
+   * HỌC SINH thì bỏ qua cookie ngôn ngữ — luôn về mặc định là tiếng Anh.
+   *
+   * Ô đổi ngôn ngữ đã ẩn với vai học sinh (xem `top-bar.tsx`). Nếu vẫn đọc
+   * cookie thì em nào từng bấm sang tiếng Việt sẽ kẹt ở tiếng Việt vĩnh viễn:
+   * cái nút để bấm ngược lại không còn nữa. Ẩn nút mà không chặn cookie là dựng
+   * ra một cái bẫy chỉ dính đúng những người đã dùng sản phẩm.
+   *
+   * Tiền tố trên URL vẫn thắng: gõ tay `/vi/play` thì vẫn ra tiếng Việt. Đây là
+   * ẩn cái NÚT, không phải khoá ngôn ngữ.
+   */
+  const hocSinh = session?.role === 'student';
   const localePrefix =
-    prefix || (isLocale(chosen) && chosen !== DEFAULT_LOCALE ? `/${chosen}` : '');
+    prefix ||
+    (!hocSinh && isLocale(chosen) && chosen !== DEFAULT_LOCALE ? `/${chosen}` : '');
 
   const go = (to: string) => {
     const url = request.nextUrl.clone();
@@ -53,8 +67,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   };
 
-  // Đã đăng nhập mà vào /login thì đưa thẳng về nhà theo vai trò.
-  if (rest === '/login') {
+  // Đã đăng nhập mà vào /login hay /signup thì đưa thẳng về nhà theo vai trò.
+  // Hai cửa này chỉ dành cho khách; người đã có phiên mà đứng ở đó thì hoặc là
+  // gõ nhầm, hoặc là một cái link cũ.
+  //
+  // KHÔNG chặn /signup theo `ALLOW_SELF_SIGNUP` ở đây: middleware chạy trên
+  // Edge runtime với một bản `process.env` riêng, nên một cái cổng đọc `.env`
+  // đặt ở đây sẽ im lặng sai. Việc ấy để trang `/signup` tự làm — nó là Server
+  // Component, đọc `.env` lúc có request. Xem `lib/signup.ts`.
+  if (rest === '/login' || rest === '/signup') {
     return session ? go(HOME_ROUTE[session.role]) : intlMiddleware(request);
   }
 

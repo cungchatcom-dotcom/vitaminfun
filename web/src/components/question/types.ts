@@ -91,6 +91,17 @@ export interface RendererProps {
    */
   answer?: Record<string, unknown> | null;
   disabled?: boolean;
+  /**
+   * Tiếng đọc của TỪNG PHƯƠNG ÁN: khoá là mã phương án, giá trị là URL.
+   *
+   * Vắng mặt = không vẽ nút loa nào, y như trước. Một phương án có tiếng thì
+   * mọc thêm một cái loa nhỏ để bấm nghe.
+   *
+   * Nằm ở đây chứ không ở một component riêng của giáo viên: đọc phương án
+   * thành tiếng là một tính năng của BÀI, không phải của màn quản trị — học
+   * sinh rồi cũng sẽ nghe đúng những tệp này.
+   */
+  optionAudio?: Record<string, string> | null;
 }
 
 export interface BuilderProps {

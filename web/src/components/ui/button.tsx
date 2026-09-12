@@ -1,6 +1,6 @@
 'use client';
 
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md';
@@ -23,6 +23,13 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   /** Đang chạy: khoá nút và đổi con trỏ. Dùng chung với `useAsyncAction`. */
   loading?: boolean;
   children?: ReactNode;
+  /**
+   * React 19 truyền `ref` như một prop thường cho component hàm, nên chỉ cần
+   * KHAI nó ở đây là `{...rest}` mang thẳng xuống thẻ `<button>` — không cần
+   * `forwardRef` nữa. Khai để TypeScript biết: thiếu dòng này thì nơi gọi bị
+   * báo "Property 'ref' does not exist", dù lúc chạy vẫn đúng.
+   */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({

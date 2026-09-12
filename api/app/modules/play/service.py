@@ -15,15 +15,24 @@ from __future__ import annotations
 import random
 import string
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ErrorCode, NotFoundError
+from app.core.logging import logger
 from app.db.models import (
+    AudioTarget,
+    DialogueKind,
+    DialogueMessage,
+    PromptKind,
     Chapter,
+    Character,
+    CharacterAction,
     MapShardOwned,
     MediaAsset,
     PublishStatus,
@@ -33,6 +42,7 @@ from app.db.models import (
     QuestPhase,
     QuestQuestion,
     Question,
+    QuestionAudio,
     Room,
     RoomMember,
     RunStatus,
@@ -46,9 +56,16 @@ from app.db.models import (
     WorldProgress,
 )
 from app.db.models.room import HeroKey, RoomMode, RoomStatus
+from app.modules.play.schemas import DialogueActor, RunSpriteOut
 from app.modules.questions.grading import grade
+from app.modules.voices import tts
 from app.modules.worlds.balance import attempt_multiplier, read_balance
-from app.modules.worlds.service import effective_character_height, effective_pass_score
+from app.modules.worlds.service import (
+    block_urls,
+    effective_character_height,
+    effective_dialogue,
+    effective_pass_score,
+)
 
 
 #: Khoá của bảng đáp án trong `stage_runs.answer_key_json`.
@@ -69,11 +86,87 @@ class PlayError:
     #: Chưa đủ điểm chiến lực để mở màn này.
     STAGE_LOCKED = "STAGE_LOCKED"
     RUN_STILL_PLAYING = "RUN_STILL_PLAYING"
+    #: Xin gợi ý mà không đủ năng lượng.
+    NOT_ENOUGH_ENERGY = "NOT_ENOUGH_ENERGY"
 
 
 # --------------------------------------------------------------------------
 # Đóng băng đề bài
 # --------------------------------------------------------------------------
+
+
+async def actors_of(
+    db: AsyncSession, character_ids: Iterable[uuid.UUID]
+) -> dict[uuid.UUID, DialogueActor]:
+    """Nhân vật kèm spritesheet, tra cả loạt trong MỘT lượt.
+
+    Dùng cho cả người canh giữ (nằm trong đề bài đóng băng) lẫn nhân vật học
+    sinh chọn. Cùng một phép dựng cho cả hai vai, vì cả hai là `characters` và
+    cả hai vẽ bằng `character_actions` — hai bản chép sẽ lệch nhau đúng vào lúc
+    ai đó thêm một tư thế.
+
+    Tra CẢ LOẠT vì một màn có tới năm nhiệm vụ, mỗi nhiệm vụ một người canh giữ:
+    mỗi người một truy vấn là năm lượt hỏi cho một lần dựng đề bài.
+
+    Nhân vật ở trạng thái NHÁP vẫn trả về. Khác với lúc học sinh CHỌN nhân vật —
+    ở đó nháp phải giấu đi. Ở đây người dựng vừa gán một NPC vào nhiệm vụ, và
+    một khuôn mặt biến mất vì quên bấm xuất bản là thứ không ai đoán ra.
+    """
+    ids = {cid for cid in character_ids if cid}
+    if not ids:
+        return {}
+
+    characters = list(await db.scalars(select(Character).where(Character.id.in_(ids))))
+    if not characters:
+        return {}
+
+    rows = list(
+        await db.execute(
+            select(CharacterAction, MediaAsset.url, MediaAsset.width, MediaAsset.height)
+            .join(MediaAsset, MediaAsset.id == CharacterAction.media_id)
+            .where(CharacterAction.character_id.in_(ids))
+        )
+    )
+    by_character: dict[uuid.UUID, list[RunSpriteOut]] = {}
+    for action, url, media_width, media_height in rows:
+        # Khổ khung để trống thì SUY từ khổ ảnh: một dải ngang `n` khung thì mỗi
+        # khung rộng `ảnh ÷ n`, cao bằng cả ảnh. Suy ở đây chứ không ở giao diện
+        # vì cắt sai một pixel là cả hoạt ảnh trượt khung.
+        width = action.frame_width or (
+            int(media_width // action.frames) if media_width else None
+        )
+        height = action.frame_height or media_height
+        if not width or not height:
+            continue
+        by_character.setdefault(action.character_id, []).append(
+            RunSpriteOut(
+                action_key=action.action_key,
+                url=url,
+                frames=action.frames,
+                frame_width=width,
+                frame_height=height,
+                frame_rate=action.frame_rate,
+            )
+        )
+
+    avatar_ids = [c.avatar_media_id for c in characters if c.avatar_media_id]
+    avatars: dict[uuid.UUID, str] = {}
+    if avatar_ids:
+        found = await db.execute(
+            select(MediaAsset.id, MediaAsset.url).where(MediaAsset.id.in_(avatar_ids))
+        )
+        avatars = {r.id: r.url for r in found}
+
+    return {
+        c.id: DialogueActor(
+            id=c.id,
+            name_i18n=c.name_i18n or {},
+            avatar_url=avatars.get(c.avatar_media_id),
+            voice_id=c.voice_id,
+            sprites=by_character.get(c.id, []),
+        )
+        for c in characters
+    }
 
 
 async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -86,6 +179,20 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
     quests = list(
         await db.scalars(select(Quest).where(Quest.stage_id == stage.id).order_by(Quest.order_index))
     )
+
+    # Bộ câu phán của WORLD — một lần cho cả màn, vì chữ thì cả world dùng chung.
+    # Chỉ TIẾNG mới khác theo từng nhiệm vụ, vì mỗi nhiệm vụ một người canh giữ.
+    world = (
+        await db.execute(
+            select(World)
+            .join(Chapter, Chapter.world_id == World.id)
+            .where(Chapter.id == stage.chapter_id)
+        )
+    ).scalars().first()
+    #: Ba nhóm, giữ nguyên cho màn chơi chọn câu; và một danh sách phẳng để tra
+    #: tiếng. Hai hình dạng của cùng một thứ, dựng cạnh nhau để khỏi lệch.
+    verdict_groups = (world.verdict_json or {}) if world else {}
+    verdict_lines = tts.verdict_lines(world) if world else []
     links = list(
         await db.scalars(
             select(QuestQuestion)
@@ -104,7 +211,7 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
 
     # Ảnh vật thể: đóng băng URL vào snapshot, không lưu id. Đề đã đóng băng thì
     # ảnh cũng phải đóng băng — đổi ảnh giữa chừng là hai máy hiện hai cảnh khác nhau.
-    icon_ids = [q.icon_media_id for q in quests if q.icon_media_id]
+    icon_ids = {q.icon_media_id for q in quests if q.icon_media_id}
     icons: dict[uuid.UUID, str] = {}
     if icon_ids:
         rows = await db.execute(
@@ -127,6 +234,47 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
         )
         q_audio = {r.id: r.url for r in rows}
 
+    # TIẾNG ĐỌC CÁC PHƯƠNG ÁN, gom theo (câu hỏi, giọng).
+    #
+    # Đóng băng URL như mọi thứ khác trong đề bài. Gửi CẢ các giọng chứ không
+    # chọn sẵn một giọng: nhân vật học sinh chọn để chơi nằm ở `world_progress`
+    # và đổi được giữa hai lượt, còn đề bài thì đóng băng lúc bắt đầu — chọn hộ
+    # ở đây là đóng băng cả một lựa chọn chưa xảy ra.
+    #
+    # Chỉ `target="option"`. Tiếng của ĐỀ BÀI đã có đường riêng (`audio_url`,
+    # tra theo `questions.audio_media_id`).
+    option_audio: dict[str, dict[str, dict[str, str]]] = {}
+    if questions:
+        rows = await db.execute(
+            select(
+                QuestionAudio.question_id,
+                QuestionAudio.voice_id,
+                QuestionAudio.option_key,
+                MediaAsset.url,
+            )
+            .join(MediaAsset, MediaAsset.id == QuestionAudio.media_id)
+            .where(
+                QuestionAudio.question_id.in_(list(questions.keys())),
+                QuestionAudio.target == AudioTarget.OPTION,
+            )
+        )
+        for r in rows:
+            if not r.option_key or not r.url:
+                continue
+            theo_cau = option_audio.setdefault(str(r.question_id), {})
+            theo_cau.setdefault(str(r.voice_id), {})[r.option_key] = r.url
+
+    # Người canh giữ của MỌI nhiệm vụ trong một lượt tra.
+    npcs = await actors_of(db, [q.npc_character_id for q in quests])
+
+    # GIỌNG CỦA NGƯỜI GÁC CỬA — tính MỘT lần cho cả màn.
+    #
+    # Câu khoá do người gác cửa nói, và cả màn chỉ có một người gác cửa (nhiệm
+    # vụ `advisor`). Hầu hết nhiệm vụ thường không gán NPC nào, nên lấy giọng
+    # của chính nhiệm vụ ấy thì phần lớn cánh cửa sẽ câm.
+    gac = next((q for q in quests if q.phase == QuestPhase.ADVISOR), None)
+    giong_gac = await tts.voice_of_character(db, gac.npc_character_id) if gac else None
+
     by_quest: dict[uuid.UUID, list[QuestQuestion]] = {}
     for link in links:
         by_quest.setdefault(link.quest_id, []).append(link)
@@ -143,11 +291,23 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
             question = questions.get(link.question_id)
             if question is None:
                 continue
+            # LỜI THOẠI của câu nghe là một GỢI Ý PHẢI TRẢ TIỀN, nên nó không
+            # được đi cùng đề bài — đúng luật đã ghi cho `translation` và
+            # `hint`: thứ gì phải trả bằng năng lượng mới được xem thì không
+            # nằm trong `content`. Gửi kèm là phát không, và mở tab mạng của
+            # trình duyệt là thấy.
+            #
+            # Trừ khi giáo viên đã bật `show_transcript`: khi đó chính họ quyết
+            # định câu này hiện chữ sẵn, và không có gì để mà bán.
+            content = question.content_json
+            if question.prompt_kind == PromptKind.AUDIO and not question.show_transcript:
+                content = {**content, "prompt": None}
+
             snapshot_questions.append(
                 {
                     "id": str(link.question_id),
                     "type": question.type,
-                    "content": question.content_json,
+                    "content": content,
                     "points": link.points,
                     "audio_max_plays": question.audio_max_plays,
                     # CÁCH RA ĐỀ đóng băng cùng đề bài: giáo viên đổi một câu từ
@@ -156,6 +316,22 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
                     "prompt_kind": question.prompt_kind,
                     "show_transcript": question.show_transcript,
                     "audio_url": q_audio.get(question.audio_media_id),
+                    # Tiếng đọc từng phương án, theo từng giọng. Màn chơi lấy
+                    # giọng của chính nhân vật học sinh đang chơi.
+                    "option_audio": option_audio.get(str(link.question_id), {}),
+                    # CHỈ cái có hay không, không phải bản dịch. Bản dịch nằm
+                    # cùng chỗ với đáp án và phải trả bằng năng lượng mới xem
+                    # được; nhưng giao diện cần biết có nên vẽ cái nút Dịch hay
+                    # không TRƯỚC khi học sinh bấm vào nó.
+                    "has_translation": bool((question.answer_json or {}).get("translation")),
+                    #: Có lời thoại để MUA hay không. Câu đọc thì không, và câu
+                    #: nghe đã bật `show_transcript` cũng không — chữ hiện sẵn
+                    #: rồi thì không còn gì để mở ra.
+                    "has_transcript": bool(
+                        question.prompt_kind == PromptKind.AUDIO
+                        and not question.show_transcript
+                        and (question.content_json or {}).get("prompt")
+                    ),
                 }
             )
             answer_key[str(link.question_id)] = {
@@ -165,6 +341,25 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
                 "points": link.points,
                 "explanation": question.explanation,
             }
+
+        # LỜI PHÁN — chữ của WORLD, tiếng của người canh giữ NHIỆM VỤ này.
+        #
+        # Đóng băng cả hai cùng lý do với đề bài: giáo viên sửa câu khen hay đổi
+        # giọng giữa chừng thì lượt đang chơi vẫn nghe đúng thứ nó bắt đầu.
+        # Danh sách rỗng = màn chơi dùng bộ mặc định trong `messages/`.
+        npc_voice = await tts.voice_of_character(db, quest.npc_character_id)
+        verdict_audio = await tts.line_urls(
+            db, npc_voice.id if npc_voice else None, verdict_lines
+        )
+
+        # CÂU KHOÁ và tiếng của nó. Cùng bảng `voice_lines` với lời phán, nên
+        # hai nhiệm vụ có cùng câu và cùng giọng thì dùng chung một bản thu.
+        khoa = quest.locked_message_i18n or {}
+        khoa_audio = await tts.line_urls(
+            db,
+            giong_gac.id if giong_gac else None,
+            [t for t in khoa.values() if t],
+        )
 
         snapshot_quests.append(
             {
@@ -177,11 +372,28 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
                 "scene_y": quest.scene_y,
                 "trigger_radius": quest.trigger_radius,
                 "icon_url": icons.get(quest.icon_media_id),
+                # NGƯỜI CANH GIỮ, đóng băng cùng lý do với ảnh vật thể: giáo
+                # viên đổi NPC giữa chừng thì lượt đang chơi vẫn nói chuyện với
+                # đúng người nó bắt đầu — kể cả khi tư thế được tải thêm sau đó.
+                "npc": npc.model_dump(mode="json") if (npc := npcs.get(quest.npc_character_id)) else None,
                 "icon_size": quest.icon_size,
                 "pulse_percent": quest.pulse_percent,
                 "pulse_period_ms": quest.pulse_period_ms,
                 "energy_cost": quest.energy_cost,
                 "pass_score": effective_pass_score(quest.pass_score, total),
+                # LỜI PHÁN: chữ của WORLD, tiếng của người canh giữ NHIỆM VỤ này.
+                #
+                # Đóng băng cả hai cùng lý do với đề bài: giáo viên sửa câu khen
+                # hay đổi giọng giữa chừng thì lượt đang chơi vẫn nghe đúng thứ
+                # nó bắt đầu. Rỗng = màn chơi dùng bộ mặc định trong `messages/`.
+                "verdict": verdict_groups,
+                "verdict_audio": verdict_audio,
+                # CÂU KHOÁ: chữ của nhiệm vụ này, tiếng của NGƯỜI GÁC CỬA màn.
+                #
+                # Chỉ đóng băng URL của bản dịch ĐANG có — màn chơi chọn ngôn
+                # ngữ ở máy, nên gửi cả bảng `câu chữ → URL` và để nó tự tra.
+                "locked_message_i18n": khoa,
+                "locked_audio": khoa_audio,
                 "questions": snapshot_questions,
             }
         )
@@ -277,6 +489,11 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
             # nhạc giữa chừng thì lượt đang chơi vẫn nghe đúng cái nó bắt đầu.
             "audio": stage.audio_json or {},
             "audio_urls": audio_urls,
+            # Bố cục hội thoại đóng băng ở dạng ĐÃ GIẢI XONG KẾ THỪA: lượt đang
+            # chơi không được đi hỏi lại màn 1 của world, vì màn 1 có thể đã
+            # đổi — hoặc bị xoá — từ lúc lượt này bắt đầu.
+            "dialogue": (dialogue := await effective_dialogue(db, stage)),
+            "dialogue_urls": await block_urls(db, dialogue),
         },
         "quests": snapshot_quests,
     }
@@ -489,8 +706,63 @@ def _question_of(quest: dict[str, Any], question_id: uuid.UUID) -> dict[str, Any
 
 
 def quest_earned(answers: list[QuestAnswer], quest_id: uuid.UUID) -> float:
-    """Tổng điểm các câu ĐÚNG của một người trong một nhiệm vụ."""
+    """Tổng điểm các câu ĐÚNG của một người trong một nhiệm vụ.
+
+    Cộng đúng những dòng ĐƯỢC ĐƯA VÀO. Chỗ gọi quyết định đưa vào vòng nào —
+    xem `same_round()` cho "đang chơi tới đâu" và `quest_best()` cho báo cáo.
+    """
     return sum(a.score for a in answers if a.quest_id == quest_id and a.is_correct)
+
+
+# --------------------------------------------------------------------------
+# VÒNG CHƠI của một nhiệm vụ
+#
+# Người chơi bấm "Làm lại" bao nhiêu lần cũng được. Mỗi lần là một VÒNG mới:
+# mọi câu trong nhiệm vụ trở về trắng, lượt thử đếm lại từ đầu. Dòng cũ không bị
+# xoá, nên hai câu hỏi khác nhau cần hai phép đọc khác nhau:
+#
+#   - "đang chơi tới đâu" → CHỈ vòng hiện tại (`same_round`),
+#   - "được bao nhiêu" → vòng TỐT NHẤT (`quest_best`).
+#
+# Lẫn hai cái là hỏng theo hai hướng ngược nhau: lấy tất cả các vòng cho phép
+# đầu thì một câu đã trả lời đúng ở vòng trước hoá ra không cần làm lại; lấy
+# riêng vòng hiện tại cho phép sau thì chơi lại mà kém hơn là mất điểm cũ.
+# --------------------------------------------------------------------------
+
+
+def round_now(player: StageRunPlayer | None, quest_id: uuid.UUID) -> int:
+    """Nhiệm vụ này đang ở vòng thứ mấy. Chưa làm lại lần nào = vòng 1."""
+    if player is None:
+        return 1
+    raw = (player.rounds_json or {}).get(str(quest_id))
+    return int(raw) if isinstance(raw, int) and raw >= 1 else 1
+
+
+def same_round(answers: list[QuestAnswer], round_no: int) -> list[QuestAnswer]:
+    """Lọc lấy đúng một vòng."""
+    return [a for a in answers if a.round_no == round_no]
+
+
+def quest_best(answers: list[QuestAnswer], quest_id: uuid.UUID) -> float:
+    """Điểm của VÒNG CAO NHẤT — con số đi vào báo cáo.
+
+    Không phải tổng mọi vòng: chơi lại năm lần không có nghĩa được điểm gấp năm.
+    """
+    theo_vong: dict[int, float] = {}
+    for a in answers:
+        if a.quest_id != quest_id or not a.is_correct:
+            continue
+        theo_vong[a.round_no] = theo_vong.get(a.round_no, 0.0) + a.score
+    return max(theo_vong.values(), default=0.0)
+
+
+def quest_ever_passed(answers: list[QuestAnswer], quest: dict[str, Any]) -> bool:
+    """Đã có vòng nào qua ải chưa.
+
+    Qua rồi thì mãi mãi là đã qua: chơi lại mà kém hơn không lấy mất cái nhãn đã
+    giành được. Đây đúng là lý do người ta dám bấm Làm lại.
+    """
+    return quest_best(answers, uuid.UUID(quest["id"])) >= quest["pass_score"]
 
 
 # --------------------------------------------------------------------------
@@ -524,7 +796,9 @@ def advisor_cleared(snapshot: dict[str, Any], answers: list[QuestAnswer]) -> boo
     quest = advisor_quest(snapshot)
     if quest is None:
         return True
-    return quest_earned(answers, uuid.UUID(quest["id"])) >= quest["pass_score"]
+    # Vòng TỐT NHẤT, không phải vòng đang chơi: qua cổng rồi mà bấm Làm lại để
+    # nghe lại cuộc trò chuyện thì cả màn không được khoá lại sau lưng họ.
+    return quest_ever_passed(answers, quest)
 
 
 def quest_locked(snapshot: dict[str, Any], quest: dict[str, Any], answers: list[QuestAnswer]) -> bool:
@@ -617,6 +891,8 @@ async def _grade_one(
     question: dict[str, Any],
     attempt_no: int,
     response: dict[str, Any] | None,
+    round_no: int,
+    truoc: list[QuestAnswer],
 ) -> None:
     """Chấm MỘT câu và ghi một dòng nhật ký. Không chốt lượt chơi, không commit.
 
@@ -636,6 +912,23 @@ async def _grade_one(
             key["points"] * float(multiplier) * attempt_multiplier(balance, attempt_no)
         )
 
+        # CHỈ CỘNG PHẦN HƠN so với những vòng trước của CHÍNH câu này.
+        #
+        # Không trừ đi thì chơi lại một nhiệm vụ dễ là một cái máy in điểm: làm
+        # đúng, bấm Làm lại, làm đúng lần nữa, cộng đủ một lần nữa. Trừ hẳn về 0
+        # thì ngược lại — sai ở vòng đầu rồi vòng sau làm đúng ngay lần thử đầu
+        # sẽ không được thưởng gì cho việc đã khá lên.
+        # CỘNG chứ không lấy max: mỗi dòng đã lưu chính là PHẦN HƠN của lần
+        # ấy, nên tổng của chúng đúng bằng mức cao nhất câu này từng đạt. Lấy
+        # max thì một câu gỡ điểm dần qua nhiều vòng (6 rồi +4) sẽ cộng lại phần
+        # 4 ấy ở mọi vòng sau.
+        da_co = sum(
+            a.skill_pts_awarded
+            for a in truoc
+            if a.question_id == uuid.UUID(question["id"]) and a.quest_id == quest_id
+        )
+        skill_pts = max(0, skill_pts - da_co)
+
     # Trả lời SAI không trừ năng lượng.
     #
     # Năng lượng chỉ trả cho các hành động TRỢ GIÚP — xem `PROJECT OVERVIEW.md`.
@@ -649,6 +942,7 @@ async def _grade_one(
             user_id=user.id,
             quest_id=quest_id,
             question_id=uuid.UUID(question["id"]),
+            round_no=round_no,
             attempt_no=attempt_no,
             response_json=response,
             score=result.score,
@@ -664,12 +958,39 @@ async def _grade_one(
         await _award_skill_pts(db, user, run, world, skill_pts)
 
 
+@dataclass(frozen=True)
+class SubmitOutcome:
+    """Mọi thứ chỗ gọi cần biết sau một lần nộp — KHÔNG phải hỏi lại lần nữa.
+
+    Trước đây hàm này trả về đúng ba con số, nên giao diện phải gọi thêm
+    `GET /runs/{id}` để biết tiến độ mới. Lượt gọi ấy kéo về cả `RunOut` — 66 KB,
+    trong đó 62 KB là đề bài đã đóng băng và không bao giờ đổi trong một lượt
+    chơi. Nhân với mỗi câu trả lời của mỗi học sinh suốt một buổi thì đó là phần
+    lớn băng thông của cả hệ.
+
+    Mấy trường dưới đây đều đã nằm sẵn trong tay hàm này lúc nó chấm xong; trả
+    kèm ra không tốn thêm một truy vấn nào.
+    """
+
+    quest_done: bool
+    attempts_left: int | None
+    energy: int
+    energy_granted: int
+    #: Bài làm của CHÍNH người nộp, sau khi chấm. Đủ để dựng lại tiến độ.
+    answers: list[QuestAnswer]
+    player: StageRunPlayer | None
+    #: Đã qua cổng NPC chưa, tính SAU lần nộp này.
+    cleared: bool
+    max_attempts: Any
+    run_status: str
+
+
 async def submit_quest(
     db: AsyncSession,
     user: User,
     run: StageRun,
     quest_id: uuid.UUID,
-) -> tuple[bool, int | None, int]:
+) -> SubmitOutcome:
     """Chấm CẢ NHIỆM VỤ một lượt, từ các bản nháp đang có.
 
     Trả về (nhiệm vụ đã qua ải, còn mấy lượt thử, năng lượng của người nộp).
@@ -717,9 +1038,18 @@ async def submit_quest(
     # lúc chào hỏi không đáng bị như thế.
     is_gate = quest["phase"] == QuestPhase.ADVISOR
 
+    # VÒNG đang chơi. Mọi phép đếm dưới đây chỉ nhìn vòng này: bấm "Làm lại" là
+    # mọi câu trở về trắng và lượt thử đếm lại từ đầu, dù vòng trước đã trả lời
+    # đúng hết.
+    player = await _player_row(db, run, user)
+    vong = round_now(player, quest_id)
+    trong_vong = same_round(answers, vong)
+
     for question in quest["questions"]:
         question_id = uuid.UUID(question["id"])
-        mine = [a for a in answers if a.question_id == question_id and a.quest_id == quest_id]
+        mine = [
+            a for a in trong_vong if a.question_id == question_id and a.quest_id == quest_id
+        ]
 
         if any(a.is_correct for a in mine):
             continue
@@ -731,13 +1061,25 @@ async def submit_quest(
             continue
 
         await _grade_one(
-            db, user, run, world, balance, quest_id, question, attempt_no, drafts[question_id]
+            db,
+            user,
+            run,
+            world,
+            balance,
+            quest_id,
+            question,
+            attempt_no,
+            drafts[question_id],
+            vong,
+            answers,
         )
 
     await db.flush()
 
     answers = await _answers_of(db, run.id, user.id)
-    quest_done = quest_earned(answers, quest_id) >= quest["pass_score"]
+    # Vòng NÀY qua ải chưa — đây là thứ người canh giữ nói ngay lúc đó ("đạt" /
+    # "chưa đạt"). Cái NHÃN của nhiệm vụ thì đọc vòng tốt nhất, ở `_run_out`.
+    quest_done = quest_earned(same_round(answers, vong), quest_id) >= quest["pass_score"]
     player = await _sync_player_row(db, run, user, answers)
 
     if quest_done and quest["phase"] == QuestPhase.ADVISOR:
@@ -748,9 +1090,182 @@ async def submit_quest(
     else:
         await db.commit()
 
-    return quest_done, _attempts_left(quest, answers, quest_id, max_attempts), (
-        player.energy_remaining if player else 0
+    # `answers` đã là bài của RIÊNG người nộp — `_answers_of` lọc theo `user_id`.
+    return SubmitOutcome(
+        quest_done=quest_done,
+        attempts_left=_attempts_left(quest, same_round(answers, vong), quest_id, max_attempts),
+        energy=player.energy_remaining if player else 0,
+        energy_granted=player.energy_granted if player else 0,
+        answers=answers,
+        player=player,
+        cleared=advisor_cleared(run.snapshot_json, answers),
+        max_attempts=max_attempts,
+        run_status=run.status,
     )
+
+
+async def retry_quest(
+    db: AsyncSession, user: User, run: StageRun, quest_id: uuid.UUID
+) -> int:
+    """LÀM LẠI một nhiệm vụ từ đầu. Trả về số vòng mới.
+
+    ## Xoá gì, giữ gì
+
+    Xoá: bản NHÁP của mọi câu trong nhiệm vụ, và cả ĐOẠN CHAT với người canh
+    giữ. Hai thứ đó là "đang làm dở", mà làm lại nghĩa là không còn gì dở nữa —
+    giữ lại thì mở nhiệm vụ ra đã thấy đáp án cũ điền sẵn và một cuộc trò chuyện
+    đã kết thúc.
+
+    Giữ: `quest_answers`. Đó là NHẬT KÝ, không phải trạng thái. Xoá đi là mất
+    chính cái làm cho việc chơi lại an toàn — báo cáo đọc vòng tốt nhất, và vòng
+    tốt nhất có thể là vòng vừa bị bỏ lại.
+
+    ## Vì sao không cấm khi đã hoàn thành
+
+    Vì đó mới là lúc người ta muốn chơi lại nhất: đã qua rồi, giờ thử làm cho
+    đẹp hơn. Qua rồi thì mãi mãi là đã qua (`quest_ever_passed`), nên lần chơi
+    lại không có gì để mất.
+    """
+    if run.status != RunStatus.PLAYING:
+        raise ConflictError(PlayError.RUN_NOT_PLAYING, status=run.status)
+
+    quest = _quest_of(run.snapshot_json, quest_id)
+
+    player = await _player_row(db, run, user)
+    if player is None:
+        raise NotFoundError(ErrorCode.NOT_FOUND, resource="player")
+
+    vong = round_now(player, quest_id) + 1
+    # Gán lại cả dict: SQLAlchemy không theo dõi phép sửa tại chỗ trên cột JSONB,
+    # nên `rounds_json[key] = ...` là một thay đổi lặng lẽ không bao giờ được ghi.
+    player.rounds_json = {**(player.rounds_json or {}), str(quest_id): vong}
+
+    ids = [uuid.UUID(q["id"]) for q in quest["questions"]]
+    if ids:
+        await db.execute(
+            delete(QuestDraft).where(
+                QuestDraft.stage_run_id == run.id,
+                QuestDraft.user_id == user.id,
+                QuestDraft.question_id.in_(ids),
+            )
+        )
+    await db.execute(
+        delete(DialogueMessage).where(
+            DialogueMessage.stage_run_id == run.id,
+            DialogueMessage.user_id == user.id,
+            DialogueMessage.quest_id == quest_id,
+        )
+    )
+
+    await db.commit()
+    logger.info("play.quest.retry", run=str(run.id), quest=str(quest_id), round=vong)
+    return vong
+
+
+def _phase_of(snapshot: dict[str, Any], question_id: uuid.UUID) -> str | None:
+    """Câu hỏi này thuộc nhiệm vụ ở GIAI ĐOẠN nào — `advisor` hay `main`.
+
+    Duyệt đề bài đã đóng băng chứ không hỏi lại bảng `quests`: giáo viên đổi
+    giai đoạn giữa chừng thì lượt đang chơi vẫn tính theo đúng cái nó bắt đầu —
+    cùng luật với mọi thứ khác của đề bài.
+    """
+    for quest in snapshot.get("quests", []):
+        for item in quest.get("questions", []):
+            if str(item.get("id")) == str(question_id):
+                return quest.get("phase")
+    return None
+
+
+async def buy_hint(
+    db: AsyncSession,
+    user: User,
+    run: StageRun,
+    question_id: uuid.UUID,
+    kind: str,
+) -> tuple[str, int]:
+    """Mua một gợi ý của câu hỏi. Trả về (đoạn chữ, năng lượng còn lại).
+
+    Hai loại, MỘT giá — `balance.energyCost.hint`:
+
+      - `translation` — bản dịch, nằm trong `answer_json`,
+      - `transcript`  — lời thoại của câu nghe, tức `content.prompt`.
+
+    Cả hai đều bị GẠN KHỎI đề bài trước khi gửi xuống máy học sinh (xem
+    `build_snapshot`), nên đây là đường duy nhất đọc được chúng. Gửi kèm sẵn là
+    phát không, và mở tab mạng của trình duyệt là thấy.
+
+    Đọc từ `answer_key_json` của chính lượt chơi chứ không hỏi lại bảng
+    `questions`: đề bài đã đóng băng, và giáo viên sửa giữa chừng thì lượt đang
+    chơi vẫn phải đọc đúng cái nó bắt đầu — cùng luật với ảnh nền, tiếng, và bố
+    cục hội thoại.
+
+    **Trả một lần, xem mãi.** Mua rồi thì lần sau miễn phí: học sinh đóng bảng
+    câu hỏi rồi mở lại mà bị trừ tiếp là một cái bẫy, và cái duy nhất họ học
+    được từ nó là đừng bao giờ xin giúp nữa.
+    """
+    if run.status != RunStatus.PLAYING:
+        raise ConflictError(PlayError.RUN_NOT_PLAYING, status=run.status)
+
+    entry = (run.answer_key_json or {}).get("questions", {}).get(str(question_id))
+    if entry is None:
+        raise NotFoundError(ErrorCode.NOT_FOUND, resource="question")
+
+    source = (
+        (entry.get("answer") or {}).get("translation")
+        if kind == "translation"
+        else (entry.get("content") or {}).get("prompt")
+    )
+    text_vi = (source or "").strip()
+    if not text_vi:
+        raise NotFoundError(ErrorCode.NOT_FOUND, resource=kind)
+
+    player = await db.scalar(
+        select(StageRunPlayer).where(
+            StageRunPlayer.stage_run_id == run.id, StageRunPlayer.user_id == user.id
+        )
+    )
+    if player is None:
+        raise NotFoundError(ErrorCode.NOT_FOUND, resource="player")
+
+    bought = list((player.hints_json or {}).get(str(question_id), []))
+    if kind in bought:
+        return text_vi, player.energy_remaining
+
+    world = await db.scalar(
+        select(World)
+        .join(Chapter, Chapter.world_id == World.id)
+        .join(Stage, Stage.chapter_id == Chapter.id)
+        .where(Stage.id == run.stage_id)
+    )
+    price = int(read_balance(world.balance_json if world else None)["energyCost"]["hint"])
+
+    # Nhiệm vụ NPC: MIỄN PHÍ.
+    #
+    # Đó là màn khởi động, và năng lượng chỉ được cấp SAU KHI qua nó — nên ở đó
+    # học sinh luôn có 0. Tính tiền là khoá cả hai cái nút đúng chỗ người ta cần
+    # chúng nhất, mà lại không cho họ đường nào kiếm ra tiền để mở.
+    #
+    # Chặn ở SERVER chứ không chỉ ở giao diện: giá là một luật chơi, và một luật
+    # chơi chỉ nằm ở giao diện thì gọi thẳng API là lách được.
+    if _phase_of(run.snapshot_json, question_id) == QuestPhase.ADVISOR:
+        price = 0
+
+    if player.energy_remaining < price:
+        raise ConflictError(
+            PlayError.NOT_ENOUGH_ENERGY, need=price, have=player.energy_remaining
+        )
+
+    player.energy_remaining -= price
+    # Gán lại CẢ object: SQLAlchemy không theo dõi thay đổi bên trong một JSONB
+    # đã nạp, nên sửa tại chỗ thì cú `commit` này ghi ra một dòng y như cũ —
+    # và học sinh được dịch miễn phí mãi mãi mà không ai biết vì sao.
+    player.hints_json = {
+        **(player.hints_json or {}),
+        str(question_id): [*bought, kind],
+    }
+    await db.commit()
+
+    return text_vi, player.energy_remaining
 
 
 def _attempts_left(
@@ -878,6 +1393,17 @@ async def _get_or_create_world_progress(
     return progress
 
 
+async def _player_row(
+    db: AsyncSession, run: StageRun, user: User
+) -> StageRunPlayer | None:
+    """Dòng cộng dồn của MỘT người trong MỘT lượt. `None` = người này không ở trong lượt."""
+    return await db.scalar(
+        select(StageRunPlayer).where(
+            StageRunPlayer.stage_run_id == run.id, StageRunPlayer.user_id == user.id
+        )
+    )
+
+
 async def _sync_player_row(
     db: AsyncSession, run: StageRun, user: User, answers: list[QuestAnswer]
 ) -> StageRunPlayer | None:
@@ -894,11 +1420,14 @@ async def _sync_player_row(
     if player is None:
         return None
 
-    player.score = sum(a.score for a in answers if a.is_correct)
+    # VÒNG TỐT NHẤT của mỗi nhiệm vụ, không phải tổng mọi dòng đúng: chơi lại
+    # một nhiệm vụ năm lần không có nghĩa được điểm gấp năm, mà chơi lại kém hơn
+    # cũng không lấy mất con số đã giành được.
+    player.score = sum(
+        quest_best(answers, uuid.UUID(quest["id"])) for quest in run.snapshot_json["quests"]
+    )
     player.quests_completed = sum(
-        1
-        for quest in run.snapshot_json["quests"]
-        if quest_earned(answers, uuid.UUID(quest["id"])) >= quest["pass_score"]
+        1 for quest in run.snapshot_json["quests"] if quest_ever_passed(answers, quest)
     )
     return player
 
@@ -920,7 +1449,7 @@ async def _all_quests_done(db: AsyncSession, run: StageRun) -> bool:
     for quest in run.snapshot_json["quests"]:
         quest_id = uuid.UUID(quest["id"])
         if not any(
-            quest_earned(rows, quest_id) >= quest["pass_score"] for rows in by_user.values()
+            quest_ever_passed(rows, quest) for rows in by_user.values()
         ):
             return False
     return True
@@ -951,6 +1480,39 @@ def _bonus_for(table: list[dict[str, Any]] | None, remaining_pct: float) -> floa
     return 0.0
 
 
+def thoi_luong_choi(run: StageRun, now: datetime) -> int:
+    """THỜI GIAN LÀM BÀI của một lượt, tính bằng giây, ĐÃ CHẶN TRẦN.
+
+    `now - started_at` là khoảng cách tới lúc CHỐT, không phải thời gian chơi.
+    Hai thứ ấy chỉ bằng nhau khi lượt được chốt đúng lúc nó kết thúc — mà nhánh
+    hết giờ thì hầu như không bao giờ: đồng hồ cạn ở giây thứ 300, còn lời chốt
+    đến từ request kế tiếp của người chơi, hoặc từ vòng quét dọn. Chậm mười tám
+    giây thì báo cáo ghi "5:18" cho một màn dài 5 phút; chậm mười bảy ngày (tab
+    bị bỏ quên) thì ghi 17 ngày. Con số đầu làm người đọc ngờ ngợ, con số sau
+    làm họ thôi tin cả bảng.
+
+    Một hàm RIÊNG, không viết thẳng vào `settle_run`: đây là một luật chơi
+    ("không ai chơi một màn lâu hơn giới hạn giờ của màn"), và luật thì phải
+    gọi được tên và thử được bằng test.
+    """
+    troi = int((now - run.started_at).total_seconds())
+    tran = _gioi_han_giay(run)
+    return max(0, min(troi, tran) if tran is not None else troi)
+
+
+def _gioi_han_giay(run: StageRun) -> int | None:
+    """Giới hạn giờ của màn, đọc từ đề bài đã đóng băng của chính lượt này.
+
+    `None` khi ảnh chụp thiếu trường ấy — lượt cũ từ trước khi có nó, hay dữ
+    liệu vá tay. Khi đó KHÔNG chặn trần: thà ghi một con số thô còn hơn ghi một
+    con số bịa.
+    """
+    try:
+        return int(run.snapshot_json["stage"]["time_limit_seconds"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 async def settle_run(db: AsyncSession, run: StageRun, status: str) -> None:
     """Chốt lượt chơi: thắng/thua, thưởng, trao mảnh bản đồ.
 
@@ -961,8 +1523,14 @@ async def settle_run(db: AsyncSession, run: StageRun, status: str) -> None:
         return
 
     now = datetime.now(UTC)
-    run.ended_at = now
-    run.duration_seconds = int((now - run.started_at).total_seconds())
+
+    run.duration_seconds = thoi_luong_choi(run, now)
+
+    # `ended_at` đi theo, không để lệch: hai trường cùng nói một việc mà trừ
+    # nhau ra số thứ ba thì chỗ nào đọc `ended_at - started_at` cũng sẽ mâu
+    # thuẫn với `duration_seconds`. Với lượt hết giờ, mốc ĐÚNG là lúc đồng hồ
+    # cạn, không phải lúc vòng quét đi ngang.
+    run.ended_at = run.started_at + timedelta(seconds=run.duration_seconds)
 
     players = list(
         await db.scalars(select(StageRunPlayer).where(StageRunPlayer.stage_run_id == run.id))
@@ -1090,3 +1658,118 @@ async def count_shards(db: AsyncSession, world_id: uuid.UUID, user_id: uuid.UUID
         )
         or 0
     )
+
+
+# --------------------------------------------------------------------------
+# NHẬT KÝ HỘI THOẠI
+# --------------------------------------------------------------------------
+
+
+async def dialogue_messages(
+    db: AsyncSession, user: User, run: StageRun, quest_id: uuid.UUID
+) -> list[DialogueMessage]:
+    """Đoạn chat của MỘT học sinh với người canh giữ của MỘT nhiệm vụ."""
+    rows = await db.scalars(
+        select(DialogueMessage)
+        .where(
+            DialogueMessage.stage_run_id == run.id,
+            DialogueMessage.user_id == user.id,
+            DialogueMessage.quest_id == quest_id,
+        )
+        .order_by(DialogueMessage.seq)
+    )
+    return list(rows)
+
+
+async def append_dialogue(
+    db: AsyncSession,
+    user: User,
+    run: StageRun,
+    quest_id: uuid.UUID,
+    lines: list[dict[str, Any]],
+) -> list[DialogueMessage]:
+    """Ghi thêm mấy câu vào cuối đoạn chat, và trả về CẢ đoạn.
+
+    ## Số thứ tự do SERVER đánh
+
+    Client biết mình vừa nói câu thứ mấy, nhưng hai tab cùng mở một lượt chơi
+    thì cả hai cùng tưởng mình là câu thứ năm. Đếm ở đây, dưới một ràng buộc
+    duy nhất, thì hai tab ra hai số khác nhau.
+
+    ## Gọi lại KHÔNG sinh thêm dòng
+
+    Mạng chập chờn thì giao diện gửi lại cùng một mẻ. Câu nào đã có đúng nội
+    dung ấy ở cuối đoạn thì bỏ qua — không phải một phép chống trùng hoàn hảo,
+    nhưng đủ cho thứ duy nhất thật sự xảy ra: gửi lại nguyên mẻ vừa gửi.
+
+    Trả về cả đoạn chứ không chỉ phần vừa thêm: giao diện vẽ một danh sách, và
+    nhận về đúng thứ sắp vẽ thì không phải tự ghép hai nguồn lại.
+    """
+    have = await dialogue_messages(db, user, run, quest_id)
+    seq = have[-1].seq + 1 if have else 0
+
+    # MỘT câu hỏi = MỘT tin nhắn đề bài, và nó được SỬA chứ không nhân đôi.
+    #
+    # Đề bài đổi chữ giữa chừng là chuyện thường: câu nghe mở đầu bằng một bong
+    # bóng chỉ có tiếng, rồi học sinh bấm Lời thoại và chữ hiện ra, rồi mua bản
+    # dịch và có thêm một dòng phụ. Coi mỗi lần đổi là một tin mới thì cùng một
+    # câu hỏi mọc ra hai ba bong bóng, mỗi cái mang một nửa nội dung và một
+    # trình phát của cùng một tệp tiếng. Đã nhìn thấy thật.
+    #
+    # Chỉ `prompt` mới gộp. Lời phán thì lặp lại hợp lệ — mỗi lần thử một câu.
+    theo_cau = {
+        m.question_id: m
+        for m in have
+        if m.kind == DialogueKind.PROMPT and m.question_id is not None
+    }
+
+    def khoa(role: Any, kind: Any, text: Any, question_id: Any) -> tuple:
+        return (role, kind, text or "", str(question_id) if question_id else None)
+
+    # Chỉ so với tin NGAY TRƯỚC, không so với tám tin gần nhất.
+    #
+    # Phép chống trùng này chỉ để chặn đúng MỘT chuyện: mạng chập chờn và giao
+    # diện gửi lại nguyên mẻ vừa gửi. Lần gửi lại luôn nằm sát ngay sau.
+    #
+    # So với tám tin thì nó nuốt cả những câu TRÙNG HỢP LÀ GIỐNG NHAU: lời khen
+    # bốc trong đúng năm câu, nên trả lời đúng hai câu liền nhau là có khoảng
+    # một phần năm cơ hội nghe lại đúng câu ấy — và câu thứ hai bị coi là bản
+    # sao rồi biến mất. Trên màn hình nó hiện ra rồi mất ngay khi server trả về
+    # bản đã gộp: học sinh thấy nộp bài xong không ai nói gì.
+    cuoi = have[-1] if have else None
+    truoc = khoa(cuoi.role, cuoi.kind, cuoi.text, cuoi.question_id) if cuoi else None
+
+    for line in lines:
+        question_id = line.get("question_id")
+
+        if line.get("kind") == DialogueKind.PROMPT and question_id is not None:
+            cu = theo_cau.get(uuid.UUID(str(question_id)))
+            if cu is not None:
+                cu.text = line.get("text") or ""
+                cu.aside = line.get("aside")
+                cu.audio_url = line.get("audio_url") or cu.audio_url
+                continue
+
+        key = khoa(line.get("role"), line.get("kind"), line.get("text"), question_id)
+        if key == truoc:
+            continue
+        truoc = key
+        db.add(
+            DialogueMessage(
+                stage_run_id=run.id,
+                user_id=user.id,
+                quest_id=quest_id,
+                seq=seq,
+                role=line["role"],
+                kind=line["kind"],
+                text=line.get("text") or "",
+                aside=line.get("aside"),
+                tone=line.get("tone"),
+                question_id=question_id,
+                audio_url=line.get("audio_url"),
+            )
+        )
+        seq += 1
+
+    await db.commit()
+    return await dialogue_messages(db, user, run, quest_id)

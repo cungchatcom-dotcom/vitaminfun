@@ -23,6 +23,20 @@ class Character(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "characters"
     __table_args__ = (
         CheckConstraint("status IN ('draft', 'published')", name="status_valid"),
+        CheckConstraint("kind IN ('player', 'npc')", name="kind_valid"),
+    )
+
+    #: Nhân vật học sinh CHỌN, hay NGƯỜI CANH GIỮ đứng trong màn hội thoại.
+    #:
+    #: Một bảng, hai vai trò — không tách bảng `npcs` riêng: cả hai dùng CHUNG
+    #: toàn bộ bộ máy spritesheet ở `character_actions` (tải ảnh, cắt khung, xem
+    #: trước, đổi `frame_rate`). Tách ra là chép cả bộ đó lần thứ hai, rồi hai
+    #: bản lệch nhau ở đúng chỗ ai đó sửa một bên.
+    #:
+    #: Cái giá: mọi chỗ liệt kê nhân vật cho học sinh CHỌN phải lọc
+    #: `kind = 'player'`. Cái giá đó đếm được, và nó nhỏ.
+    kind: Mapped[str] = mapped_column(
+        String(16), default="player", server_default="player", nullable=False
     )
 
     name_i18n: Mapped[dict[str, str]] = mapped_column(TranslatableText, nullable=False)
@@ -31,6 +45,16 @@ class Character(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     avatar_media_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True
+    )
+    #: GIỌNG ĐỌC của nhân vật, trỏ vào danh mục `voices`.
+    #:
+    #: Một cột cho CẢ HAI vai: nhân vật học sinh và người canh giữ đều là một
+    #: dòng `characters`, nên cả hai gán giọng bằng cùng một chỗ.
+    #:
+    #: `NULL` = chưa gán ai. Không có giọng mặc định: một giọng người dựng không
+    #: chọn mà tự nói lên là thứ họ sẽ đi tìm chỗ tắt.
+    voice_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("voices.id", ondelete="SET NULL"), nullable=True
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(16), default=PublishStatus.DRAFT, nullable=False)

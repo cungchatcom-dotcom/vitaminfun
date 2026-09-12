@@ -138,6 +138,29 @@ class StageRunPlayer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: Còn lại bao nhiêu sau khi tiêu cho các hành động trợ giúp.
     energy_remaining: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    #: Những gợi ý ĐÃ MUA trong lượt này: `{"<question_id>": ["translation"]}`.
+    #:
+    #: Trả tiền một lần, xem lại bao nhiêu lần cũng được. Học sinh đóng bảng câu
+    #: hỏi rồi mở lại mà bị trừ tiếp là một cái bẫy, không phải một luật chơi —
+    #: và họ sẽ học được cách duy nhất để không mất năng lượng là đừng bao giờ
+    #: xin giúp, tức là đúng ngược cái mà năng lượng sinh ra để khuyến khích.
+    #:
+    #: Một cột JSONB trên chính người chơi trong lượt đó, không phải một bảng
+    #: riêng: nó chỉ có nghĩa trong phạm vi một lượt, chết theo lượt, và không
+    #: ai truy vấn ngược nó bao giờ.
+    hints_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+
+    #: Mỗi nhiệm vụ đang ở VÒNG thứ mấy: `{quest_id: n}`. Thiếu khoá = vòng 1.
+    #:
+    #: Phải lưu riêng chứ không suy từ `quest_answers`: bấm "Làm lại" xong mà
+    #: chưa trả lời câu nào thì vòng mới chưa có dòng nào để mà suy ra, và mọi
+    #: phép đếm lượt thử sẽ đọc nhầm sang vòng cũ.
+    rounds_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+
     #: Chỗ nhân vật đang đứng, hệ toạ độ thế giới 3200×1800.
     #:
     #: `NULL` = chưa đi đâu cả; cảnh đặt nhân vật ở chỗ xuất phát mặc định.
@@ -185,11 +208,16 @@ class QuestAnswer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         # Cả hai ràng buộc đều tính tới `question_id`: một nhiệm vụ chứa nhiều
         # câu hỏi (GAME_DOMAIN §1.5b), người chơi trả lời từng câu một.
+        # Cả hai đều tính tới `round_no`: chơi lại một nhiệm vụ là một VÒNG
+        # mới, và vòng hai phải được trả lời lại đúng những câu của vòng một.
+        # Thiếu nó thì khoá lần thử từ chối lần nộp đầu của vòng hai, còn chỉ
+        # mục "đúng một lần" từ chối việc trả lời đúng lại.
         UniqueConstraint(
             "stage_run_id",
             "user_id",
             "quest_id",
             "question_id",
+            "round_no",
             "attempt_no",
             name="uq_quest_answers_attempt",
         ),
@@ -199,10 +227,12 @@ class QuestAnswer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "user_id",
             "quest_id",
             "question_id",
+            "round_no",
             unique=True,
             postgresql_where=text("is_correct"),
         ),
         CheckConstraint("attempt_no >= 1", name="attempt_no_positive"),
+        CheckConstraint("round_no >= 1", name="round_no_positive"),
         CheckConstraint("energy_spent >= 0", name="energy_spent_non_negative"),
         CheckConstraint("skill_pts_awarded >= 0", name="skill_pts_non_negative"),
     )
@@ -226,7 +256,19 @@ class QuestAnswer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("questions.id", ondelete="RESTRICT"), nullable=False
     )
 
-    #: Lần thử thứ mấy: 1, 2, 3... Trần đọc từ `balance_json.maxAttemptsPerQuest`.
+    #: VÒNG chơi thứ mấy của nhiệm vụ này, đếm từ 1.
+    #:
+    #: Người chơi bấm "Làm lại" là mở một vòng mới: mọi câu trong nhiệm vụ trở
+    #: về trắng, lượt thử đếm lại từ đầu. Dòng cũ KHÔNG bị xoá — nhật ký vẫn nói
+    #: đúng họ đã làm gì ở mỗi vòng, và báo cáo đọc vòng TỐT NHẤT.
+    #:
+    #: Vòng "hiện tại" không suy được từ bảng này: bấm Làm lại xong mà chưa trả
+    #: lời câu nào thì vòng mới chưa có dòng nào. Nó nằm ở
+    #: `stage_run_players.rounds_json`.
+    round_no: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    #: Lần thử thứ mấy TRONG VÒNG NÀY: 1, 2... Trần đọc từ
+    #: `balance_json.maxAttemptsPerQuestion`.
     attempt_no: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     response_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)

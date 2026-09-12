@@ -312,20 +312,17 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
                 onRemoveQuestion={(linkId) => withQuest(() => removeQuestQuestion(linkId))}
                 onRemove={() => withError(() => deleteQuest(quest.id))}
                 onView={setViewingQuestionId}
-                // Nhiệm vụ NPC sửa TÊN HIỂN THỊ, nhiệm vụ thường sửa KHOÁ VẬT THỂ.
-                //
-                // Khoá vật thể của NPC cố định là `npc` và không đổi được (cảnh
-                // và migration đều gọi đúng cái tên đó), nên ô sửa ở hàng đó
-                // phải trỏ vào thứ duy nhất còn đổi được — và cũng là thứ học
-                // sinh thật sự nhìn thấy.
+                // TÊN đi vào `name_i18n`, cho MỌI nhiệm vụ — cùng cột mà
+                // trình thiết kế và cả màn chơi của học sinh đang đọc.
                 onRename={(next) =>
                   withQuest(() =>
-                    quest.phase === 'advisor'
-                      ? updateQuest(quest.id, {
-                          name_i18n: { ...quest.name_i18n, [locale]: next },
-                        })
-                      : updateQuest(quest.id, { quest_object_key: next }),
+                    updateQuest(quest.id, {
+                      name_i18n: { ...quest.name_i18n, [locale]: next },
+                    }),
                   )
+                }
+                onSetObjectKey={(next) =>
+                  withQuest(() => updateQuest(quest.id, { quest_object_key: next }))
                 }
               />
             ))}
@@ -455,6 +452,9 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
       {viewingQuestionId && (
         <QuestionViewer
           questionId={viewingQuestionId}
+          // Nhiệm vụ đang mở — để popup biết người canh giữ nào đọc đề bài.
+          questId={activeQuestId ?? undefined}
+          worldId={worldId}
           onClose={() => setViewingQuestionId(null)}
         />
       )}
@@ -475,6 +475,7 @@ function QuestRow({
   onRemove,
   onView,
   onRename,
+  onSetObjectKey,
 }: {
   quest: Quest;
   active: boolean;
@@ -486,6 +487,7 @@ function QuestRow({
   onRemove: () => void;
   onView: (questionId: string) => void;
   onRename: (next: string) => void;
+  onSetObjectKey: (next: string) => void;
 }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -513,11 +515,17 @@ function QuestRow({
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs text-slate-500">#{quest.order_index}</span>
 
-        {/* Bấm vào TÊN là mở ô sửa, không phải chọn nhiệm vụ — nên chặn ở đây. */}
+        {/* TÊN NHIỆM VỤ — đúng cái tên trình thiết kế hiện và học sinh nhìn
+            thấy trong game (`questLabel` dùng chung cho cả ba chỗ).
+
+            Trước đây hàng này hiện `quest_object_key` cho nhiệm vụ thường, nên
+            cùng một nhiệm vụ mang hai cái tên ở hai màn quản trị: `object_5` ở
+            đây, "Evidence That Remains" ở trình thiết kế. Hai màn chỉ là hai
+            cách sửa CÙNG MỘT thứ, nên chúng phải gọi nó cùng một tên. */}
         <span onClick={stopSelect}>
           <InlineName
-            value={isAdvisor ? questLabel(quest, locale, t) : quest.quest_object_key}
-            title={t(isAdvisor ? 'stage.builder.renameNpc' : 'stage.builder.renameHint')}
+            value={questLabel(quest, locale, t)}
+            title={t('stage.builder.renameQuest')}
             className="w-40 font-medium text-slate-100"
             onCommit={onRename}
             onStartEditing={() => {
@@ -527,6 +535,25 @@ function QuestRow({
             }}
           />
         </span>
+
+        {/* KHOÁ VẬT THỂ — vẫn sửa được ở đây, nhưng trông đúng thân phận của
+            nó: một khoá kỹ thuật cỡ nhỏ, chữ mono, không phải tiêu đề.
+
+            Nhiệm vụ NPC không có ô này: khoá của nó cố định là `npc`, cảnh
+            Phaser và migration đều gọi đúng cái tên đó. */}
+        {!isAdvisor && (
+          <span onClick={stopSelect}>
+            <InlineName
+              value={quest.quest_object_key}
+              title={t('stage.builder.renameHint')}
+              className="font-mono text-xs text-slate-500"
+              onCommit={onSetObjectKey}
+              onStartEditing={() => {
+                if (!active) onSelect();
+              }}
+            />
+          </span>
+        )}
 
         <span className="flex flex-1 flex-wrap items-center gap-2 text-left">
           <Badge tone={isAdvisor ? 'info' : 'neutral'}>{t(`stage.phase.${quest.phase}`)}</Badge>

@@ -26,7 +26,7 @@ import {
 } from '@/lib/worlds';
 
 import { AudioPanel } from './audio-panel';
-import { CluebookPanel } from './cluebook-panel';
+import { StageAudioPanel } from './audio-tools';
 import { IntroVideoPanel } from './intro-video-panel';
 import { BackgroundLayer } from '@/components/game/background-layer';
 import { PulseFields } from './pulse-fields';
@@ -416,6 +416,17 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
               className="inline-flex items-center gap-2 rounded-lg border border-orichalcum-500/40 bg-orichalcum-500/10 px-4 py-2 text-sm font-medium text-orichalcum-400 transition hover:bg-orichalcum-500/20"
             >
               🧪 {t('stage.builder.playTest')}
+            </Link>
+            {/* Bố cục màn HỘI THOẠI là một hệ toạ độ khác (1000x700) và một bộ
+                kéo thả khác, nên nó có màn hình riêng — nhưng lối vào phải nằm
+                ở đây, vì đây là chỗ người dựng đang làm đồ hoạ cho màn chơi. */}
+            <Link
+              href={localizedPath(
+                `/teacher/worlds/${worldId}/stages/${stageId}/dialogue`,
+                locale,
+              )}
+            >
+              <Button variant="secondary">{t('designer.toDialogue')}</Button>
             </Link>
             <Link href={localizedPath(`/teacher/worlds/${worldId}/stages/${stageId}`, locale)}>
               <Button variant="secondary">{t('designer.backToList')}</Button>
@@ -858,21 +869,6 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
 
           <WalkareaPanel walk={walk} />
 
-          {/* Sổ tay và lời chia tay của NPC — cùng một khoảnh khắc trong trận,
-              nên cùng một thẻ. Đặt TRƯỚC danh sách nhiệm vụ vì đó là thứ nhiệm
-              vụ NPC dẫn tới, và người dựng soạn nó ngay sau khi soạn xong chuỗi
-              hội thoại. */}
-          <CluebookPanel
-            stage={stage}
-            locale={locale}
-            onPatch={(payload) =>
-              void withError(async () => {
-                const fresh = await updateStage(stageId, payload);
-                setStage((prev) => (prev ? { ...prev, ...fresh } : prev));
-              })
-            }
-          />
-
           <AudioPanel
             backgroundKind={backgroundKind}
             surface="stage"
@@ -882,6 +878,19 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
             onSave={patchAudio}
             onError={setErrorKey}
           />
+
+          {/* SINH TIẾNG ĐỌC cho CẢ MÀN. Ở đây chứ không ở popup từng nhiệm vụ:
+              người dựng vừa lắp xong câu hỏi cho năm nhiệm vụ và muốn một cú
+              bấm, chứ không muốn mở lần lượt năm cái popup. */}
+          <Card>
+            <SectionTitle>{t('audio.title')}</SectionTitle>
+            <StageAudioPanel
+              stageId={stageId}
+              worldId={worldId}
+              locale={locale}
+              onError={setErrorKey}
+            />
+          </Card>
 
           <Card>
             <div className="mb-3 flex items-center justify-between">
@@ -969,8 +978,18 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
         <QuestEditorDialog
           stageCode={stage.stage_code}
           quest={editing}
+          // Lời chia tay và sổ tay soạn NGAY TRONG popup nhiệm vụ NPC — cạnh
+          // người canh giữ đọc chúng. Xem `CluebookPanel`.
+          stage={stage}
+          worldId={worldId}
           locale={locale}
           onChanged={applyQuest}
+          onStagePatch={(payload) =>
+            void withError(async () => {
+              const fresh = await updateStage(stageId, payload);
+              setStage((prev) => (prev ? { ...prev, ...fresh } : prev));
+            })
+          }
           onReload={reload}
           onClose={() => setEditingId(null)}
         />

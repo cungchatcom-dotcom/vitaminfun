@@ -16,6 +16,8 @@ export type SubmitQuestOut = components['schemas']['SubmitQuestOut'];
 export type RunResult = components['schemas']['RunResultOut'];
 export type Review = components['schemas']['ReviewOut'];
 export type PlayCharacter = components['schemas']['PlayCharacterOut'];
+/** Một người đứng trong màn hội thoại: người canh giữ, hoặc học sinh. */
+export type DialogueActor = components['schemas']['DialogueActor'];
 
 export const startRun = (stageId: string) =>
   request<Run>(`/play/stages/${stageId}/start`, { method: 'POST' });
@@ -75,6 +77,18 @@ export const submitQuest = (runId: string, questId: string) =>
   request<SubmitQuestOut>(`/play/runs/${runId}/quests/${questId}/submit`, { method: 'POST' });
 
 /**
+ * LÀM LẠI một nhiệm vụ từ đầu — mở một VÒNG mới.
+ *
+ * Mọi câu trong nhiệm vụ trở về trắng, lượt thử đếm lại, đoạn chat xoá đi. Nhật
+ * ký các vòng cũ được server giữ nguyên và báo cáo đọc vòng TỐT NHẤT, nên chơi
+ * lại kém hơn không mất gì.
+ *
+ * Trả về cả lượt chơi: tiến độ, điểm và bản nháp đều vừa đổi.
+ */
+export const retryQuest = (runId: string, questId: string) =>
+  request<Run>(`/play/runs/${runId}/quests/${questId}/retry`, { method: 'POST' });
+
+/**
  * Chọn — hoặc đổi — nhân vật cho một world.
  *
  * Trả về NGUYÊN bản chi tiết world sau khi đổi, không phải một câu "ok": màn
@@ -86,3 +100,42 @@ export const pickCharacter = (worldId: string, characterId: string) =>
     method: 'PUT',
     body: { character_id: characterId },
   });
+
+export type Translation = components['schemas']['TranslationOut'];
+
+/**
+ * Mua một gợi ý của câu hỏi — TỐN năng lượng.
+ *
+ * `POST` vì nó tiêu một thứ: một đường `GET` thì trình duyệt, proxy hay một cú
+ * tải lại trang đều có quyền gọi lại mà không hỏi ai. Trả một lần rồi thì server
+ * không trừ nữa, nên gọi lại là an toàn.
+ */
+export const buyHint = (runId: string, questionId: string, kind: 'transcript' | 'translation') =>
+  request<Translation>(`/play/runs/${runId}/questions/${questionId}/hints/${kind}`, {
+    method: 'POST',
+  });
+
+
+/**
+ * ĐOẠN CHAT với người canh giữ của một nhiệm vụ.
+ *
+ * Đọc lúc mở bảng hội thoại: vào lại một nhiệm vụ đang dở thì cuộn lên vẫn thấy
+ * nguyên những câu đã hỏi và đã trả lời, kể cả sau khi đóng trình duyệt.
+ */
+export const getDialogue = (runId: string, questId: string) =>
+  request<DialogueThread>(`/play/runs/${runId}/quests/${questId}/dialogue`);
+
+/**
+ * Ghi thêm mấy câu vừa nói ra, và nhận về CẢ đoạn chat.
+ *
+ * Gửi cả mẻ chứ không từng câu một: một lượt hỏi-đáp sinh ra hai ba câu liền
+ * nhau, và ba lượt gọi mạng cho một cú bấm là ba chỗ để hỏng lẻ tẻ.
+ */
+export const appendDialogue = (runId: string, questId: string, lines: DialogueLineIn[]) =>
+  request<DialogueThread>(`/play/runs/${runId}/quests/${questId}/dialogue`, {
+    method: 'POST',
+    body: { lines },
+  });
+
+export type DialogueThread = components['schemas']['DialogueThreadOut'];
+export type DialogueLineIn = components['schemas']['DialogueLineIn'];

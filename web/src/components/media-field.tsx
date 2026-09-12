@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api-error';
 import { AUDIO_ACCEPT, VIDEO_ACCEPT, uploadMedia } from '@/lib/media';
 
@@ -51,6 +52,7 @@ export function MediaField({
    * không ai kiểm được. Chỗ gọi dùng nó để CẢNH BÁO, không để chặn.
    */
   onDuration,
+  actions,
 }: {
   kind: 'audio' | 'video';
   value: MediaValue;
@@ -61,6 +63,14 @@ export function MediaField({
   disabled?: boolean;
   emptyHint?: string;
   onDuration?: (seconds: number) => void;
+  /**
+   * Nút thêm, đặt CÙNG HÀNG với nút Gỡ nhưng căn phải.
+   *
+   * Sinh giọng đọc là một cách LÀM RA cái tệp này, ngang hàng với tải lên — nên
+   * nút của nó thuộc về đây, cạnh tệp nó tạo ra, chứ không nằm ở một khối khác
+   * cách mấy dòng.
+   */
+  actions?: ReactNode;
 }) {
   const t = useTranslations();
   const [uploading, setUploading] = useState(false);
@@ -86,7 +96,10 @@ export function MediaField({
       <audio
         src={value.url}
         controls
-        className="w-full"
+        // Thanh ngang THẤP. Trình phát mặc định cao chừng 54px và chiếm mất
+        // cả một khoảng trong cột cấu hình — ở đây nó chỉ để nghe kiểm tra
+        // một lần, không phải để ngồi nghe.
+        className="h-8 w-full"
         preload="metadata"
         onLoadedMetadata={(e) => onDuration?.(e.currentTarget.duration)}
       />
@@ -130,15 +143,24 @@ export function MediaField({
         <p className="text-[11px] leading-snug text-orichalcum-400">⚠ {emptyHint}</p>
       )}
 
-      {value.mediaId && !uploading && (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onChange({ mediaId: null, url: null })}
-          className="text-xs text-slate-500 transition hover:text-coral-500"
-        >
-          {removeLabel}
-        </button>
+      {/* HÀNG THAO TÁC: gỡ ở trái, việc khác căn phải.
+          Nút Gỡ là NÚT thật chứ không phải một dòng chữ gạch chân — nó xoá một
+          thứ, và một thao tác xoá trông như chú thích thì hoặc bị bỏ sót, hoặc
+          bị bấm nhầm. */}
+      {((value.mediaId && !uploading) || actions) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {value.mediaId && !uploading && (
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={disabled}
+              onClick={() => onChange({ mediaId: null, url: null })}
+            >
+              {removeLabel}
+            </Button>
+          )}
+          {actions && <div className="ml-auto">{actions}</div>}
+        </div>
       )}
     </div>
   );

@@ -7,11 +7,16 @@ import type { BackgroundKind } from '@/lib/media';
 /**
  * Lớp NỀN của một màn hình: ảnh tĩnh hoặc video.
  *
- * Một component cho cả năm chỗ đang vẽ nền — bản đồ thiên hà, phòng chờ world,
- * mặt màn trên minimap, và hai khung xem trước trong trình thiết kế. Trước đây
- * cả năm chỗ đều là cùng một thẻ `<img>` chép ra năm lần; thêm nhánh video vào
- * từng bản chép là năm chỗ để quên `playsInline`, và một trong số đó sẽ bung
- * toàn màn hình trên iPhone.
+ * Một component cho MỌI chỗ vẽ nền — bản đồ thiên hà, phòng chờ world, mặt màn
+ * trên minimap, màn hội thoại với người canh giữ, và các khung xem trước trong
+ * trình thiết kế. Trước đây mỗi chỗ là một thẻ `<img>` chép ra một bản; thêm
+ * nhánh video vào từng bản chép là ngần ấy chỗ để quên `playsInline`, và một
+ * trong số đó sẽ bung toàn màn hình trên iPhone.
+ *
+ * Cảnh báo đó không thừa: màn hội thoại ra đời sau, và nó đã ra đời với đúng
+ * một thẻ `<img>` viết tay. Hậu quả là mọi màn chơi có nền VIDEO thì bong bóng
+ * hội thoại của học sinh nằm trên một tấm nền trống trơn, trong khi bên giáo
+ * viên — vốn đi qua component này — vẫn thấy nền bình thường.
  *
  * Loại nền do SERVER trả xuống (`background_kind`), không đoán theo đuôi file
  * trong URL — xem `BackgroundKind` bên `api/app/modules/worlds/schemas.py`.

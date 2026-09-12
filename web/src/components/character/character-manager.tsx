@@ -6,9 +6,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Skeleton } from '@/components/ui/primitives';
-import { ACTION_SUGGESTIONS, spriteFrame } from '@/game/character';
+import {
+  ACTION_SUGGESTIONS,
+  DIALOGUE_POSES,
+  frameSize,
+  spriteFrame,
+} from '@/game/character';
 
 import { AvatarCropper } from './avatar-cropper';
+import { VoiceHealthPanel } from './voice-health';
+import { VoicePicker } from './voice-picker';
 import { ApiError } from '@/lib/api-error';
 import {
   createCharacter,
@@ -24,6 +31,10 @@ import { ownText, pickText } from '@/lib/i18n-text';
 import { IMAGE_ACCEPT, uploadMedia } from '@/lib/media';
 import { localizedPath } from '@/lib/routes';
 
+/** Hai vai dùng chung màn hình này. Thứ tự này là thứ tự hai thẻ ở trên danh sách. */
+const KINDS = ['player', 'npc'] as const;
+type Kind = (typeof KINDS)[number];
+
 /**
  * Quản lý nhân vật.
  *
@@ -33,31 +44,57 @@ import { localizedPath } from '@/lib/routes';
  *
  * Ảnh đại diện và spritesheet là HAI thứ, không thay nhau được: một tấm chân
  * dung đẹp thì không cắt ra thành khung đi bộ được.
+ *
+ * **Người canh giữ (NPC) cũng ở đây**, phân biệt bằng `kind`. Không có màn quản
+ * lý NPC riêng: cả hai vai cần đúng một bộ máy — tải spritesheet, cắt khung, xem
+ * trước, chỉnh khung/giây. Tách ra là chép cả bộ đó lần thứ hai, rồi hai bản
+ * lệch nhau ở đúng chỗ ai đó sửa một bên. Khác nhau chỉ ở BỘ TÊN tư thế được
+ * gợi ý, và đó là một mảng, không phải một màn hình.
  */
-export function CharacterManager() {
+export function CharacterManager({
+  initialId,
+  initialKind,
+}: {
+  initialId?: string;
+  initialKind?: Kind;
+}) {
   const t = useTranslations();
   const locale = useLocale();
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorKey, setErrorKey] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
   const [newName, setNewName] = useState('');
+  //: Thẻ đang mở. Nó vừa lọc danh sách, vừa quyết định vai của nhân vật tạo mới
+  //: — đang đứng ở thẻ "Người canh giữ" mà bấm Thêm thì ra một NPC. Một ô chọn
+  //: vai nữa cạnh nút Thêm chỉ để nói lại điều màn hình đã nói rồi.
+  const [kind, setKind] = useState<Kind>(initialKind ?? 'player');
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (): Promise<Character[] | null> => {
     try {
-      setCharacters(await listCharacters());
+      const list = await listCharacters();
+      setCharacters(list);
       setErrorKey(null);
+      return list;
     } catch (error) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
+      return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void reload().then((list) => {
+      // Mở sẵn thẻ ĐÚNG VAI của nhân vật được trỏ tới. Nút "Sửa ảnh" bên trình
+      // thiết kế nhiệm vụ dẫn thẳng tới một NPC; tới nơi mà thẻ đang là "Nhân
+      // vật" thì danh sách bên trái không dòng nào sáng lên, và người ta tưởng
+      // đường dẫn hỏng chứ không nghĩ là mình đang đứng nhầm thẻ.
+      const found = initialId ? list?.find((c) => c.id === initialId) : null;
+      if (found) setKind(found.kind);
+    });
+  }, [reload, initialId]);
 
   function apply(updated: Character) {
     setCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
@@ -77,7 +114,7 @@ export function CharacterManager() {
     if (!name) return;
     // CHỈ cần cái tên — ảnh và hành động thêm sau. Bắt điền đủ mọi thứ để tạo
     // một nhân vật rỗng là cách chắc chắn để không ai tạo nhân vật nào.
-    const created = await guard(() => createCharacter({ name_i18n: { [locale]: name } }));
+    const created = await guard(() => createCharacter({ kind, name_i18n: { [locale]: name } }));
     if (!created) return;
     setNewName('');
     await reload();
@@ -94,6 +131,7 @@ export function CharacterManager() {
   }
 
   const selected = characters.find((c) => c.id === selectedId) ?? null;
+  const shown = characters.filter((c) => c.kind === kind);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -105,6 +143,13 @@ export function CharacterManager() {
       />
       <PageHeader title={t('character.title')} description={t('character.subtitle')} />
 
+      {/* Dịch vụ giọng đọc còn sống không — hỏi ngay khi mở màn. Người dựng vào
+          đây để GÁN GIỌNG, và biết dịch vụ đang hỏng trước khi chọn thì hơn là
+          sau khi đã chọn xong và bấm sinh. Không tốn ký tự nào. */}
+      <div className="mt-3">
+        <VoiceHealthPanel />
+      </div>
+
       {errorKey && (
         <p role="alert" className="mb-4 rounded-lg bg-coral-500/15 px-4 py-2 text-sm text-coral-500">
           {t(errorKey)}
@@ -113,12 +158,32 @@ export function CharacterManager() {
 
       <div className="grid items-start gap-5 lg:grid-cols-[20rem_1fr]">
         <Card>
-          <SectionTitle>{t('character.list', { count: characters.length })}</SectionTitle>
+          <SectionTitle>{t('character.list', { count: shown.length })}</SectionTitle>
+
+          <div className="mb-3 flex gap-1 rounded-lg bg-abyss-950/60 p-1">
+            {KINDS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setKind(option)}
+                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition ${
+                  option === kind
+                    ? 'bg-abyss-700 text-slate-100'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {t(`character.kind.${option}`)}
+                <span className="ml-1.5 font-mono text-[11px] text-slate-500">
+                  {characters.filter((c) => c.kind === option).length}
+                </span>
+              </button>
+            ))}
+          </div>
 
           <div className="mb-3 flex gap-2">
             <input
               className="field-input"
-              placeholder={t('character.newName')}
+              placeholder={t(`character.newName.${kind}`)}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => {
@@ -130,11 +195,11 @@ export function CharacterManager() {
             </Button>
           </div>
 
-          {characters.length === 0 ? (
-            <EmptyState label={t('character.empty')} />
+          {shown.length === 0 ? (
+            <EmptyState label={t(`character.empty.${kind}`)} />
           ) : (
             <ul className="space-y-1">
-              {characters.map((character) => (
+              {shown.map((character) => (
                 <li key={character.id}>
                   <button
                     type="button"
@@ -186,22 +251,6 @@ export function CharacterManager() {
       </div>
     </div>
   );
-}
-
-/**
- * Bề rộng và chiều cao MỘT khung, suy từ khổ cả tấm.
- *
- * Tấm dải ngang `n` khung thì mỗi khung rộng `ảnh ÷ n`, cao bằng cả ảnh.
- *
- * Suy LẠI mỗi lần số khung đổi, không đông cứng lúc tải lên. Bản trước tính
- * một lần rồi thôi: ai tải ảnh lên khi ô "Số khung" còn là 1 thì bề rộng khung
- * bằng cả tấm — với một tấm 5128px thì con số đó vượt trần và server từ chối
- * bằng một câu "Some fields are not valid" chẳng chỉ ra chỗ nào sai. Sửa số
- * khung thành 8 cũng không cứu được, vì bề rộng đã lưu rồi.
- */
-function frameSize(sheetW: number | null | undefined, sheetH: number | null | undefined, frames: number) {
-  if (!sheetW || !sheetH || frames < 1) return {};
-  return { frame_width: Math.round(sheetW / frames), frame_height: sheetH };
 }
 
 function CharacterEditor({
@@ -310,6 +359,17 @@ function CharacterEditor({
             <Badge tone={character.status === 'published' ? 'success' : 'neutral'}>
               {t(character.status === 'published' ? 'status.published' : 'status.draft')}
             </Badge>
+            {/* Đổi vai được, vì ai cũng có lúc tạo nhầm thẻ — và cách còn lại là
+                xoá đi làm lại, mất luôn spritesheet đã tải. */}
+            <select
+              className="field-input w-auto py-1 text-xs"
+              aria-label={t('character.kindLabel')}
+              value={character.kind}
+              onChange={(e) => void patch({ kind: e.target.value as Character['kind'] })}
+            >
+              <option value="player">{t('character.kind.player')}</option>
+              <option value="npc">{t('character.kind.npc')}</option>
+            </select>
             <Button
               variant={character.status === 'published' ? 'secondary' : 'primary'}
               size="sm"
@@ -405,6 +465,20 @@ function CharacterEditor({
               </div>
             </div>
           </div>
+
+          {/* GIỌNG ĐỌC, ngay cạnh ảnh đại diện: hai thứ cùng trả lời một câu
+              hỏi — nhân vật này TRÔNG và NGHE ra sao. Cùng một ô cho cả nhân
+              vật học sinh lẫn người canh giữ. */}
+          <div className="sm:col-span-3">
+            <VoicePicker
+              value={character.voice_id ?? null}
+              voice={character.voice ?? null}
+              onPick={(voiceId) =>
+                void patch(voiceId ? { voice_id: voiceId } : { clear_voice: true })
+              }
+              onError={onError}
+            />
+          </div>
         </div>
       </Card>
 
@@ -433,18 +507,29 @@ function CharacterEditor({
           <Button variant="primary" size="sm" onClick={() => void addAction()}>
             {t('character.addAction')}
           </Button>
-          {/* Gợi ý tên chuẩn. Ai cũng có thể gõ tên khác, nhưng để mỗi nhân vật
-              một bộ tên riêng thì cảnh chơi không biết gọi hành động nào. */}
-          {ACTION_SUGGESTIONS.filter((key) => !used.has(key)).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setNewAction(key)}
-              className="rounded-full border border-abyss-700 px-2.5 py-0.5 text-xs text-slate-400 transition hover:border-lagoon-500 hover:text-lagoon-400"
-            >
-              + {key}
-            </button>
-          ))}
+        </div>
+
+        {/* Gợi ý tên chuẩn, chia theo VIỆC chứ không đổ chung một đống. Ai cũng
+            có thể gõ tên khác — `action_key` là chuỗi tự do — nhưng để mỗi nhân
+            vật một bộ tên riêng thì cảnh chơi không biết gọi hành động nào.
+            Chỉ hiện tư thế CÒN THIẾU: chip biến mất chính là dấu đã xong. */}
+        <div className="mb-4 space-y-2">
+          <Suggestions
+            label={t('character.posesDialogue')}
+            hint={t(`character.posesDialogueHint.${character.kind}`)}
+            keys={DIALOGUE_POSES[character.kind].filter((key) => !used.has(key))}
+            onPick={setNewAction}
+          />
+          {/* Người canh giữ đứng yên một chỗ và chỉ nói: nó không đi, không
+              chạy, không nhảy. Gợi ý những tư thế đó là mời tải lên bảy tấm ảnh
+              không màn nào vẽ tới. */}
+          {character.kind === 'player' && (
+            <Suggestions
+              label={t('character.posesMotion')}
+              keys={ACTION_SUGGESTIONS.filter((key) => !used.has(key))}
+              onPick={setNewAction}
+            />
+          )}
         </div>
 
         {actions.length === 0 ? (
@@ -484,6 +569,42 @@ function CharacterEditor({
           </ul>
         )}
       </Card>
+    </div>
+  );
+}
+
+/**
+ * Một hàng chip "còn thiếu tư thế này".
+ *
+ * Rỗng thì biến mất cả hàng, kể cả cái nhãn: một nhãn "Tư thế hội thoại" đứng
+ * trên khoảng trống không nói được là đã đủ hay là màn hình hỏng.
+ */
+function Suggestions({
+  label,
+  hint,
+  keys,
+  onPick,
+}: {
+  label: string;
+  hint?: string;
+  keys: readonly string[];
+  onPick: (key: string) => void;
+}) {
+  if (keys.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-slate-500">{label}</span>
+      {keys.map((key) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onPick(key)}
+          className="rounded-full border border-abyss-700 px-2.5 py-0.5 text-xs text-slate-400 transition hover:border-lagoon-500 hover:text-lagoon-400"
+        >
+          + {key}
+        </button>
+      ))}
+      {hint && <span className="basis-full text-xs text-slate-600">{hint}</span>}
     </div>
   );
 }

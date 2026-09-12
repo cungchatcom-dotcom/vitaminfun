@@ -87,7 +87,14 @@ export function useDesignBoard({
 
   // Ở ref chứ không state: kéo chuột bắn hàng chục sự kiện mỗi giây, đặt vào
   // state là vẽ lại cả cây component từng lần.
-  const dragging = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const dragging = useRef<{
+    id: string;
+    dx: number;
+    dy: number;
+    /** Chỗ vật thể đứng lúc đặt tay xuống — để biết cú này có DI CHUYỂN không. */
+    x0: number;
+    y0: number;
+  } | null>(null);
   const resizing = useRef<{
     id: string;
     centerX: number;
@@ -151,7 +158,11 @@ export function useDesignBoard({
       resizing.current = null;
       if (resize) {
         setSizeDraft((last) => {
-          if (last && last.id === resize.id) {
+          // KHÔNG ghi nếu cỡ y nguyên. Bấm vào một tay cầm rồi thả ra mà không
+          // rê là một cú BẤM, không phải một cú kéo — mà một lần ghi thừa
+          // không phải lúc nào cũng vô hại: ở màn hội thoại, ghi là biến một
+          // màn đang THỪA KẾ bố cục thành một màn có bố cục riêng.
+          if (last && last.id === resize.id && (last.w !== resize.w || last.h !== resize.h)) {
             commit.current.onResize(resize.id, { w: last.w, h: last.h }, resize.axis);
           }
           return null;
@@ -163,7 +174,10 @@ export function useDesignBoard({
       dragging.current = null;
       if (!drag) return;
       setGhost((last) => {
-        if (last && last.id === drag.id) commit.current.onMove(drag.id, last.x, last.y);
+        // Cùng lý do: chọn một khối là bấm vào nó, và chọn thì không được ghi.
+        if (last && last.id === drag.id && (last.x !== drag.x0 || last.y !== drag.y0)) {
+          commit.current.onMove(drag.id, last.x, last.y);
+        }
         return null;
       });
     }
@@ -184,7 +198,13 @@ export function useDesignBoard({
     startDrag(event, target) {
       event.stopPropagation();
       const point = toWorld(event.clientX, event.clientY);
-      dragging.current = { id: target.id, dx: point.x - target.x, dy: point.y - target.y };
+      dragging.current = {
+        id: target.id,
+        dx: point.x - target.x,
+        dy: point.y - target.y,
+        x0: target.x,
+        y0: target.y,
+      };
       setGhost({ id: target.id, x: target.x, y: target.y });
     },
     startResize(event, target, axis) {

@@ -129,7 +129,10 @@ export function MusicControls({ className = '' }: { className?: string }) {
 
   return (
     <div
-      className={`flex items-center gap-1 rounded-full border border-white/25 bg-black/45 px-1 py-1 backdrop-blur transition hover:bg-black/65 ${className}`}
+      // Rê vào thì viền sáng lên theo, không chỉ nền đậm thêm: cụm này đứng
+      // cạnh mấy nút tròn khác trong HUD, và nếu chỉ đổi nền thì rê trúng cái
+      // nào cũng trông gần như nhau.
+      className={`flex items-center gap-1 rounded-full border border-white/25 bg-black/45 px-1 py-1 backdrop-blur transition hover:border-lagoon-400 hover:bg-black/70 ${className}`}
       onPointerEnter={() => setHover(true)}
       onPointerLeave={() => setHover(false)}
       onFocus={(event) => {

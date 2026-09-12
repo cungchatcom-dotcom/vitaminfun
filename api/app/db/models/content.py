@@ -318,6 +318,18 @@ class World(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: độ khó là việc của người vận hành, không cần lập trình viên, không deploy lại.
     balance_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
+    #: LỜI PHÁN của người canh giữ — ba danh sách câu, dùng chung cả world.
+    #:
+    #: `{"praise": [...], "wrong": [...], "moveOn": [...]}`. Rỗng = dùng bộ mặc
+    #: định trong `messages/`, tức mọi world đang chạy hôm nay không đổi gì.
+    #:
+    #: Ở WORLD chứ không ở từng câu hỏi: đây là giọng điệu của cả thế giới ấy,
+    #: không phải phản hồi cho một bài cụ thể. Câu chê riêng cho một bài thì đã
+    #: có `content_json.wrong_answer_message`.
+    verdict_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+
     status: Mapped[str] = mapped_column(String(16), default=PublishStatus.DRAFT, nullable=False)
 
     def __repr__(self) -> str:
@@ -546,7 +558,38 @@ class Stage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: **Hình khớp CUỐI CÙNG thắng.** Một câu, và nhờ nó mà ghép được các vùng
     #: lồng nhau mà không cần phép toán tập hợp: lối đi quanh một cái hồ là một
     #: oval `allow` rộng, rồi một oval `block` nhỏ đặt đè lên trên.
-    collision_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    #:
+    #: `none_as_null=True` chứ không để mặc định: mặc định của SQLAlchemy biến
+    #: `None` của Python thành JSON `null` — một GIÁ TRỊ nằm trong ô, không phải
+    #: một ô rỗng. Đọc thì vẫn ra `None` nên không ai thấy gì, cho tới ngày có
+    #: người viết `WHERE collision_json IS NULL` và câu đó trả về sai.
+    collision_json: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
+
+    #: BỐ CỤC MÀN HỘI THOẠI — sáu khối do giáo viên kéo thả (§S5b).
+    #:
+    #: Cùng hình dạng với `worlds.lobby_json`, và cố ý thế: khối có `x/y/w/h`,
+    #: `media_id` làm ảnh nền, và một `content` là khung chữ bên trong với toạ
+    #: độ tính bằng PHẦN TRĂM CỦA KHỐI. Xem `LobbySaved` bên
+    #: `web/src/game/world.ts` — đó là bản mô tả chính, cả hai đầu đọc chung.
+    #:
+    #: Sáu khối: `npcAvatar`, `npcBubble`, `playerBubble`, `npcVerdict`,
+    #: `playerAvatar`, `answerBox`.
+    #:
+    #: `NULL` = KẾ THỪA bố cục của màn ĐẦU TIÊN trong world, đúng nếp
+    #: `character_height`. Kế thừa chứ không sao chép: người dựng căn một lần ở
+    #: màn 1 rồi cả world theo, và sửa lại màn 1 sau đó vẫn lan xuống.
+    #:
+    #: Bố cục ở MÀN chứ không ở nhiệm vụ vì một màn có một bộ mặt. Năm nhiệm vụ
+    #: nhân ba mươi màn là 150 lần căn tay cho một world — sẽ không ai làm hết,
+    #: và world sẽ có 150 màn hội thoại lệch nhau.
+    #:
+    #: `none_as_null=True` vì `NULL` ở đây MANG NGHĨA — xem ghi chú ở
+    #: `collision_json`.
+    dialogue_json: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
 
     #: ÂM THANH của màn — nhạc nền, tiếng đi, tiếng đứng.
     #:
@@ -662,6 +705,40 @@ class Quest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: Bề rộng ảnh vật thể, theo pixel hệ toạ độ thế giới. Ảnh giữ đúng tỉ lệ
     #: gốc nên chỉ cần một chiều. NULL = kích thước mặc định của cảnh.
     icon_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    #: NGƯỜI CANH GIỮ nhiệm vụ này — một hàng trong `characters` với
+    #: `kind = 'npc'`, không phải một tấm ảnh.
+    #:
+    #: Vì sao không phải một cột ảnh: người canh giữ cần NHIỀU tư thế — một lúc
+    #: đang nói, một lúc đang chờ học sinh trả lời — và tất cả đều là
+    #: spritesheet để chạy được hoạt ảnh. Đó đúng là thứ `character_actions` đã
+    #: làm từ lâu, với `action_key` là chuỗi tự do.
+    #:
+    #: Không dùng lại `icon_media_id`: cái đó là VẬT THỂ trong cảnh — cột buồm,
+    #: cái hòm — thứ học sinh đi tới và bấm vào. Cái này là NGƯỜI nói chuyện với
+    #: họ. Một tấm ảnh không làm tốt cả hai việc.
+    #:
+    #: NULL = chưa gán ai; hội thoại vẫn chạy với khung avatar trống.
+    npc_character_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("characters.id", ondelete="SET NULL"), nullable=True
+    )
+
+    #: CÂU KHOÁ — người gác cửa nói gì khi học sinh tới một nhiệm vụ chưa mở.
+    #:
+    #: RỖNG là trạng thái bình thường, và nghĩa là "dùng câu tự sinh" — cái câu
+    #: ghép sẵn trong `messages/` có nhắc tên người gác cửa. Nên world nào chưa
+    #: ai soạn thì không đổi một chữ.
+    #:
+    #: Đặt ở TỪNG NHIỆM VỤ chứ không ở màn: mười cánh cửa cùng nói đúng một câu
+    #: thì cánh thứ mười không còn là một nhân vật nói chuyện nữa, nó là một hộp
+    #: thoại lỗi. Mỗi cửa một câu mới là lý do có cột này.
+    #:
+    #: KHÔNG có cột cho tiếng đọc: bản thu nằm ở `voice_lines`, khoá theo
+    #: `(giọng, băm nội dung)`. Thêm một cột ở đây là thêm một chỗ thứ hai giữ
+    #: cùng một sự thật.
+    locked_message_i18n: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
 
     #: Nhịp thở của ảnh: to thêm bao nhiêu PHẦN TRĂM ở đỉnh nhịp.
     #: NULL = mặc định của cảnh. 0 = TẮT hẳn — hai thứ khác nhau, nên cột phải

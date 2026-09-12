@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Vitaminfun",
-    "tagline": "Lạc vào vương quốc huyền thoại"
+    "name": "Vitaverse",
+    "tagline": "Play to Learn"
   },
   "nav": {
     "logout": "Đăng xuất",
@@ -10,7 +10,8 @@
     "media": "Media",
     "accounts": "Tài khoản",
     "play": "Vào chơi",
-    "characters": "Nhân vật"
+    "characters": "Nhân vật",
+    "reports": "Báo cáo"
   },
   "role": {
     "admin": "Quản trị viên",
@@ -26,6 +27,20 @@
     "submitting": "Đang đăng nhập...",
     "demoHint": "Tài khoản mẫu (chỉ có ở môi trường dev)"
   },
+  "signup": {
+    "title": "Tạo tài khoản",
+    "subtitle": "Ba ô, rồi vào chơi luôn",
+    "email": "Email",
+    "displayName": "Họ và tên",
+    "password": "Mật khẩu",
+    "passwordHint": "Ít nhất {min} ký tự",
+    "submit": "Tạo tài khoản",
+    "submitting": "Đang tạo tài khoản...",
+    "noAccount": "Chưa có tài khoản?",
+    "cta": "Đăng ký",
+    "haveAccount": "Đã có tài khoản?",
+    "toLogin": "Đăng nhập"
+  },
   "teacher": {
     "title": "Bảng điều khiển giáo viên",
     "welcome": "Chào {name}",
@@ -39,6 +54,83 @@
     "previewCta": "Chơi thử như học sinh",
     "openBank": "Mở kho câu hỏi",
     "openWorlds": "Dựng world và màn chơi"
+  },
+  "report": {
+    "title": "Kết quả người chơi",
+    "subtitle": "Chỉ tính lượt chơi thật — lượt chơi thử của giáo viên không được tính.",
+    "tz": "Ngày được cắt lúc nửa đêm, giờ {tz}.",
+    "filterWorld": "World",
+    "allWorlds": "Tất cả world",
+    "search": "Tìm",
+    "searchPlaceholder": "Họ tên hoặc email",
+    "kpiPlayers": "Người chơi hôm nay",
+    "kpiRuns": "Lượt chơi hôm nay",
+    "kpiWinRate": "Tỉ lệ qua màn",
+    "kpiAvgScore": "Điểm trung bình",
+    "today": "Hôm nay",
+    "last7d": "7 ngày",
+    "last30d": "30 ngày",
+    "total": "Tổng",
+    "won": "Qua màn",
+    "lost": "Hết giờ",
+    "abandoned": "Bỏ dở",
+    "playing": "Đang chơi",
+    "avgDuration": "Thời lượng TB",
+    "questsDone": "Nhiệm vụ đã xong",
+    "skillPts": "Điểm chiến lực",
+    "chartTitle": "14 ngày gần nhất",
+    "chartPlayers": "Người chơi",
+    "chartRuns": "Lượt chơi",
+    "tableTitle": "Bảng xếp hạng",
+    "rank": "#",
+    "player": "Người chơi",
+    "email": "Email",
+    "skillPtsCol": "Điểm CL",
+    "stagesCompleted": "Màn đã qua",
+    "runsCol": "Lượt chơi",
+    "winsCol": "Qua màn",
+    "playTime": "Thời gian chơi",
+    "lastPlayed": "Chơi gần nhất",
+    "view": "Xem chi tiết",
+    "pageInfo": "{from}–{to} trên {total}",
+    "prev": "Trước",
+    "next": "Sau",
+    "empty": "Chưa có ai chơi",
+    "emptyHint": "Số liệu hiện ra ngay khi có học sinh chơi xong một màn.",
+    "loading": "Đang tải…",
+    "detailRuns": "Lượt chơi",
+    "detailWins": "Qua màn",
+    "detailPlayTime": "Thời gian chơi",
+    "detailSkillPts": "Điểm chiến lực",
+    "joined": "Tạo tài khoản",
+    "worldShards": "Mảnh bản đồ",
+    "firstPlayed": "Chơi lần đầu",
+    "completedAt": "Hoàn thành",
+    "gateOpened": "Mở Cổng Thời gian",
+    "stageCol": "Màn chơi",
+    "bestScore": "Điểm cao nhất",
+    "questsCol": "Nhiệm vụ",
+    "timesPlayed": "Số lần chơi",
+    "bestTime": "Nhanh nhất",
+    "lastRun": "Lần gần nhất",
+    "notPlayed": "Chưa chơi",
+    "recentTitle": "Lượt chơi gần đây",
+    "when": "Thời điểm",
+    "result": "Kết quả",
+    "scoreCol": "Điểm",
+    "durationCol": "Thời lượng",
+    "shard": "Mảnh",
+    "close": "Đóng",
+    "noWorlds": "Người này chưa vào world nào.",
+    "sumNote": "Điểm chiến lực tính riêng theo từng world; không lọc world thì cột này là tổng.",
+    "status": {
+      "won": "Qua màn",
+      "lost_time": "Hết giờ",
+      "abandoned": "Bỏ dở",
+      "playing": "Đang chơi"
+    },
+    "noMatch": "Không tìm thấy người chơi nào khớp",
+    "noMatchHint": "Thử một phần của tên, hoặc địa chỉ email."
   },
   "play": {
     "title": "Bản đồ thiên hà",
@@ -96,6 +188,7 @@
     "TIMEOUT": "Máy chủ không phản hồi. Kiểm tra xem API có đang chạy không.",
     "QUESTION_IN_USE": "Câu hỏi này đang được dùng trong một màn chơi. Gỡ khỏi màn trước rồi mới xoá được.",
     "CHAPTER_HAS_STAGES": "Chương còn {stageCount} màn chơi. Xoá các màn trước rồi mới xoá chương được.",
+    "RUN_STILL_PLAYING": "Lượt chơi chưa kết thúc.",
     "STAGE_HAS_RUNS": "Màn này đã có {runCount} lượt chơi. Xoá là mất lịch sử chơi và điểm đã ghi.",
     "ADVISOR_QUEST_REQUIRED": "Mỗi màn giữ đúng một nhiệm vụ NPC. Đổi tên hay đổi câu hỏi bên trong thì được, gỡ đi thì không.",
     "ADVISOR_LOCKED": "Phải qua nhiệm vụ NPC thì nhiệm vụ này mới mở.",
@@ -103,7 +196,13 @@
     "IMPORT_FILE_UNREADABLE": "Không mở được file. Cần đúng định dạng .xlsx và không đặt mật khẩu.",
     "IMPORT_SHEET_MISSING": "File thiếu sheet Questions.",
     "IMPORT_HEADER_MISSING": "Không tìm thấy hàng tiêu đề có đủ các cột quest_code, question_order, answer_type, question_content.",
-    "IMPORT_NO_ROWS": "Không đọc được dòng nào hợp lệ."
+    "IMPORT_NO_ROWS": "Không đọc được dòng nào hợp lệ.",
+    "NOT_ENOUGH_ENERGY": "Không đủ năng lượng cho lần xin giúp này.",
+    "SIGNUP_DISABLED": "Máy chủ này không cho tự tạo tài khoản. Hãy xin giáo viên một tài khoản.",
+    "SIGNUP_EMAIL_TAKEN": "Email này đã có tài khoản. Hãy đăng nhập.",
+    "SIGNUP_EMAIL_INVALID": "Chuỗi này không giống một địa chỉ email.",
+    "SIGNUP_PASSWORD_TOO_SHORT": "Mật khẩu phải có ít nhất {min} ký tự.",
+    "SIGNUP_NAME_REQUIRED": "Hãy nhập họ tên của bạn."
   },
   "common": {
     "loading": "Đang tải…",
@@ -192,7 +291,9 @@
       "tryIt": "Thử chấm",
       "tryItHint": "Điểm do máy chủ chấm, giống hệt lúc học sinh làm bài thật.",
       "saveFirst": "Lưu câu hỏi trước rồi mới thử chấm được.",
-      "result": "Được {score}/{max} điểm"
+      "result": "Được {score}/{max} điểm",
+      "wrongMessage": "Câu chê riêng cho bài này",
+      "wrongMessageHint": "Để trống thì dùng bộ câu chê của world. Đừng nói ra đáp án — học sinh còn lượt thử."
     },
     "builder": {
       "prompt": "Nhập câu hỏi tại đây",
@@ -343,6 +444,37 @@
       "pickTitle": "Chọn nhân vật",
       "inWorld": "đã có",
       "actionCount": "{count} hành động"
+    },
+    "verdict": {
+      "title": "Lời phán của người canh giữ",
+      "intro": "Giọng điệu của cả world: người canh giữ nói gì khi học sinh trả lời đúng, sai, hay hết lượt. Mỗi dòng một câu. Để trống thì dùng bộ mặc định.",
+      "praise": "Khen — khi trả lời đúng",
+      "praiseHint": "Nhiều câu để một màn không nghe lặp. Màn chơi bốc theo câu hỏi, nên vào lại vẫn nghe đúng câu cũ.",
+      "praisePlaceholder": "Chuẩn.\nTốt lắm!\nĐúng rồi đấy.",
+      "wrong": "Chê — khi trả lời sai và còn lượt",
+      "wrongHint": "Không nói đáp án. Câu chê riêng cho một bài thì soạn ở chính câu hỏi đó.",
+      "wrongPlaceholder": "Chưa đúng. Nghĩ lại xem.\nKhông phải. Thử lần nữa.",
+      "moveOn": "Bỏ qua — khi hết lượt",
+      "moveOnHint": "Người canh giữ chuyển sang câu khác mà không nói đáp án.",
+      "moveOnPlaceholder": "Thôi được, để đó. Ta hỏi câu khác.",
+      "empty": "Đang để trống — màn chơi dùng bộ 12 câu mặc định.",
+      "audioHint": "Soạn xong thì sang từng nhiệm vụ để tạo giọng đọc: mỗi người canh giữ một giọng, nhưng hai nhiệm vụ cùng giọng thì dùng lại bản thu, không tốn thêm.",
+      "reset": "Xoá, dùng bộ mặc định",
+      "greet": "Chào — khi học sinh vừa tới",
+      "greetHint": "Câu đầu tiên, nói trước cả đề bài.",
+      "greetPlaceholder": "Đứng lại. Ta có vài câu hỏi.",
+      "next": "Nối câu — sau khi trả lời đúng",
+      "nextHint": "Một câu ngắn để chuyển sang câu hỏi tiếp theo.",
+      "nextPlaceholder": "Câu tiếp nào.",
+      "passed": "Kết — làm xong và ĐẠT điểm sàn",
+      "passedHint": "Học sinh qua được nhiệm vụ.",
+      "passedPlaceholder": "Xong cả rồi. Ngươi qua được.",
+      "failed": "Kết — làm xong nhưng KHÔNG đạt",
+      "failedHint": "Hết câu mà chưa đủ điểm. Đừng chê nặng — họ sẽ quay lại.",
+      "failedPlaceholder": "Hết câu rồi, nhưng chưa đủ.",
+      "revisit": "Gặp lại — nhiệm vụ đã xong",
+      "revisitHint": "Học sinh đi ngang qua một nhiệm vụ đã hoàn thành.",
+      "revisitPlaceholder": "Nhiệm vụ này ngươi đã làm xong rồi."
     }
   },
   "stage": {
@@ -405,8 +537,8 @@
       "npcGateNote": "Màn nào cũng vào bằng NPC. Các nhiệm vụ còn lại khoá cho tới khi người chơi qua được nó — nhờ vậy ai cũng hoàn thành ít nhất một nhiệm vụ, đúng điều kiện để cả đội được chia mảnh bản đồ.",
       "questRequired": "Bắt buộc",
       "renameStage": "Bấm để đổi tên màn chơi",
-      "renameNpc": "Bấm để đổi tên NPC — đây là cái tên học sinh nhìn thấy",
-      "passScoreHint": "Điểm cần đạt để qua nhiệm vụ. Mặc định bằng tổng điểm của nhiệm vụ ({total}) — để nguyên bằng tổng thì thêm bớt câu hỏi ngưỡng tự đi theo."
+      "passScoreHint": "Điểm cần đạt để qua nhiệm vụ. Mặc định bằng tổng điểm của nhiệm vụ ({total}) — để nguyên bằng tổng thì thêm bớt câu hỏi ngưỡng tự đi theo.",
+      "renameQuest": "Bấm để đổi tên nhiệm vụ — đây là cái tên học sinh nhìn thấy trong game."
     },
     "preview": {
       "subtitle": "Xem trước nội dung màn chơi. Hoàn thành tất cả nhiệm vụ để nhận Mảnh bản đồ #{shard}.",
@@ -431,10 +563,43 @@
     "STAGE_QUEST_PASS_SCORE_TOO_HIGH": "Nhiệm vụ #{questOrder} ({questObject}) cần {passScore} điểm để qua, nhưng tổng chỉ có {totalPoints} — không ai qua nổi."
   },
   "game": {
-    "submit": "NỘP BÀI",
-    "tryAgain": "THỬ LẠI",
+    "submit": "Trả lời",
+    "playAgainQuest": "Chơi lại",
     "continue": "Tiếp tục",
     "nextQuestion": "Câu tiếp →",
+    "npc": {
+      "praise1": "Chuẩn.",
+      "praise2": "Tốt lắm!",
+      "praise3": "Đúng rồi đấy.",
+      "praise4": "Giỏi. Đi tiếp nào.",
+      "praise5": "Chính xác.",
+      "wrong1": "Chưa đúng. Nghĩ lại xem.",
+      "wrong2": "Không phải. Thử lần nữa.",
+      "wrong3": "Chưa phải cái ta cần nghe.",
+      "wrong4": "Sai rồi. Còn một lượt đấy.",
+      "moveOn1": "Thôi được, để đó. Ta hỏi câu khác.",
+      "moveOn2": "Chưa ra à? Bỏ qua, sang câu sau.",
+      "moveOn3": "Để đó đã. Còn câu nữa đây.",
+      "finish": "Hết rồi đấy. Để ta xem cậu làm được tới đâu.",
+      "answering": "Đang trả lời…",
+      "replay": "Nghe lại",
+      "alreadyDone": "Nhiệm vụ này ngươi đã làm xong rồi.",
+      "greet1": "Đứng lại. Ta có vài câu hỏi.",
+      "greet2": "Cuối cùng cũng có người tới. Nghe đây.",
+      "greet3": "Muốn qua chỗ ta thì phải trả lời đã.",
+      "next1": "Câu tiếp nào.",
+      "next2": "Tốt. Còn câu này nữa.",
+      "next3": "Nghe câu sau đây.",
+      "passed1": "Xong cả rồi. Ngươi qua được.",
+      "passed2": "Ta hài lòng. Đường phía trước mở rồi.",
+      "passed3": "Đủ rồi đấy. Đi được.",
+      "failed1": "Hết câu rồi, nhưng chưa đủ. Quay lại khi khá hơn.",
+      "failed2": "Chưa qua được. Luyện thêm rồi tìm ta.",
+      "failed3": "Ta chưa thể cho ngươi qua. Thử lại nhé.",
+      "revisit1": "Nhiệm vụ này ngươi đã làm xong rồi.",
+      "revisit2": "Ta nhớ ngươi. Chỗ này xong rồi, đi tiếp đi.",
+      "revisit3": "Không còn gì để hỏi nữa đâu."
+    },
     "missionComplete": "MISSION COMPLETE",
     "notComplete": "CHƯA HOÀN THÀNH",
     "triesLeft": "Còn {count} lượt thử",
@@ -449,8 +614,17 @@
       "label": "Video mở màn"
     },
     "questsDone": "Nhiệm vụ {done}/{total}",
+    "you": "Bạn",
     "leave": "Rời màn",
-    "review": "Xem lại bài làm",
+    "playAgain": "Chơi lại màn này",
+    "result": {
+      "quests": "Nhiệm vụ",
+      "score": "Điểm",
+      "skillPts": "Chiến lực nhận",
+      "time": "Thời gian",
+      "shards": "Mảnh bản đồ",
+      "worldSkillPts": "Chiến lực world"
+    },
     "backToWorld": "Về bản đồ",
     "victory": "HOÀN THÀNH MÀN CHƠI!",
     "shardEarned": "Cả đội nhận Mảnh bản đồ #{shard}",
@@ -485,7 +659,17 @@
       "mute": "Tắt nhạc",
       "unmute": "Bật nhạc",
       "volume": "Âm lượng"
-    }
+    },
+    "assist": {
+      "replay": "Nghe lại",
+      "transcript": "Lời thoại",
+      "translate": "Bản dịch",
+      "cost": "Xem {name} — tốn {cost} năng lượng",
+      "poor": "Không đủ năng lượng (cần {cost})"
+    },
+    "restart": "Chơi lại",
+    "restartConfirm": "Chơi lại màn này? Lượt đang dở sẽ được ghi nhận là bỏ dở — điểm chiến lực đã kiếm vẫn được giữ, nhưng mất phần thưởng cuối màn và mảnh bản đồ.",
+    "questNotDone": "Chưa đạt"
   },
   "designer": {
     "title": "Thiết kế màn chơi",
@@ -538,24 +722,24 @@
     "characterOwn": "Số riêng của màn này.",
     "characterReset": "Về lại kế thừa",
     "characterNone": "World này chưa có nhân vật nào đã tải spritesheet, nên chưa có gì để ướm cỡ.",
-      "cluebook": {
-        "title": "Sổ tay & lời chia tay NPC",
-        "intro": "Một khoảnh khắc trong trận: học sinh trả lời xong câu cuối của NPC, và cuộc hội thoại sang bước cuối — bước không hỏi gì cả.",
-        "outro": "Lời NPC nói lúc trao",
-        "outroPlaceholder": "Giờ thì tiếp tục hành trình đi và nhận lấy cuốn sổ tay này…",
-        "outroHint": "Hiện trên bảng cuối, ngay trên cái nút. Bỏ trống thì bảng chỉ còn biểu tượng và cái nút.",
-        "outroAudio": "Tiếng của lời chia tay",
-        "outroTranscript": "Hiện luôn đoạn chữ cạnh trình phát",
-        "outroTranscriptHint": "BẬT SẴN — ngược với câu hỏi nghe. Câu hỏi nghe giấu chữ vì đọc được đề thì bài nghe không còn đo gì nữa; lời NPC không phải bài tập, và vừa nghe vừa đọc theo là cách từ mới ở lại.",
-        "bookTitle": "Tên sổ tay",
-        "bookTitlePlaceholder": "SỔ TAY BÍ MẬT CỦA THUYỀN TRƯỞNG DRAKE",
-        "bookTitleHint": "Nói sổ tay này của ai. Bỏ trống thì màn nào cũng lùi về đúng một nhãn chung.",
-        "body": "Nội dung sổ tay",
-        "bodyPlaceholder": "Những bí quyết NPC trao. Xuống dòng ở đâu thì giữ nguyên ở đó.",
-        "bodyHint": "Học sinh mở lại từ biểu tượng 📖 bất cứ lúc nào sau khi đã nhận.",
-        "bodyEmpty": "Chưa có nội dung, nên biểu tượng 📖 sẽ không hiện ra chút nào. Một cái nút bấm vào chẳng bao giờ có gì thì tệ hơn là không có nút.",
-        "notTranslated": "Chưa dịch sang thứ tiếng này. Học sinh đang đọc bằng nó sẽ thấy bản của thứ tiếng nào có chữ."
-      },
+    "cluebook": {
+      "title": "Sổ tay & lời chia tay NPC",
+      "intro": "Một khoảnh khắc trong trận: học sinh trả lời xong câu cuối của NPC, và cuộc hội thoại sang bước cuối — bước không hỏi gì cả.",
+      "outro": "Lời NPC nói lúc trao",
+      "outroPlaceholder": "Giờ thì tiếp tục hành trình đi và nhận lấy cuốn sổ tay này…",
+      "outroHint": "Hiện trên bảng cuối, ngay trên cái nút. Bỏ trống thì bảng chỉ còn biểu tượng và cái nút.",
+      "outroAudio": "Tiếng của lời chia tay",
+      "outroTranscript": "Hiện luôn đoạn chữ cạnh trình phát",
+      "outroTranscriptHint": "BẬT SẴN — ngược với câu hỏi nghe. Câu hỏi nghe giấu chữ vì đọc được đề thì bài nghe không còn đo gì nữa; lời NPC không phải bài tập, và vừa nghe vừa đọc theo là cách từ mới ở lại.",
+      "bookTitle": "Tên sổ tay",
+      "bookTitlePlaceholder": "SỔ TAY BÍ MẬT CỦA THUYỀN TRƯỞNG DRAKE",
+      "bookTitleHint": "Nói sổ tay này của ai. Bỏ trống thì màn nào cũng lùi về đúng một nhãn chung.",
+      "body": "Nội dung sổ tay",
+      "bodyPlaceholder": "Những bí quyết NPC trao. Xuống dòng ở đâu thì giữ nguyên ở đó.",
+      "bodyHint": "Học sinh mở lại từ biểu tượng 📖 bất cứ lúc nào sau khi đã nhận.",
+      "bodyEmpty": "Chưa có nội dung, nên biểu tượng 📖 sẽ không hiện ra chút nào. Một cái nút bấm vào chẳng bao giờ có gì thì tệ hơn là không có nút.",
+      "notTranslated": "Chưa dịch sang thứ tiếng này. Học sinh đang đọc bằng nó sẽ thấy bản của thứ tiếng nào có chữ."
+    },
     "spawn": "Chỗ xuất phát",
     "spawnHint": "Kéo để đặt chỗ người chơi xuất hiện",
     "spawnDefault": "Chưa đặt — người chơi xuất hiện ở chỗ mặc định của cảnh. Kéo nhân vật trên khung thì màn này có chỗ riêng.",
@@ -650,7 +834,18 @@
     "stageCode": "Mã màn chơi",
     "stageCodeHint": "Mã trong file nội dung, ví dụ W1-S1. Điền vào thì câu hỏi đã nhập của màn này tự hiện ra khi lắp nhiệm vụ. Để trống cũng không sao.",
     "questCode": "Mã nhiệm vụ",
-    "questCodeHint": "Mã trong sheet Questions, ví dụ W1-S1-Quest-01. Nhập file mà khớp mã này thì câu hỏi tự lắp vào đây."
+    "questCodeHint": "Mã trong sheet Questions, ví dụ W1-S1-Quest-01. Nhập file mà khớp mã này thì câu hỏi tự lắp vào đây.",
+    "npc": "Người canh giữ",
+    "npcNone": "— Chưa gán ai —",
+    "npcEdit": "Sửa ảnh",
+    "npcNew": "Tạo người canh giữ",
+    "npcHint": "Nhân vật này trò chuyện với học sinh trong nhiệm vụ. Để trống thì khung mặt bỏ trống, hội thoại vẫn chạy.",
+    "toDialogue": "Thiết kế màn hội thoại",
+    "lockedMessage": "Câu khoá",
+    "lockedMessageHint": "Người gác cửa nói gì khi học sinh tới nhiệm vụ này lúc chưa mở. Để trống thì dùng câu tự sinh.",
+    "lockedMessagePlaceholder": "ví dụ: Chưa phải cửa này. Gặp người gác đã.",
+    "lockedVoice": "Thu câu này",
+    "lockedNoVoice": "Người gác cửa của màn chưa có giọng"
   },
   "galaxy": {
     "designer": {
@@ -790,11 +985,17 @@
   },
   "character": {
     "title": "Nhân vật",
-    "subtitle": "Học sinh chọn một nhân vật khi vào world; Phaser vẽ nhân vật đó trong màn chơi.",
-    "list": "Nhân vật ({count})",
+    "subtitle": "Học sinh chọn một nhân vật khi vào world; người canh giữ đứng ở mỗi nhiệm vụ và trò chuyện với họ. Cả hai vẽ bằng cùng một bộ spritesheet.",
+    "list": "Đang có ({count})",
     "add": "Thêm",
-    "newName": "Tên nhân vật mới",
-    "empty": "Chưa có nhân vật nào.",
+    "newName": {
+      "player": "Tên nhân vật mới",
+      "npc": "Tên người canh giữ mới"
+    },
+    "empty": {
+      "player": "Chưa có nhân vật nào.",
+      "npc": "Chưa có người canh giữ nào."
+    },
     "pickOne": "Chọn một nhân vật ở bên trái để sửa.",
     "name": "Tên",
     "bio": "Tiểu sử",
@@ -820,6 +1021,148 @@
     "cropSave": "Dùng vùng này",
     "cropZoom": "Phóng to",
     "sheetSize": "cả tấm {w}×{h}",
-    "framesHint": "Tấm ảnh có bao nhiêu khung"
+    "framesHint": "Tấm ảnh có bao nhiêu khung",
+    "kindLabel": "Vai",
+    "kind": {
+      "player": "Nhân vật",
+      "npc": "Người canh giữ"
+    },
+    "posesDialogue": "Tư thế hội thoại:",
+    "posesMotion": "Tư thế di chuyển:",
+    "posesDialogueHint": {
+      "player": "Thiếu tấm nào thì lùi về “listen”, thiếu cả “listen” thì lùi về ảnh đại diện.",
+      "npc": "Thiếu tấm nào thì lùi về “wait”, thiếu cả “wait” thì lùi về ảnh đại diện."
+    },
+    "voice": "Giọng đọc",
+    "voiceProvider": "Dịch vụ",
+    "voiceGender": "Giới tính",
+    "voiceAge": "Nhóm tuổi",
+    "voiceAny": "Tất cả",
+    "voiceNone": "— Chưa gán giọng —",
+    "voicePreview": "Nghe thử",
+    "voiceHint": "Chọn giọng rồi bấm nút phát để nghe thử. Để trống thì nhân vật chưa có giọng.",
+    "voiceEmpty": "Dịch vụ này chưa có giọng nào trong kho.",
+    "voiceSync": "Kéo danh mục về",
+    "gender": {
+      "male": "Nam",
+      "female": "Nữ",
+      "neutral": "Trung tính"
+    },
+    "age": {
+      "young": "Trẻ",
+      "middle_aged": "Trung niên",
+      "old": "Lớn tuổi"
+    }
+  },
+  "dialogue": {
+    "designer": {
+      "title": "Màn hội thoại",
+      "subtitle": "Cuộc trò chuyện với người canh giữ, xem trước ngay tại đây. Ảnh nền và ảnh bong bóng dùng chung cho mọi nhiệm vụ trong màn — mỗi nhiệm vụ chỉ khác khuôn mặt người canh giữ.",
+      "toScene": "Sang thiết kế cảnh",
+      "sample": "Dữ liệu mẫu",
+      "sampleHint": "Lấy câu hỏi ĐẦU TIÊN của nhiệm vụ đang chọn. Đổi nhiệm vụ chỉ đổi thứ đang xem, không đổi bố cục đã lưu.",
+      "moment": "Khoảnh khắc",
+      "scope": "Phạm vi",
+      "inheriting": "Màn này đang dùng bố cục của màn ĐẦU TIÊN trong world. Kéo một khối bất kỳ là màn này có bố cục riêng, bắt đầu từ đúng chỗ nó đang đứng.",
+      "ownLayout": "Màn này có bố cục RIÊNG. Sửa màn đầu world không lan tới đây nữa.",
+      "clear": "Dùng lại bố cục màn đầu",
+      "confirmClear": "Bỏ bố cục riêng của màn này và quay về bố cục của màn đầu world?",
+      "pickBlock": "Bấm vào một khối trong khung xem trước để sửa nó.",
+      "blockImage": "Ảnh nền của khối",
+      "noSample": "Nhiệm vụ này chưa lắp câu hỏi nào.",
+      "noTextHint": "Khối này không có chữ để căn — nó chỉ có một tấm ảnh.",
+      "npcFor": "Người canh giữ của nhiệm vụ",
+      "panelImage": "Ảnh nền tấm bảng",
+      "panelImageHint": "Để trống thì tấm bảng trong suốt và cảnh chơi hiện xuyên qua — đó là cách thường dùng. Đặt ảnh khi muốn cuộc trò chuyện diễn ra trong một khung cảnh riêng.",
+      "bubbleImages": "Ảnh bong bóng",
+      "bubbleImagesHint": "Không có thì bong bóng dùng kiểu kính mặc định. Ảnh sẽ kéo giãn cho vừa bong bóng, nên hãy dùng khung trơn — bong bóng vẫn dài ra theo chữ.",
+      "pace": "Nhịp trò chuyện",
+      "gap": "Nghỉ giữa hai lượt nói",
+      "gapHint": "Nói xong một câu thì chờ bao lâu mới tới bong bóng sau. Tính từ lúc tiếng dứt, hoặc từ lúc hết quãng đọc nếu câu đó không có tiếng. Mặc định 1,0 giây.",
+      "gapUnit": "giây",
+      "theme": "Bộ áo tấm bảng",
+      "themeHint": "Da của bảng nhiệm vụ — khung, vùng đọc, bong bóng và khối đáp án. Bố cục và cách chạy không đổi."
+    },
+    "block": {
+      "npcAvatar": "Mặt người canh giữ",
+      "npcBubble": "Bong bóng người canh giữ",
+      "playerBubble": "Bong bóng học sinh",
+      "npcVerdict": "Bong bóng đúng/sai",
+      "playerAvatar": "Mặt nhân vật",
+      "answerBox": "Khung nhập đáp án"
+    },
+    "moment": {
+      "ask": "Đang đọc đề",
+      "think": "Đang nghĩ",
+      "right": "Trả lời đúng",
+      "wrong": "Trả lời sai",
+      "answer": "Đang nộp bài"
+    },
+    "sample": {
+      "player": "Học sinh",
+      "question": "Chào nhà thám hiểm. Trả lời được câu này thì ta cho qua.",
+      "answer": "Đây là câu trả lời mẫu.",
+      "verdict": {
+        "ask": "Ta đang chờ câu trả lời của ngươi.",
+        "think": "Cứ từ từ mà nghĩ.",
+        "right": "Chuẩn xác! Ngươi qua được rồi.",
+        "wrong": "Chưa đúng. Thử lại lần nữa xem.",
+        "answer": "Để ta xem nào…"
+      }
+    },
+    "theme": {
+      "classic": "Kính mờ (hiện tại)",
+      "atlantis": "Atlantis"
+    }
+  },
+  "audio": {
+    "title": "Giọng đọc",
+    "promptVoice": "Đề bài đọc bằng giọng của {voice}.",
+    "npcNoVoice": "Người canh giữ chưa được gán giọng. Vào Nhân vật để gán trước.",
+    "noNpc": "Nhiệm vụ chưa gán người canh giữ.",
+    "makePrompt": "Tạo giọng đọc đề bài",
+    "makeOptions": "Tạo giọng đọc đáp án",
+    "optionCast": "Đáp án đọc bằng giọng của những nhân vật này:",
+    "noCast": "Chưa nhân vật nào được gán giọng. Vào Nhân vật để gán trước.",
+    "confirmRedo": "Đã có {count} bản thu rồi. Tạo lại và ghi đè?",
+    "generated": "bản mới",
+    "skipped": "đã có sẵn",
+    "missingVoice": "Chưa có giọng",
+    "nothing": "Không có gì để tạo.",
+    "stageHint": "Tạo cho mọi nhiệm vụ trong màn. Nhiệm vụ nào chưa có giọng thì bỏ qua.",
+    "existing": "Giọng đã thu",
+    "listen": "Nghe",
+    "noOptions": "Câu này không có đáp án để chọn — không có gì để đọc sẵn.",
+    "promptSlot": "Đề bài",
+    "uploadedInUse": "Đang dùng tệp tự tải lên, không phải giọng máy đọc.",
+    "makeOutro": "Tạo giọng đọc lời chia tay",
+    "outroHint": "Lời chia tay đọc bằng chính giọng ở trên:",
+    "castNoVoice": "Nhân vật này chưa được gán giọng.",
+    "working": "Đang tạo giọng đọc…",
+    "workingHint": "Đừng đóng cửa sổ. Việc này có thể mất một lúc.",
+    "workingCount": "Đang tạo {count} bản thu. Đừng đóng cửa sổ.",
+    "hearAs": "Nghe bằng giọng:",
+    "makeVerdict": "Tạo giọng đọc câu khen/chê",
+    "verdictHint": "Bộ câu khen và chê của world, đọc bằng chính giọng ở trên. Nhiệm vụ khác chọn cùng giọng thì dùng lại, không tốn thêm.",
+    "failed": "hỏng",
+    "retryHint": "Phần đã xong vẫn được lưu. Bấm lại chỉ chạy những câu còn thiếu — không tính tiền lần nữa cho câu đã có.",
+    "linesTitle": "Lời phán — nghe thử & thu lại",
+    "noLines": "World này chưa soạn câu phán nào.",
+    "noSound": "chưa có tiếng",
+    "makeMissing": "Thu {count} câu còn thiếu",
+    "redoPicked": "Thu lại {count} câu đã chọn",
+    "browse": "Xem & nghe"
+  },
+  "voiceHealth": {
+    "label": "Dịch vụ giọng đọc:",
+    "check": "Kiểm tra lại",
+    "left": "còn {n} ký tự",
+    "reason": {
+      "no_key": "Chưa đặt ELEVENLABS_API_KEY",
+      "bad_key": "Khoá API sai hoặc hết hạn",
+      "unreachable": "Không gọi được tới dịch vụ",
+      "unsupported": "Dịch vụ này chưa hỗ trợ kiểm tra",
+      "unknown": "Không rõ lý do"
+    }
   }
 }

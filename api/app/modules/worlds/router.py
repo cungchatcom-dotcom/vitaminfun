@@ -16,9 +16,10 @@ from app.core.deps import CurrentUserDep, DbDep, require_role
 from app.core.errors import ConflictError, ErrorCode, NotFoundError, ValidationFailedError
 from app.db.models import (
     Chapter,
+    Character,
     Galaxy,
-    PublishStatus,
     MediaAsset,
+    PublishStatus,
     Quest,
     QuestPhase,
     QuestQuestion,
@@ -207,6 +208,7 @@ async def _world_out(db: DbDep, world: World) -> WorldOut:
         # Trả về bản ĐÃ HỢP NHẤT với mặc định: giao diện không phải tự bù khoá
         # thiếu, và không có hai chỗ cùng biết giá trị mặc định là gì.
         balance=read_balance(world.balance_json),
+        verdict_json=world.verdict_json or {},
         chapter_count=chapters,
         stage_count=stages,
         stage_published_count=published,
@@ -285,18 +287,38 @@ async def _quests_out(db: DbDep, stage_id: uuid.UUID) -> list[QuestOut]:
                 Question.status,
                 Question.content_json,
                 Question.deleted_at,
+                # Mã nội dung của chính câu hỏi — bộ chọn câu hỏi đọc chúng để
+                # biết nhiệm vụ này trước giờ lấy câu từ đâu.
+                Question.stage_code,
+                Question.quest_code,
             ).where(Question.id.in_([link.question_id for link in links]))
         )
         question_rows = {r.id: r for r in rows}
 
     # Nạp URL ảnh của mọi nhiệm vụ trong một lượt, không phải mỗi cái một truy vấn.
-    icon_ids = [q.icon_media_id for q in quests if q.icon_media_id]
+    # Ảnh vật thể VÀ khuôn mặt người canh giữ tra chung MỘT lượt: hai truy vấn
+    # cho hai cột cùng trỏ vào một bảng là một truy vấn thừa, và nhiều nhiệm vụ
+    # rất có thể dùng chung một tấm.
+    icon_ids = {q.icon_media_id for q in quests if q.icon_media_id}
     icons: dict[uuid.UUID, str] = {}
     if icon_ids:
         rows = await db.execute(
             select(MediaAsset.id, MediaAsset.url).where(MediaAsset.id.in_(icon_ids))
         )
         icons = {r.id: r.url for r in rows}
+
+    # Người canh giữ: tên + ảnh đại diện, tra CẢ LOẠT. Chỉ hai thứ đó — danh
+    # sách nhiệm vụ không vẽ tư thế nào, và kéo cả spritesheet về để hiện một
+    # cái tên là tải thừa vài megabyte.
+    npc_ids = {q.npc_character_id for q in quests if q.npc_character_id}
+    npcs: dict[uuid.UUID, tuple[dict[str, str], str | None]] = {}
+    if npc_ids:
+        rows = await db.execute(
+            select(Character.id, Character.name_i18n, MediaAsset.url)
+            .outerjoin(MediaAsset, MediaAsset.id == Character.avatar_media_id)
+            .where(Character.id.in_(npc_ids))
+        )
+        npcs = {r.id: (r.name_i18n or {}, r.url) for r in rows}
 
     by_quest: dict[uuid.UUID, list[QuestQuestionOut]] = {}
     for link in links:
@@ -314,6 +336,8 @@ async def _quests_out(db: DbDep, stage_id: uuid.UUID) -> list[QuestOut]:
                 # Chỉ đề bài. Sơ đồ màn của giáo viên cũng là thứ có thể bị
                 # chiếu lên máy chiếu trong lớp.
                 question_prompt=content.get("prompt") or content.get("template"),
+                stage_code=row.stage_code if row else None,
+                quest_code=row.quest_code if row else None,
             )
         )
 
@@ -334,10 +358,19 @@ async def _quests_out(db: DbDep, stage_id: uuid.UUID) -> list[QuestOut]:
                 scene_y=quest.scene_y,
                 trigger_radius=quest.trigger_radius,
                 icon_media_id=quest.icon_media_id,
+                npc_character_id=quest.npc_character_id,
+                # Câu khoá phải ĐI RA nữa, không chỉ đi vào. Thiếu dòng này thì
+                # ô "Câu khoá" của trình dựng luôn mở ra TRỐNG dù cơ sở dữ liệu
+                # có chữ: người dựng gõ xong, lưu được, quay lại thấy trắng, và
+                # tưởng mình chưa lưu. Danh sách này dựng tay từng trường nên
+                # thêm cột mới ở model là chưa đủ.
+                locked_message_i18n=quest.locked_message_i18n or {},
                 icon_size=quest.icon_size,
                 pulse_percent=quest.pulse_percent,
                 pulse_period_ms=quest.pulse_period_ms,
                 icon_url=icons.get(quest.icon_media_id),
+                npc_name_i18n=npcs.get(quest.npc_character_id, ({}, None))[0],
+                npc_avatar_url=npcs.get(quest.npc_character_id, ({}, None))[1],
                 energy_cost=quest.energy_cost,
                 questions=items,
                 total_points=total,
@@ -440,6 +473,9 @@ async def _stage_out(db: DbDep, stage: Stage, world: World) -> StageOut:
         advisor_outro_show_transcript=stage.advisor_outro_show_transcript,
         cluebook_title_i18n=stage.cluebook_title_i18n,
         cluebook_i18n=stage.cluebook_i18n,
+        dialogue_json=stage.dialogue_json,
+        dialogue_effective=(dialogue := await service.effective_dialogue(db, stage)),
+        dialogue_urls=await service.block_urls(db, dialogue),
         collision=CollisionMap.model_validate(stage.collision_json)
         if stage.collision_json
         else None,
@@ -518,6 +554,7 @@ QUEST_KEEP_FIELDS: tuple[str, ...] = (
     "pulse_period_ms",
     "energy_cost",
     "pass_score",
+    "locked_message_i18n",
 )
 
 #: Trường của NHIỆM VỤ đi qua `_apply_optional`: `null` = XOÁ.
@@ -532,7 +569,15 @@ QUEST_KEEP_FIELDS: tuple[str, ...] = (
 #: một luật, và luật đó chỉ đọc được khi nhìn cả hai cùng lúc. Một trường nằm ở
 #: cả hai chỗ thì kết quả phụ thuộc vào thứ tự hai dòng gọi — xem
 #: `tests/test_stage_spawn.py`.
-QUEST_CLEARABLE_FIELDS: tuple[str, ...] = ("quest_code", "icon_media_id")
+QUEST_CLEARABLE_FIELDS: tuple[str, ...] = (
+    "quest_code",
+    "icon_media_id",
+    "npc_character_id",
+)
+
+#: CÂU KHOÁ đi qua `_apply` như `name_i18n`: `null` = không gửi, `{}` = xoá về
+#: câu tự sinh. Không cần cờ `clear_` riêng vì một dict RỖNG đã nói đủ ý "xoá",
+#: khác hẳn `pass_score` — ở đó `0` là một giá trị thật.
 
 #: Trường của MÀN CHƠI đi qua `_apply`: `null` = "không gửi", giữ nguyên.
 STAGE_KEEP_FIELDS: tuple[str, ...] = (
@@ -766,6 +811,14 @@ async def update_world(
         # GỘP chứ không thay thế: gửi một khoá không được làm mất mười khoá kia.
         world.balance_json = {**(world.balance_json or {}), **payload.balance_json}
 
+    if payload.verdict_json is not None:
+        # THAY HẲN nhóm được gửi. Ở đây một khoá là cả một danh sách câu, và
+        # người dựng xoá bớt một câu thì phép gộp sẽ lặng lẽ giữ nó lại.
+        world.verdict_json = {
+            **(world.verdict_json or {}),
+            **{k: [line.strip() for line in v if line.strip()] for k, v in payload.verdict_json.items()},
+        }
+
     await db.commit()
     await db.refresh(world)
     return await _world_out(db, world)
@@ -965,6 +1018,13 @@ async def update_stage(
     # Vùng đi được thì ngược lại — ghi ĐÈ CẢ CỤC: người dựng gửi lên bản vẽ đầy
     # đủ đang có trên màn hình họ. Trộn từng hình thì hai tab mở cùng lúc sẽ đẻ
     # ra một bản vẽ mà không ai vẽ, và không ai gỡ ra được.
+    # Bố cục hội thoại: cùng luật ghi đè cả cục với vùng đi được ngay dưới.
+    # `clear_dialogue` trả về KẾ THỪA màn đầu của world, không phải về rỗng.
+    if payload.clear_dialogue:
+        stage.dialogue_json = None
+    elif payload.dialogue_json is not None:
+        stage.dialogue_json = payload.dialogue_json
+
     if payload.clear_collision:
         stage.collision_json = None
     elif payload.collision is not None:

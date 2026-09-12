@@ -317,6 +317,9 @@ export class StageScene extends Phaser.Scene {
    * nguyên văn cái đã lưu từ trước, nên một bản vẽ của phiên bản cũ vẫn có thể
    * chui tới đây, và một hình thiếu số đo sẽ thành một bức tường vô hình.
    */
+  /** Những tai nghe đã gắn lên `EventBus`, giữ lại để còn gỡ ra. */
+  private nghe: [string, (...args: never[]) => void][] = [];
+
   private collision: CollisionMap | null = null;
   /**
    * Lưới tìm đường, nướng MỘT LẦN lúc vào màn.
@@ -345,6 +348,8 @@ export class StageScene extends Phaser.Scene {
    * `fitBgVideo()`.
    */
   private bgVideoSize = { w: 0, h: 0 };
+  /** Đã thử tải lại tấm nền chưa. Đúng một lần — xem `retryBackground()`. */
+  private bgRetried = false;
   /** Các bản đã nạp được, khoá theo tên khối. Thiếu = file hỏng hoặc chưa có. */
   private sounds = new Map<AudioSlot, Phaser.Sound.BaseSound>();
   /**
@@ -472,10 +477,13 @@ export class StageScene extends Phaser.Scene {
       if (url && this.audio[slot]?.media_id) this.load.audio(this.audioKey(slot), url);
     }
 
-    // Ảnh hỏng thì bỏ qua, không để cả cảnh chết theo. Cảnh vẫn chơi được với
+    // File hỏng thì bỏ qua, không để cả cảnh chết theo. Cảnh vẫn chơi được với
     // nền biển mặc định, và giáo viên vẫn thấy vật thể để sửa.
+    //
+    // Riêng TẤM NỀN còn được thử lại một lần ở `create()` — mất nền là mất cả
+    // màn hình, không giống mất một cái icon.
     this.load.on('loaderror', (file: { key: string }) => {
-      console.warn('[StageScene] không tải được ảnh:', file.key);
+      console.warn('[StageScene] không tải được:', file.key);
     });
   }
 
@@ -512,31 +520,8 @@ export class StageScene extends Phaser.Scene {
       ? bakeGrid((x, y) => this.canWalk(x, y), { width: WORLD_WIDTH, height: WORLD_HEIGHT })
       : null;
 
-    if (this.cache.video.exists(BG_VIDEO_KEY)) {
-      // Quên khổ của lần dựng TRƯỚC. Cảnh này dựng lại khi đổi màn hay đổi cỡ
-      // cửa sổ, mà trường này sống lâu hơn thẻ video: giữ lại số cũ thì
-      // `fitBgVideo()` thấy "khổ không đổi" và bỏ qua, trong khi thẻ video mới
-      // đang ở tỉ lệ 1. Cùng một cái bẫy với `this.heroAction = ''` bên
-      // `createPlayer()`.
-      this.bgVideoSize = { w: 0, h: 0 };
-      const bg = this.add.video(centerX, centerY, BG_VIDEO_KEY);
-      bg.setOrigin(0.5).setDepth(0);
-      bg.setLoop(true);
-      // CÂM trước, phát sau. Trình duyệt chỉ chặn tiếng tự phát chứ không chặn
-      // video câm, nên khung hình chạy ngay kể cả khi chưa ai chạm vào trang.
-      // `applyVideoSound()` mới là chỗ mở tiếng, và chỉ khi được phép.
-      bg.setMute(true);
-
-      // Khổ khung KHÔNG đặt ở đây — xem `fitBgVideo()` và chú thích của nó.
-      bg.play(true);
-
-      this.bgVideo = bg;
-      this.applyVideoSound();
-    } else if (this.textures.exists('stage_bg')) {
-      const bg = this.add.image(centerX, centerY, 'stage_bg');
-      bg.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
-      bg.setOrigin(0.5).setDepth(0);
-    }
+    // Dựng nền; không dựng được thì thử tải lại MỘT lần — xem `retryBackground()`.
+    if (!this.createBackground(centerX, centerY)) this.retryBackground(centerX, centerY);
 
     this.createStorm();
     this.createQuestProps(centerX, centerY);
@@ -612,14 +597,34 @@ export class StageScene extends Phaser.Scene {
     for (const questId of this.sceneData.lockedQuestIds) this.markLocked(questId);
     for (const questId of this.sceneData.completedQuestIds) this.markCompleted(questId);
 
-    EventBus.on(GAME_EVENTS.QUEST_COMPLETED, ((payload: { questId: string }) => {
-      this.markCompleted(payload.questId);
-      this.flashAt(payload.questId);
-    }) as never);
+    // GẮN rồi phải GỠ. `EventBus` là một singleton của module, sống lâu hơn cả
+    // Phaser: nó còn nguyên khi cảnh bị huỷ và một cảnh mới dựng lên.
+    //
+    // Không gỡ thì mỗi lần dựng lại cảnh — bấm "Chơi lại" giữa trận chẳng hạn —
+    // để lại một bộ tai nghe trỏ vào một cảnh ĐÃ CHẾT. Lần nộp bài sau đó phát
+    // `QUEST_COMPLETED`, tai nghe cũ chạy `markCompleted` trên những đối tượng
+    // đã bị huỷ và NÉM LỖI; `emit` gọi tai nghe đồng bộ nên lỗi ấy bắn ngược
+    // vào chỗ nộp bài, và người canh giữ im bặt giữa cuộc trò chuyện.
+    //
+    // Đã gặp thật, và đó đúng là cái người chơi gọi là "trả lời xong thì treo".
+    this.nghe = [
+      [
+        GAME_EVENTS.QUEST_COMPLETED,
+        (payload: { questId: string }) => {
+          this.markCompleted(payload.questId);
+          this.flashAt(payload.questId);
+        },
+      ],
+      [GAME_EVENTS.QUESTS_UNLOCKED, () => this.unlockAll()],
+      [GAME_EVENTS.STAGE_WON, () => this.showShardVfx()],
+    ];
+    for (const [ten, fn] of this.nghe) EventBus.on(ten, fn as never);
 
-    EventBus.on(GAME_EVENTS.QUESTS_UNLOCKED, (() => this.unlockAll()) as never);
-
-    EventBus.on(GAME_EVENTS.STAGE_WON, (() => this.showShardVfx()) as never);
+    // `shutdown` bắn khi cảnh dừng, `destroy` khi cả game bị gỡ. Nghe cả hai:
+    // đường React gỡ `PhaserCanvas` đi qua `game.destroy()`, không qua
+    // `scene.stop()`.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.thoiNghe());
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => this.thoiNghe());
 
     // Có thể đã đứng sẵn trong một phạm vi ngay lúc vào màn.
     this.settleZone();
@@ -628,6 +633,12 @@ export class StageScene extends Phaser.Scene {
     // và mọi thứ trên đã dựng xong, nên từ đây trở đi màn chơi chạy được thật.
     // Bắn sớm hơn một dòng là hứa một thứ chưa có.
     EventBus.emit(GAME_EVENTS.STAGE_READY);
+  }
+
+  /** Gỡ hết tai nghe khỏi `EventBus`. Gọi hai lần cũng không sao. */
+  private thoiNghe() {
+    for (const [ten, fn] of this.nghe) EventBus.off(ten, fn as never);
+    this.nghe = [];
   }
 
   update(_time: number, delta: number) {
@@ -1070,6 +1081,88 @@ export class StageScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ dựng cảnh
+
+  /**
+   * Dựng tấm nền từ thứ ĐÃ NẰM TRONG KHO của Phaser.
+   *
+   * Trả về `false` khi kho chưa có gì — hoặc màn này vốn không có nền, hoặc
+   * file tải hỏng. Chỗ gọi phân biệt hai trường hợp đó bằng `backgroundUrl`.
+   *
+   * Tách thành hàm riêng vì nó được gọi ở HAI thời điểm: lúc dựng cảnh, và lần
+   * nữa sau khi tải lại. Chiều sâu 0 đứng sau mọi thứ khác (bão ở 4, vật thể ở
+   * 10, nhân vật ở 20), nên thêm muộn vẫn nằm đúng dưới đáy — Phaser xếp lớp
+   * theo `depth`, không theo thứ tự thêm vào.
+   */
+  private createBackground(centerX: number, centerY: number): boolean {
+    if (this.cache.video.exists(BG_VIDEO_KEY)) {
+      // Quên khổ của lần dựng TRƯỚC. Cảnh này dựng lại khi đổi màn hay đổi cỡ
+      // cửa sổ, mà trường này sống lâu hơn thẻ video: giữ lại số cũ thì
+      // `fitBgVideo()` thấy "khổ không đổi" và bỏ qua, trong khi thẻ video mới
+      // đang ở tỉ lệ 1. Cùng một cái bẫy với `this.heroAction = ''` bên
+      // `createPlayer()`.
+      this.bgVideoSize = { w: 0, h: 0 };
+      const bg = this.add.video(centerX, centerY, BG_VIDEO_KEY);
+      bg.setOrigin(0.5).setDepth(0);
+      bg.setLoop(true);
+      // CÂM trước, phát sau. Trình duyệt chỉ chặn tiếng tự phát chứ không chặn
+      // video câm, nên khung hình chạy ngay kể cả khi chưa ai chạm vào trang.
+      // `applyVideoSound()` mới là chỗ mở tiếng, và chỉ khi được phép.
+      bg.setMute(true);
+
+      // Khổ khung KHÔNG đặt ở đây — xem `fitBgVideo()` và chú thích của nó.
+      bg.play(true);
+
+      this.bgVideo = bg;
+      this.applyVideoSound();
+      return true;
+    }
+
+    if (this.textures.exists('stage_bg')) {
+      const bg = this.add.image(centerX, centerY, 'stage_bg');
+      bg.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
+      bg.setOrigin(0.5).setDepth(0);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Tải lại tấm nền MỘT lần nữa, sau khi lần đầu hỏng.
+   *
+   * Vì sao đáng làm: nền là một file có thể vài megabyte, và một lượt tải trượt
+   * — mạng trường học chập chờn, server vừa khởi động lại — thì học sinh chơi
+   * hết cả màn trên một khung hình đen. Không có nút nào để thử lại, và không
+   * có gì trên màn hình nói cho họ biết chuyện gì vừa xảy ra. Trước đây chỗ này
+   * chỉ ghi một dòng vào console rồi thôi.
+   *
+   * Đúng MỘT lần, không phải vòng lặp: nếu file thật sự hỏng hoặc đã bị xoá thì
+   * thử mãi cũng thế, mà mỗi lần thử là thêm vài megabyte trên đường truyền vốn
+   * đã yếu. Hỏng lần hai thì cảnh chơi tiếp với nền biển tự vẽ — mất tấm nền
+   * vẫn còn chơi được, đó là cả lý do cảnh có nền dự phòng.
+   */
+  private retryBackground(centerX: number, centerY: number) {
+    const url = this.sceneData.backgroundUrl;
+    if (!url || this.bgRetried) return;
+    this.bgRetried = true;
+
+    if (this.sceneData.backgroundKind === 'video') {
+      this.load.video(BG_VIDEO_KEY, url, !this.ambientFromVideo);
+    } else {
+      this.load.image('stage_bg', url);
+    }
+
+    // `once`, và gỡ luôn sau một lần: cảnh này còn tải thêm thứ khác về sau
+    // (spritesheet của nhân vật khi người chơi đổi), mà mỗi lần tải xong lại
+    // dựng thêm một tấm nền nữa là chồng nhiều lớp lên nhau.
+    this.load.once('complete', () => {
+      // Cảnh có thể đã bị đóng trong lúc chờ — đổi màn, thoát ra. Dựng thêm
+      // một đối tượng vào một cảnh đã chết là một lỗi khó lần ra.
+      if (!this.scene.isActive()) return;
+      this.createBackground(centerX, centerY);
+    });
+    this.load.start();
+  }
 
   private createStorm() {
     for (let i = 0; i < 90; i += 1) {

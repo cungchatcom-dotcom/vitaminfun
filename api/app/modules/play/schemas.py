@@ -29,6 +29,46 @@ from app.modules.worlds.schemas import AudioTrack, BackgroundKind, CollisionMap
 # ==========================================================================
 
 
+class RunSpriteOut(BaseModel):
+    """Một hành động của nhân vật, đúng thứ Phaser cần để cắt tấm ảnh:
+
+        this.load.spritesheet(key, url, { frameWidth, frameHeight })
+
+    `frames = 1` là hợp lệ: ảnh một khung, vẽ như hình tĩnh.
+
+    Khai báo Ở ĐÂY, trên cùng, vì cả đề bài đóng băng lẫn `RunOut` đều cần —
+    người canh giữ nằm trong đề bài, nhân vật học sinh thì không.
+    """
+
+    action_key: str
+    url: str
+    frames: int
+    frame_width: int
+    frame_height: int
+    frame_rate: int
+
+
+class DialogueActor(BaseModel):
+    """Một người đứng trong màn hội thoại: người canh giữ, hoặc học sinh.
+
+    Cùng một hình dạng cho cả hai vai, vì cả hai là `characters` và cả hai vẽ
+    bằng `character_actions`. Hai khai báo cho cùng một thứ là hai chỗ để lệch
+    nhau khi thêm tư thế.
+
+    `sprites` chỉ mang hành động CÓ ẢNH. Tư thế chưa tải thì lùi về tư thế nghỉ
+    rồi tới `avatar_url` — luật lùi nằm ở `web/src/game/character.ts`, một chỗ.
+    """
+
+    id: uuid.UUID
+    name_i18n: dict[str, str]
+    avatar_url: str | None = None
+    #: Giọng đọc đã gán cho nhân vật. Màn chơi tra `option_audio` bằng nó để
+    #: biết câu trả lời của học sinh được đọc bằng tiếng nào.
+    voice_id: uuid.UUID | None = None
+    sprites: list[RunSpriteOut] = []
+
+
+
 class SnapshotQuestion(BaseModel):
     """Một câu hỏi trong đề đã đóng băng. KHÔNG chứa đáp án."""
 
@@ -48,6 +88,28 @@ class SnapshotQuestion(BaseModel):
     #: giáo viên chưa tải file — màn học sinh khi đó hiện thẳng đoạn chữ ra.
     audio_url: str | None = None
 
+    #: TIẾNG ĐỌC TỪNG PHƯƠNG ÁN: `{voice_id: {option_key: url}}`.
+    #:
+    #: Theo GIỌNG chứ không phải một bộ phẳng: câu trả lời là thứ nhân vật HỌC
+    #: SINH nói, mà nhân vật ấy do chính em chọn và đổi được giữa hai lượt — còn
+    #: đề bài thì đóng băng lúc bắt đầu. Chọn hộ một giọng ở đây là đóng băng cả
+    #: một lựa chọn chưa xảy ra.
+    #:
+    #: Rỗng là chuyện thường: tiếng cho phương án luôn là TUỲ CHỌN.
+    option_audio: dict[str, dict[str, str]] = {}
+
+    #: Câu này CÓ bản dịch hay không — chỉ cái CÓ hay KHÔNG, không phải bản dịch.
+    #:
+    #: Bản dịch nằm trong `answer_json` và phải trả bằng năng lượng mới xem
+    #: được, nên nó không bao giờ đi cùng đề bài. Nhưng giao diện phải biết có
+    #: nên vẽ cái nút Dịch hay không TRƯỚC khi học sinh bấm: một cái nút bấm vào
+    #: rồi báo "câu này không có bản dịch" là đã tiêu mất một nhịp chú ý của
+    #: người đang bí, và một con số `bool` thì không lộ ra chữ nào.
+    has_translation: bool = False
+    #: Câu này có LỜI THOẠI để mua hay không. Câu đọc thì không; câu nghe mà
+    #: giáo viên đã bật `show_transcript` cũng không — chữ hiện sẵn rồi.
+    has_transcript: bool = False
+
 
 class SnapshotQuest(BaseModel):
     id: uuid.UUID
@@ -61,6 +123,9 @@ class SnapshotQuest(BaseModel):
     trigger_radius: int | None = None
     #: URL ảnh vật thể, đã đóng băng vào snapshot.
     icon_url: str | None = None
+    #: NGƯỜI CANH GIỮ nhiệm vụ này, đã đóng băng cùng đề bài — tên, ảnh đại
+    #: diện, và mọi tư thế đã tải. `None` = chưa gán ai.
+    npc: DialogueActor | None = None
     #: Bề rộng ảnh theo hệ toạ độ thế giới. None = mặc định của cảnh.
     icon_size: int | None = None
     #: Nhịp thở của ảnh. None = mặc định của cảnh, 0 = tắt hẳn.
@@ -68,6 +133,32 @@ class SnapshotQuest(BaseModel):
     pulse_period_ms: int | None = None
     energy_cost: int
     pass_score: int
+
+    #: CÂU KHOÁ do giáo viên soạn cho riêng nhiệm vụ này. `{}` = màn chơi dùng
+    #: câu tự sinh trong `messages/` (có nhắc tên người gác cửa).
+    locked_message_i18n: dict[str, str] = {}
+    #: `câu chữ → URL tiếng`, đọc bằng giọng NGƯỜI GÁC CỬA của màn.
+    #:
+    #: Bảng chứ không phải một URL, cùng hình dạng với `verdict_audio`: ngôn ngữ
+    #: do MÁY HỌC SINH chọn, nên server không biết trước câu nào sẽ hiện ra.
+    #: Thiếu câu nào thì vắng câu đó — tiếng luôn là TUỲ CHỌN.
+    locked_audio: dict[str, str] = {}
+
+    #: LỜI PHÁN của người canh giữ — chữ của WORLD, đã đóng băng.
+    #:
+    #: Giữ NGUYÊN BA NHÓM (`praise` · `wrong` · `moveOn`), không gộp phẳng: màn
+    #: chơi chọn câu theo nhóm — khen khi đúng, chê khi sai — nên một danh sách
+    #: phẳng thì không còn biết câu nào dùng lúc nào.
+    #:
+    #: Rỗng = world chưa soạn bộ riêng, và màn chơi dùng bộ mặc định trong
+    #: `messages/` — đúng như mọi lượt đang chạy hôm nay.
+    verdict: dict[str, list[str]] = {}
+    #: `câu chữ → URL tiếng`, đọc bằng giọng của CHÍNH người canh giữ này.
+    #:
+    #: Thiếu câu nào thì vắng câu đó: tiếng luôn là TUỲ CHỌN, không bao giờ là
+    #: điều kiện để cuộc trò chuyện đi tiếp.
+    verdict_audio: dict[str, str] = {}
+
     questions: list[SnapshotQuestion]
 
 
@@ -114,6 +205,15 @@ class SnapshotStage(BaseModel):
     #: URL từng khối tiếng, ĐÓNG BĂNG như ảnh nền: đổi file giữa chừng thì hai
     #: máy đang chơi cùng màn sẽ nghe hai thứ khác nhau.
     audio_urls: dict[str, str] = {}
+    #: BỐ CỤC MÀN HỘI THOẠI, đã giải xong kế thừa từ màn đầu của world.
+    #:
+    #: `{}` = chưa ai căn gì, giao diện tự dùng bố cục mặc định của nó. Đóng
+    #: băng ở dạng đã giải: lượt đang chơi không được đi hỏi lại màn 1, vì màn 1
+    #: có thể đã đổi — hoặc bị xoá — từ lúc lượt này bắt đầu.
+    dialogue: dict[str, Any] = {}
+    #: URL ảnh nền từng khối, ĐÓNG BĂNG như `audio_urls` và vì cùng lý do: đổi
+    #: file giữa chừng thì hai máy đang chơi cùng màn sẽ thấy hai thứ khác nhau.
+    dialogue_urls: dict[str, str] = {}
 
 
 class StageSnapshot(BaseModel):
@@ -134,6 +234,16 @@ class QuestionProgress(BaseModel):
     completed: bool
     #: Còn mấy lượt thử. `null` = không giới hạn.
     attempts_left: int | None
+    #: ĐÃ thử mấy lần — số dòng `quest_answers` của chính người này cho câu này.
+    #:
+    #: Không suy được từ `attempts_left`: nhiệm vụ NPC không có trần nên trường
+    #: đó là `null`, mà đó lại đúng là nhiệm vụ thử nhiều lần nhất.
+    #:
+    #: Màn hội thoại cần con số này để dựng lại đúng cuộc trò chuyện khi học
+    #: sinh vào lại: lời của người canh giữ chọn theo `(question_id, attempt_no)`
+    #: chứ không phải ngẫu nhiên, nên thiếu nó là mỗi lần vào lại NPC nói một
+    #: câu khác cho cùng một lần thử. Xem GAME_DOMAIN §3f.
+    attempts_used: int = 0
     #: Bài đang DỞ — đã chọn nhưng chưa nộp. `null` = chưa chọn gì.
     #:
     #: Có mặt để vào lại là khôi phục được đúng cái người chơi đang làm. Đây
@@ -169,32 +279,12 @@ class TeammateProgress(BaseModel):
     quest_ids_completed: list[uuid.UUID]
 
 
-class RunSpriteOut(BaseModel):
-    """Một hành động của nhân vật, đúng thứ Phaser cần để cắt tấm ảnh:
-
-        this.load.spritesheet(key, url, { frameWidth, frameHeight })
-
-    `frames = 1` là hợp lệ: ảnh một khung, vẽ như hình tĩnh.
-    """
-
-    action_key: str
-    url: str
-    frames: int
-    frame_width: int
-    frame_height: int
-    frame_rate: int
-
-
-class RunCharacterOut(BaseModel):
+class RunCharacterOut(DialogueActor):
     """Nhân vật người chơi đã chọn cho world của màn này.
 
-    Chỉ những hành động CÓ ẢNH mới đi kèm: hành động chưa tải spritesheet thì
-    Phaser không có gì để nạp.
+    Không thêm trường nào so với `DialogueActor` — giữ tên riêng vì `RunOut`
+    dùng nó, và một cái tên nói đúng vai thì đọc chỗ gọi dễ hơn.
     """
-
-    id: uuid.UUID
-    name_i18n: dict[str, str]
-    sprites: list[RunSpriteOut] = []
 
 
 class RunOut(BaseModel):
@@ -218,6 +308,12 @@ class RunOut(BaseModel):
     #: Năng lượng đã cấp cho NGƯỜI GỌI trong lượt này. `0` = chưa qua NPC nên
     #: chưa được cấp — giao diện dựa vào đúng con số này để biết nên vẽ thanh
     #: năng lượng hay vẽ dòng "qua NPC để nhận".
+    #: Giá MỘT lần xin giúp, đọc từ `balance_json` của world.
+    #:
+    #: Gửi kèm lượt chơi chứ không để giao diện tự biết: nó là một con số cân
+    #: bằng, giáo viên đổi được cho từng world, và một bản chép ở client thì sẽ
+    #: nói sai đúng vào cái world vừa được chỉnh.
+    hint_cost: int = 0
     my_energy_granted: int
     #: Còn lại bao nhiêu sau khi tiêu cho các hành động trợ giúp.
     my_energy_remaining: int
@@ -262,12 +358,26 @@ class SaveDraftIn(BaseModel):
     response: dict[str, Any] | None = None
 
 
+class TranslationOut(BaseModel):
+    """Bản dịch của một câu hỏi, sau khi đã trả bằng năng lượng."""
+
+    text: str
+    #: Năng lượng còn lại SAU khi trừ. Trả về ngay để thanh HUD không phải hỏi
+    #: lại — và để con số trên màn hình không lệch với con số ở server dù chỉ
+    #: một nhịp.
+    my_energy_remaining: int
+
+
 class SubmitQuestOut(BaseModel):
     """Phản hồi khi nộp CẢ MỘT NHIỆM VỤ.
 
-    ⚠️ Ba trường. Không điểm, không đáp án, không giải thích — xem ghi chú đầu
-    file. Muốn biết từng câu đúng sai thì đọc `my_progress` của lượt chơi, ở đó
-    cũng chỉ có xong/chưa xong.
+    ⚠️ KHÔNG điểm, KHÔNG đáp án, KHÔNG giải thích, KHÔNG điểm chiến lực — xem
+    ghi chú đầu file. Những trường dưới đây chỉ nói XONG hay CHƯA.
+
+    Mang đủ để màn chơi tự cập nhật, KHÔNG phải gọi thêm `GET /runs/{id}`. Lần
+    nộp nào cũng tải lại cả lượt chơi là gửi lại 66 KB, trong đó 62 KB là đề bài
+    đã đóng băng và không bao giờ đổi trong suốt một lượt — mỗi câu trả lời của
+    mỗi học sinh, suốt cả buổi.
     """
 
     #: Cả nhiệm vụ đã đạt điểm qua ải chưa — đây là thứ hiện "MISSION COMPLETE".
@@ -279,6 +389,31 @@ class SubmitQuestOut(BaseModel):
     #: Nộp bài không tiêu năng lượng, nhưng con số vẫn đi kèm: chính lần nộp làm
     #: xong nhiệm vụ NPC là lần năng lượng được CẤP, và giao diện phải thấy ngay.
     my_energy: int
+
+    #: Tiến độ của CHÍNH nhiệm vụ vừa nộp, sau khi chấm.
+    #:
+    #: `completed` ở đây là vòng TỐT NHẤT (đã qua một lần thì mãi là đã qua),
+    #: khác với `quest_completed` ở trên — cái đó nói về đúng lần nộp này.
+    quest: QuestProgress
+
+    #: Cổng NPC đã mở với người này chưa, tính SAU lần nộp này.
+    #:
+    #: Một cờ thay cho cả danh sách: mở khoá là mở HẾT, nên màn chơi chỉ cần
+    #: biết có hay không rồi tự gỡ ổ khoá trên mọi nhiệm vụ.
+    unlocked: bool
+
+    #: Trạng thái lượt chơi sau lần nộp — `playing`, `won`, ...
+    #:
+    #: Câu trả lời cuối cùng có thể là câu làm xong cả màn, và lúc đó `settle_run`
+    #: chốt lượt ngay trong chính request này.
+    run_status: str
+
+    #: Quỹ năng lượng được CẤP cho người này, sau lần nộp.
+    #:
+    #: Đi cùng `my_energy` vì chính lần nộp làm xong nhiệm vụ NPC là lần quỹ
+    #: được cấp: trước đó nó bằng 0. Thiếu nó thì ô năng lượng trên HUD mất mẫu
+    #: số đúng vào giây nó vừa có nghĩa lần đầu.
+    my_energy_granted: int
 
 
 # ==========================================================================
@@ -329,12 +464,23 @@ class ReviewQuestion(BaseModel):
     attempts: list[ReviewAttempt]
     earned: float
     skill_pts_awarded: int
+    #: CÁCH RA ĐỀ, lấy từ đề bài đã đóng băng — không hỏi lại bảng `questions`.
+    #:
+    #: Màn xem lại phải vẽ đúng câu hỏi mà học sinh ĐÃ làm. Giáo viên đổi một
+    #: câu từ đọc sang nghe sau đó thì bài chữa vẫn phải là bài họ đã ngồi làm,
+    #: không phải một câu khác mang cùng mã.
+    prompt_kind: Literal["text", "audio"] = "text"
+    show_transcript: bool = False
+    audio_url: str | None = None
 
 
 class ReviewQuest(BaseModel):
     quest_id: uuid.UUID
     order_index: int
     quest_object_key: str
+    #: Tên nhiệm vụ do giáo viên đặt. Rỗng thì giao diện lùi về nhãn dịch hoặc
+    #: về chính `quest_object_key` — cùng luật với trong trận (`questLabel`).
+    name_i18n: dict[str, str] = Field(default_factory=dict)
     phase: Literal["advisor", "main"]
     pass_score: int
     earned: float
@@ -346,6 +492,12 @@ class ReviewOut(BaseModel):
     """Màn xem lại (S6b) — CHỈ bài của chính người gọi."""
 
     run_id: uuid.UUID
+    #: Hai khoá để dựng hai cái nút ở cuối màn — "Chơi lại màn này" và
+    #: "Về world". Trả kèm ở đây chứ không bắt giao diện gọi thêm một vòng:
+    #: màn xem lại vốn đã biết mình thuộc lượt chơi nào, và một vòng gọi nữa
+    #: chỉ để lấy hai UUID là một vòng thừa.
+    stage_id: uuid.UUID
+    world_id: uuid.UUID
     stage_name_i18n: dict[str, str]
     status: str
     quests: list[ReviewQuest] = Field(default_factory=list)
@@ -594,3 +746,52 @@ class PlayWorldDetailOut(PlayWorldOut):
     #: Chỉ trả về màn còn giờ: lượt đã hết giờ thì bấm vào cũng là bắt đầu lại
     #: từ đầu, nên dẫn người ta tới đó là hứa một thứ không có.
     resume_stage_id: uuid.UUID | None = None
+
+
+# --------------------------------------------------------------------------
+# NHẬT KÝ HỘI THOẠI
+# --------------------------------------------------------------------------
+
+
+class DialogueLineIn(BaseModel):
+    """Một câu vừa được nói ra, gửi lên để ghi lại."""
+
+    #: `npc` hoặc `player`.
+    role: str = Field(max_length=8)
+    #: `intro` · `prompt` · `answer` · `verdict` · `outro`.
+    kind: str = Field(max_length=16)
+    text: str = ""
+    #: Dòng phụ nhỏ dưới câu chính — bản dịch, hay transcript của câu nghe.
+    aside: str | None = None
+    #: `praise` · `wrong` · `None`. Chỉ đổi màu chữ.
+    tone: str | None = Field(default=None, max_length=8)
+    question_id: uuid.UUID | None = None
+    audio_url: str | None = None
+
+
+class AppendDialogueIn(BaseModel):
+    """Một mẻ câu nói. Gửi cả mẻ chứ không từng câu một.
+
+    Một lượt hỏi-đáp sinh ra hai ba câu liền nhau, và ba lượt gọi mạng cho một
+    cú bấm là ba chỗ để hỏng lẻ tẻ — nửa đoạn chat ghi được, nửa không.
+    """
+
+    lines: list[DialogueLineIn] = []
+
+
+class DialogueLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    seq: int
+    role: str
+    kind: str
+    text: str
+    aside: str | None = None
+    tone: str | None = None
+    question_id: uuid.UUID | None = None
+    audio_url: str | None = None
+
+
+class DialogueThreadOut(BaseModel):
+    quest_id: uuid.UUID
+    lines: list[DialogueLineOut] = []

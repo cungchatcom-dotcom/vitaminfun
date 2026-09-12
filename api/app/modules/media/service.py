@@ -15,6 +15,8 @@ import io
 import uuid
 from pathlib import Path
 
+import anyio.to_thread
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -113,11 +115,27 @@ async def save_upload(
     stem = uuid.uuid4().hex
     storage_key = f"{kind}/{stem[:2]}/{stem}{suffix}"
 
+    # GHI ĐĨA và GIẢI MÃ ẢNH đẩy sang threadpool.
+    #
+    # Cả hai đều là việc đồng bộ và có thể lâu: trần một file là 32MB, và PIL
+    # giải một tấm ảnh lớn mất hàng trăm mili giây CPU. Gọi thẳng trong một
+    # `async def` là chiếm đứt event loop suốt ngần ấy — server chạy một tiến
+    # trình, nên giáo viên tải một video 9MB giữa buổi là cả lớp đứng hình.
+    #
+    # Tạo thư mục cũng chạm đĩa, nên đi cùng luôn.
     target = storage_root() / storage_key
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(data)
 
-    width, height = _image_size(data) if kind == MediaKind.IMAGE else (None, None)
+    def _ghi() -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+    await anyio.to_thread.run_sync(_ghi)
+
+    width, height = (
+        await anyio.to_thread.run_sync(_image_size, data)
+        if kind == MediaKind.IMAGE
+        else (None, None)
+    )
 
     asset = MediaAsset(
         url=f"{settings.storage_public_url.rstrip('/')}/{storage_key}",

@@ -21,6 +21,21 @@ class LoginRequest(BaseModel):
     password: str = Field(max_length=128)
 
 
+class SignupRequest(BaseModel):
+    """Ba ô, không hơn.
+
+    Cố ý KHÔNG ràng buộc gì ở tầng Pydantic ngoài độ dài thô: mọi luật thật —
+    email có đúng dạng không, mật khẩu đủ dài chưa, tên có rỗng không — nằm ở
+    `service.signup()` và trả về MÃ LỖI RIÊNG cho từng ô. Để Pydantic từ chối
+    thì cả ba trường hợp ra chung một `VALIDATION_FAILED`, và người đăng ký
+    nhìn thấy "dữ liệu không hợp lệ" trên một biểu mẫu ba ô — tức là phải đoán.
+    """
+
+    email: str = Field(max_length=255, examples=["hocsinh@gmail.com"])
+    display_name: str = Field(max_length=255, examples=["Nguyễn Văn A"])
+    password: str = Field(max_length=128)
+
+
 class UserSummary(BaseModel):
     """Thông tin đủ để giao diện dựng khung và điều hướng."""
 

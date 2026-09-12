@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.voices.schemas import VoiceOut
+
 I18nText = dict[str, str]
 
 
@@ -58,30 +60,44 @@ class CharacterIdsIn(BaseModel):
 
 
 class CharacterCreate(BaseModel):
+    #: `player` = nhân vật học sinh chọn · `npc` = người canh giữ nhiệm vụ.
+    #: Cùng một bảng, cùng bộ máy spritesheet — xem `Character.kind`.
+    kind: Literal["player", "npc"] = "player"
     name_i18n: I18nText
     bio_i18n: I18nText = Field(default_factory=dict)
     avatar_media_id: uuid.UUID | None = None
+    voice_id: uuid.UUID | None = None
     position: int = 0
 
 
 class CharacterUpdate(BaseModel):
+    kind: Literal["player", "npc"] | None = None
     name_i18n: I18nText | None = None
     bio_i18n: I18nText | None = None
     avatar_media_id: uuid.UUID | None = None
+    voice_id: uuid.UUID | None = None
     position: int | None = None
     status: Literal["draft", "published"] | None = None
     #: Gỡ ảnh đại diện. `None` trong PATCH nghĩa là "không gửi", không phải "xoá".
     clear_avatar: bool | None = None
+    #: Gỡ giọng. Cùng lý do với `clear_avatar`.
+    clear_voice: bool | None = None
 
 
 class CharacterOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    kind: Literal["player", "npc"] = "player"
     name_i18n: I18nText
     bio_i18n: I18nText
     avatar_media_id: uuid.UUID | None
     avatar_url: str | None = None
+    voice_id: uuid.UUID | None = None
+    #: Cả giọng, dựng sẵn. Giao diện cần TÊN và ĐOẠN MẪU để hiện ra, mà đi hỏi
+    #: thêm một lượt nữa cho mỗi nhân vật trong danh sách là hai chục lượt cho
+    #: một màn hình.
+    voice: VoiceOut | None = None
     position: int
     status: Literal["draft", "published"]
     actions: list[CharacterActionOut] = Field(default_factory=list)

@@ -32,9 +32,9 @@ DEFAULT_BALANCE: dict[str, Any] = {
     #: Số lần thử cho MỖI CÂU HỎI. Hết lượt thì câu đó khoá trong lượt chơi.
     #: Đổi tên từ `maxAttemptsPerQuest` khi một nhiệm vụ mang nhiều câu hỏi —
     #: lượt thử áp cho từng câu, không phải cho cả cụm.
-    "maxAttemptsPerQuestion": 3,
+    "maxAttemptsPerQuestion": 2,
     #: Hệ số điểm theo lần thử thứ 1, 2, 3. null = không phạt.
-    "attemptPenalty": [1.0, 0.6, 0.3],
+    "attemptPenalty": [1.0, 0.6],
     # --- Chơi lại (§6, đã chốt: cộng đủ điểm mỗi lần) ---
     "replayRatio": 1.0,
     "replayCapMultiplier": None,

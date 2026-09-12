@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Vitaminfun",
-    "tagline": "Lost in Atlantis"
+    "name": "Vitaverse",
+    "tagline": "Play to Learn"
   },
   "nav": {
     "logout": "Log out",
@@ -10,7 +10,8 @@
     "media": "Media",
     "accounts": "Accounts",
     "play": "Play",
-    "characters": "Characters"
+    "characters": "Characters",
+    "reports": "Reports"
   },
   "role": {
     "admin": "Administrator",
@@ -26,6 +27,20 @@
     "submitting": "Signing in...",
     "demoHint": "Sample accounts (development only)"
   },
+  "signup": {
+    "title": "Create an account",
+    "subtitle": "Three fields, and you are in the game",
+    "email": "Email",
+    "displayName": "Full name",
+    "password": "Password",
+    "passwordHint": "At least {min} characters",
+    "submit": "Create account",
+    "submitting": "Creating account...",
+    "noAccount": "Don't have an account?",
+    "cta": "Sign up",
+    "haveAccount": "Already have an account?",
+    "toLogin": "Sign in"
+  },
   "teacher": {
     "title": "Teacher dashboard",
     "welcome": "Hello {name}",
@@ -39,6 +54,83 @@
     "previewCta": "Play as a student",
     "openBank": "Open the question bank",
     "openWorlds": "Build worlds and stages"
+  },
+  "report": {
+    "title": "Player results",
+    "subtitle": "Real plays only — teacher preview runs are excluded.",
+    "tz": "Days are cut at midnight, {tz}.",
+    "filterWorld": "World",
+    "allWorlds": "All worlds",
+    "search": "Search",
+    "searchPlaceholder": "Name or email",
+    "kpiPlayers": "Players today",
+    "kpiRuns": "Plays today",
+    "kpiWinRate": "Clear rate",
+    "kpiAvgScore": "Average score",
+    "today": "Today",
+    "last7d": "7 days",
+    "last30d": "30 days",
+    "total": "All time",
+    "won": "Cleared",
+    "lost": "Out of time",
+    "abandoned": "Left",
+    "playing": "In progress",
+    "avgDuration": "Avg. length",
+    "questsDone": "Quests cleared",
+    "skillPts": "Skill points",
+    "chartTitle": "Last 14 days",
+    "chartPlayers": "Players",
+    "chartRuns": "Plays",
+    "tableTitle": "Leaderboard",
+    "rank": "#",
+    "player": "Player",
+    "email": "Email",
+    "skillPtsCol": "Skill pts",
+    "stagesCompleted": "Stages cleared",
+    "runsCol": "Plays",
+    "winsCol": "Cleared",
+    "playTime": "Time played",
+    "lastPlayed": "Last played",
+    "view": "Details",
+    "pageInfo": "{from}–{to} of {total}",
+    "prev": "Previous",
+    "next": "Next",
+    "empty": "No one has played yet",
+    "emptyHint": "Numbers appear as soon as a student finishes a stage.",
+    "loading": "Loading…",
+    "detailRuns": "Plays",
+    "detailWins": "Cleared",
+    "detailPlayTime": "Time played",
+    "detailSkillPts": "Skill points",
+    "joined": "Joined",
+    "worldShards": "Map shards",
+    "firstPlayed": "First played",
+    "completedAt": "Completed",
+    "gateOpened": "Time Gate opened",
+    "stageCol": "Stage",
+    "bestScore": "Best score",
+    "questsCol": "Quests",
+    "timesPlayed": "Plays",
+    "bestTime": "Best time",
+    "lastRun": "Last play",
+    "notPlayed": "Not played yet",
+    "recentTitle": "Recent plays",
+    "when": "When",
+    "result": "Result",
+    "scoreCol": "Score",
+    "durationCol": "Length",
+    "shard": "Shard",
+    "close": "Close",
+    "noWorlds": "This player has not started any world.",
+    "sumNote": "Skill points are per world; with no world filter this column is the sum.",
+    "status": {
+      "won": "Cleared",
+      "lost_time": "Out of time",
+      "abandoned": "Left",
+      "playing": "In progress"
+    },
+    "noMatch": "No player matches that search",
+    "noMatchHint": "Try part of the name, or the email address."
   },
   "play": {
     "title": "Galaxy map",
@@ -96,6 +188,7 @@
     "TIMEOUT": "The server did not respond. Check whether the API is running.",
     "QUESTION_IN_USE": "This question is used by a stage. Remove it from the stage before deleting.",
     "CHAPTER_HAS_STAGES": "This chapter still has {stageCount} stages. Delete them first.",
+    "RUN_STILL_PLAYING": "The run has not finished yet.",
     "STAGE_HAS_RUNS": "This stage already has {runCount} play sessions. Deleting loses that history.",
     "ADVISOR_QUEST_REQUIRED": "Every stage keeps exactly one NPC quest. You can rename it or change its questions, but not remove it.",
     "ADVISOR_LOCKED": "You have to clear the NPC quest before this one opens.",
@@ -103,7 +196,13 @@
     "IMPORT_FILE_UNREADABLE": "Could not open the file. It must be a real .xlsx and not password-protected.",
     "IMPORT_SHEET_MISSING": "The file has no Questions sheet.",
     "IMPORT_HEADER_MISSING": "No header row found carrying quest_code, question_order, answer_type and question_content.",
-    "IMPORT_NO_ROWS": "No valid rows were found."
+    "IMPORT_NO_ROWS": "No valid rows were found.",
+    "NOT_ENOUGH_ENERGY": "Not enough energy for this hint.",
+    "SIGNUP_DISABLED": "This server does not allow creating your own account. Ask your teacher for one.",
+    "SIGNUP_EMAIL_TAKEN": "That email already has an account. Sign in instead.",
+    "SIGNUP_EMAIL_INVALID": "That does not look like an email address.",
+    "SIGNUP_PASSWORD_TOO_SHORT": "Password must be at least {min} characters.",
+    "SIGNUP_NAME_REQUIRED": "Please enter your name."
   },
   "common": {
     "loading": "Loading…",
@@ -192,7 +291,9 @@
       "tryIt": "Try grading",
       "tryItHint": "Scored by the server, exactly as it will be for students.",
       "saveFirst": "Save the question first to try grading.",
-      "result": "Scored {score}/{max}"
+      "result": "Scored {score}/{max}",
+      "wrongMessage": "Correction line for this question",
+      "wrongMessageHint": "Leave empty to use the world's set. Never give the answer away — the student still has tries left."
     },
     "builder": {
       "prompt": "Type your question here",
@@ -343,6 +444,37 @@
       "pickTitle": "Pick characters",
       "inWorld": "already in",
       "actionCount": "{count} actions"
+    },
+    "verdict": {
+      "title": "Guardian verdict lines",
+      "intro": "The voice of the whole world: what the guardian says when a student is right, wrong, or out of tries. One line each. Leave empty to use the defaults.",
+      "praise": "Praise — when correct",
+      "praiseHint": "Several lines so a stage does not repeat itself. The game picks per question, so re-entering replays the same line.",
+      "praisePlaceholder": "Good.\nWell done!\nThat is right.",
+      "wrong": "Correction — wrong, tries left",
+      "wrongHint": "Never gives the answer away. A per-question correction is written on the question itself.",
+      "wrongPlaceholder": "Not quite. Think again.\nNo. Try once more.",
+      "moveOn": "Move on — out of tries",
+      "moveOnHint": "The guardian moves to another question without revealing the answer.",
+      "moveOnPlaceholder": "Leave it. Let me ask something else.",
+      "empty": "Empty — the game uses the 12 built-in lines.",
+      "audioHint": "Once written, go to each quest to make the voice-over: one voice per guardian, and two quests on the same voice reuse the recordings for free.",
+      "reset": "Clear, use the defaults",
+      "greet": "Greeting — on arrival",
+      "greetHint": "The first line, spoken before the question.",
+      "greetPlaceholder": "Halt. I have questions for you.",
+      "next": "Bridge — after a correct answer",
+      "nextHint": "A short line that moves on to the next question.",
+      "nextPlaceholder": "Next one.",
+      "passed": "Ending — finished and PASSED",
+      "passedHint": "The student cleared the quest.",
+      "passedPlaceholder": "That is all of them. You may pass.",
+      "failed": "Ending — finished but BELOW the mark",
+      "failedHint": "Out of questions, short of the pass score. Go gently — they will come back.",
+      "failedPlaceholder": "That was the last one, but it is not enough.",
+      "revisit": "Again — quest already done",
+      "revisitHint": "The student walks back into a quest they finished.",
+      "revisitPlaceholder": "You have already finished this one."
     }
   },
   "stage": {
@@ -405,8 +537,8 @@
       "npcGateNote": "Every stage opens at the NPC. All other quests stay locked until the player clears it — so everyone completes at least one quest, which is what earns the team its map shard.",
       "questRequired": "Required",
       "renameStage": "Click to rename this stage",
-      "renameNpc": "Click to rename the NPC — this is the name students see",
-      "passScoreHint": "Points needed to clear this quest. Defaults to the quest total ({total}) — leave it at the total and it follows along when you add or remove questions."
+      "passScoreHint": "Points needed to clear this quest. Defaults to the quest total ({total}) — leave it at the total and it follows along when you add or remove questions.",
+      "renameQuest": "Click to rename the quest — this is the name students see in the game."
     },
     "preview": {
       "subtitle": "Content preview. Complete every quest to earn Map Shard #{shard}.",
@@ -431,10 +563,43 @@
     "STAGE_QUEST_PASS_SCORE_TOO_HIGH": "Quest #{questOrder} ({questObject}) needs {passScore} points to pass but only totals {totalPoints} — nobody can pass it."
   },
   "game": {
-    "submit": "SUBMIT",
-    "tryAgain": "TRY AGAIN",
+    "submit": "Answer",
+    "playAgainQuest": "Play again",
     "continue": "Continue",
     "nextQuestion": "Next →",
+    "npc": {
+      "praise1": "That's right.",
+      "praise2": "Well done!",
+      "praise3": "Correct.",
+      "praise4": "Good. Let's move on.",
+      "praise5": "Exactly.",
+      "wrong1": "Not quite. Think again.",
+      "wrong2": "No. Try once more.",
+      "wrong3": "That's not what I need to hear.",
+      "wrong4": "Wrong. One try left.",
+      "moveOn1": "All right, leave it. I'll ask you something else.",
+      "moveOn2": "Can't get it? Skip it, next question.",
+      "moveOn3": "Leave that one. Here's another.",
+      "finish": "That's all of them. Let me see how you did.",
+      "answering": "Answering…",
+      "replay": "Play again",
+      "alreadyDone": "You have already finished this task.",
+      "greet1": "Halt. I have questions for you.",
+      "greet2": "Someone finally came. Listen well.",
+      "greet3": "You pass only after you answer.",
+      "next1": "Next one.",
+      "next2": "Good. One more.",
+      "next3": "Here is the next.",
+      "passed1": "That is all of them. You may pass.",
+      "passed2": "I am satisfied. The way ahead is open.",
+      "passed3": "Enough. Go on.",
+      "failed1": "That was the last one, but it is not enough. Come back stronger.",
+      "failed2": "Not yet. Practise, then find me again.",
+      "failed3": "I cannot let you pass. Try once more.",
+      "revisit1": "You have already finished this one.",
+      "revisit2": "I remember you. This is done — move along.",
+      "revisit3": "Nothing left to ask you here."
+    },
     "missionComplete": "MISSION COMPLETE",
     "notComplete": "NOT COMPLETE",
     "triesLeft": "{count} tries left",
@@ -449,8 +614,17 @@
       "label": "Intro video"
     },
     "questsDone": "Quests {done}/{total}",
+    "you": "You",
     "leave": "Leave",
-    "review": "Review my answers",
+    "playAgain": "Play this stage again",
+    "result": {
+      "quests": "Quests",
+      "score": "Score",
+      "skillPts": "Skill pts",
+      "time": "Time",
+      "shards": "Map shards",
+      "worldSkillPts": "World skill pts"
+    },
     "backToWorld": "Back to map",
     "victory": "STAGE COMPLETE!",
     "shardEarned": "The team earned Map Shard #{shard}",
@@ -485,7 +659,17 @@
       "mute": "Mute music",
       "unmute": "Play music",
       "volume": "Volume"
-    }
+    },
+    "assist": {
+      "replay": "Play again",
+      "transcript": "Transcript",
+      "translate": "Translation",
+      "cost": "Show {name} — costs {cost} energy",
+      "poor": "Not enough energy (needs {cost})"
+    },
+    "restart": "Restart",
+    "restartConfirm": "Restart this stage? The run in progress will be recorded as abandoned — the strategy points you have already earned are kept, but the end-of-stage bonus and the map shard are not.",
+    "questNotDone": "Not passed"
   },
   "designer": {
     "title": "Stage designer",
@@ -538,24 +722,24 @@
     "characterOwn": "Set for this stage only.",
     "characterReset": "Back to inherited",
     "characterNone": "This world has no character with an uploaded sprite sheet yet, so there is nothing to size against.",
-      "cluebook": {
-        "title": "Clue book & NPC farewell",
-        "intro": "One moment in the game: the student answers the NPC's last question, and the conversation reaches its final step — the step that asks nothing.",
-        "outro": "What the NPC says while handing it over",
-        "outroPlaceholder": "Now, press onward with your journey and receive this handbook…",
-        "outroHint": "Shown on the final panel, right above the button. Leave it empty and the panel is just an icon and a button.",
-        "outroAudio": "Recording of the farewell",
-        "outroTranscript": "Show the text next to the player",
-        "outroTranscriptHint": "On by default — the opposite of a listening question. A listening question hides the text because reading it defeats the exercise; the NPC is not an exercise, and reading along while listening is how the words stick.",
-        "bookTitle": "Clue book name",
-        "bookTitlePlaceholder": "CAPTAIN DRAKE'S SECRET HANDBOOK",
-        "bookTitleHint": "Says whose handbook this is. Leave it empty and every stage falls back to the same generic label.",
-        "body": "Clue book contents",
-        "bodyPlaceholder": "The secrets the NPC hands over. Line breaks are kept exactly as you type them.",
-        "bodyHint": "Students reopen this from the 📖 icon any time after claiming it.",
-        "bodyEmpty": "No contents yet, so the 📖 icon will not appear at all. A button that never shows anything is worse than no button.",
-        "notTranslated": "Not translated into this language yet. Students reading in it will see whichever language does have text."
-      },
+    "cluebook": {
+      "title": "Clue book & NPC farewell",
+      "intro": "One moment in the game: the student answers the NPC's last question, and the conversation reaches its final step — the step that asks nothing.",
+      "outro": "What the NPC says while handing it over",
+      "outroPlaceholder": "Now, press onward with your journey and receive this handbook…",
+      "outroHint": "Shown on the final panel, right above the button. Leave it empty and the panel is just an icon and a button.",
+      "outroAudio": "Recording of the farewell",
+      "outroTranscript": "Show the text next to the player",
+      "outroTranscriptHint": "On by default — the opposite of a listening question. A listening question hides the text because reading it defeats the exercise; the NPC is not an exercise, and reading along while listening is how the words stick.",
+      "bookTitle": "Clue book name",
+      "bookTitlePlaceholder": "CAPTAIN DRAKE'S SECRET HANDBOOK",
+      "bookTitleHint": "Says whose handbook this is. Leave it empty and every stage falls back to the same generic label.",
+      "body": "Clue book contents",
+      "bodyPlaceholder": "The secrets the NPC hands over. Line breaks are kept exactly as you type them.",
+      "bodyHint": "Students reopen this from the 📖 icon any time after claiming it.",
+      "bodyEmpty": "No contents yet, so the 📖 icon will not appear at all. A button that never shows anything is worse than no button.",
+      "notTranslated": "Not translated into this language yet. Students reading in it will see whichever language does have text."
+    },
     "spawn": "Spawn point",
     "spawnHint": "Drag to set where players appear",
     "spawnDefault": "Not set — players appear at the scene's default spot. Drag the character on the board and this stage gets its own.",
@@ -650,7 +834,18 @@
     "stageCode": "Stage code",
     "stageCodeHint": "The code from the content file, e.g. W1-S1. Fill it in and this stage's imported questions surface automatically when you build a quest. Leaving it empty is fine.",
     "questCode": "Quest code",
-    "questCodeHint": "The code in the Questions sheet, e.g. W1-S1-Quest-01. Imported rows carrying it attach themselves here."
+    "questCodeHint": "The code in the Questions sheet, e.g. W1-S1-Quest-01. Imported rows carrying it attach themselves here.",
+    "npc": "Guardian",
+    "npcNone": "— Nobody assigned —",
+    "npcEdit": "Edit images",
+    "npcNew": "Create a guardian",
+    "npcHint": "This character talks to the student during the quest. Leave it empty and the face frame stays blank; the conversation still runs.",
+    "toDialogue": "Design the dialogue screen",
+    "lockedMessage": "Locked message",
+    "lockedMessageHint": "What the gatekeeper says when a student reaches this quest before it opens. Leave empty to use the generated sentence.",
+    "lockedMessagePlaceholder": "e.g. Not this door. Speak to the guardian first.",
+    "lockedVoice": "Record this line",
+    "lockedNoVoice": "The stage gatekeeper has no voice yet"
   },
   "galaxy": {
     "designer": {
@@ -790,11 +985,17 @@
   },
   "character": {
     "title": "Characters",
-    "subtitle": "Players pick one of these when they enter a world; Phaser draws it in the stage.",
-    "list": "Characters ({count})",
+    "subtitle": "Students pick a character when they enter a world; a guardian stands at each quest and talks to them. Both are drawn from the same spritesheets.",
+    "list": "In library ({count})",
     "add": "Add",
-    "newName": "New character name",
-    "empty": "No characters yet.",
+    "newName": {
+      "player": "New character name",
+      "npc": "New guardian name"
+    },
+    "empty": {
+      "player": "No characters yet.",
+      "npc": "No guardians yet."
+    },
     "pickOne": "Pick a character on the left to edit it.",
     "name": "Name",
     "bio": "Bio",
@@ -820,6 +1021,148 @@
     "cropSave": "Use this crop",
     "cropZoom": "Zoom",
     "sheetSize": "sheet {w}×{h}",
-    "framesHint": "How many frames the strip holds"
+    "framesHint": "How many frames the strip holds",
+    "kindLabel": "Role",
+    "kind": {
+      "player": "Characters",
+      "npc": "Guardians"
+    },
+    "posesDialogue": "Dialogue poses:",
+    "posesMotion": "Movement poses:",
+    "posesDialogueHint": {
+      "player": "A missing sheet falls back to “listen”, and a missing “listen” falls back to the avatar.",
+      "npc": "A missing sheet falls back to “wait”, and a missing “wait” falls back to the avatar."
+    },
+    "voice": "Voice",
+    "voiceProvider": "Service",
+    "voiceGender": "Gender",
+    "voiceAge": "Age group",
+    "voiceAny": "Any",
+    "voiceNone": "— No voice —",
+    "voicePreview": "Play sample",
+    "voiceHint": "Pick a voice and press play to hear it. Leave it empty and the character has no voice.",
+    "voiceEmpty": "No voices in the library for this service yet.",
+    "voiceSync": "Fetch the catalogue",
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "neutral": "Neutral"
+    },
+    "age": {
+      "young": "Young",
+      "middle_aged": "Middle-aged",
+      "old": "Older"
+    }
+  },
+  "dialogue": {
+    "designer": {
+      "title": "Dialogue screen",
+      "subtitle": "The conversation with the guardian, previewed here. The background and bubble images are shared by every quest in the stage — only the guardian's face changes.",
+      "toScene": "Go to scene design",
+      "sample": "Sample data",
+      "sampleHint": "Uses the FIRST question of the selected quest. Switching quests only changes what you are looking at, not the saved layout.",
+      "moment": "Moment",
+      "scope": "Scope",
+      "inheriting": "This stage is using the layout of the world’s FIRST stage. Drag any block and this stage gets its own layout, starting exactly where it stands now.",
+      "ownLayout": "This stage has its OWN layout. Changes to the first stage no longer reach it.",
+      "clear": "Use the first stage’s layout",
+      "confirmClear": "Drop this stage’s own layout and go back to the world’s first stage?",
+      "pickBlock": "Click a block in the preview to edit it.",
+      "blockImage": "Block background",
+      "noSample": "This quest has no questions attached yet.",
+      "noTextHint": "This block has no text to place — it is just an image.",
+      "npcFor": "Guardian for this quest",
+      "panelImage": "Panel background",
+      "panelImageHint": "Leave it empty and the panel stays transparent so the scene shows through — that is the usual choice. Set an image when the conversation should happen in a place of its own.",
+      "bubbleImages": "Bubble images",
+      "bubbleImagesHint": "Without one, bubbles use the default glass look. The image stretches to fit, so use a plain frame — bubbles still grow with the text.",
+      "pace": "Pacing",
+      "gap": "Pause between turns",
+      "gapHint": "How long the guardian waits after finishing a line before the next bubble appears. Counted from the end of the spoken audio, or from the end of the reading time when a line has none. Default 1.0s.",
+      "gapUnit": "seconds",
+      "theme": "Panel theme",
+      "themeHint": "The skin of the quest panel — frame, reading area, bubbles and answer block. Layout and behaviour do not change."
+    },
+    "block": {
+      "npcAvatar": "Guardian face",
+      "npcBubble": "Guardian bubble",
+      "playerBubble": "Student bubble",
+      "npcVerdict": "Right/wrong bubble",
+      "playerAvatar": "Character face",
+      "answerBox": "Answer box"
+    },
+    "moment": {
+      "ask": "Reading the question",
+      "think": "Thinking",
+      "right": "Answered right",
+      "wrong": "Answered wrong",
+      "answer": "Submitting"
+    },
+    "sample": {
+      "player": "Student",
+      "question": "Greetings, explorer. Answer this and I will let you pass.",
+      "answer": "This is a sample answer.",
+      "verdict": {
+        "ask": "I am waiting for your answer.",
+        "think": "Take your time.",
+        "right": "Exactly right! You may pass.",
+        "wrong": "Not quite. Try once more.",
+        "answer": "Let me see…"
+      }
+    },
+    "theme": {
+      "classic": "Classic glass",
+      "atlantis": "Atlantis"
+    }
+  },
+  "audio": {
+    "title": "Voice-over",
+    "promptVoice": "The question is read by {voice}.",
+    "npcNoVoice": "The guardian has no voice yet. Assign one in Characters first.",
+    "noNpc": "No guardian assigned to this quest.",
+    "makePrompt": "Voice the questions",
+    "makeOptions": "Voice the answers",
+    "optionCast": "Answers are read by these characters:",
+    "noCast": "No character has a voice yet. Assign one in Characters first.",
+    "confirmRedo": "{count} recordings already exist. Redo and overwrite?",
+    "generated": "new",
+    "skipped": "already there",
+    "missingVoice": "No voice",
+    "nothing": "Nothing to make.",
+    "stageHint": "Make them for every quest in the stage. Quests with no voice are skipped.",
+    "existing": "Voices recorded",
+    "listen": "Play",
+    "noOptions": "This question has no options to choose — nothing to read out.",
+    "promptSlot": "Question",
+    "uploadedInUse": "An uploaded file is in use, not a generated voice.",
+    "makeOutro": "Voice the farewell",
+    "outroHint": "The farewell is read in the same voice as above:",
+    "castNoVoice": "This character has no voice assigned yet.",
+    "working": "Making the voice-over…",
+    "workingHint": "Do not close this window. This can take a while.",
+    "workingCount": "Making {count} recordings. Do not close this window.",
+    "hearAs": "Hear as:",
+    "makeVerdict": "Voice the praise & corrections",
+    "verdictHint": "The world's praise and correction lines, read in the same voice as above. Another quest on the same voice reuses these for free.",
+    "failed": "failed",
+    "retryHint": "What succeeded is saved. Press again to run only the missing ones — you are not charged twice for what is already there.",
+    "linesTitle": "Verdict lines — listen & redo",
+    "noLines": "This world has no verdict lines yet.",
+    "noSound": "no audio",
+    "makeMissing": "Record the {count} missing",
+    "redoPicked": "Redo {count} selected",
+    "browse": "Listen"
+  },
+  "voiceHealth": {
+    "label": "Voice service:",
+    "check": "Check again",
+    "left": "{n} characters left",
+    "reason": {
+      "no_key": "ELEVENLABS_API_KEY is not set",
+      "bad_key": "API key is wrong or expired",
+      "unreachable": "Cannot reach the service",
+      "unsupported": "This provider has no health check",
+      "unknown": "Unknown reason"
+    }
   }
 }

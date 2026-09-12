@@ -157,7 +157,10 @@ function CharacterPicker({
   const [ticked, setTicked] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    listCharacters()
+    // Chỉ nhân vật HỌC SINH CHỌN. Người canh giữ cũng nằm ở bảng `characters`,
+    // nhưng nó thuộc về một nhiệm vụ chứ không phải một world, và học sinh
+    // không chọn nó bao giờ — để lẫn vào đây là mời người ta chọn nhầm.
+    listCharacters('player')
       .then(setAll)
       .catch((error: unknown) =>
         onError(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR'),
@@ -193,7 +196,7 @@ function CharacterPicker({
           {all === null ? (
             <p className="text-center text-sm text-slate-500">…</p>
           ) : all.length === 0 ? (
-            <EmptyState label={t('character.empty')} />
+            <EmptyState label={t('character.empty.player')} />
           ) : (
             <ul className="space-y-1">
               {all.map((character) => {

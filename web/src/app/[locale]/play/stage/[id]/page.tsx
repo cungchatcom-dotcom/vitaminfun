@@ -2,7 +2,6 @@ import { setRequestLocale } from 'next-intl/server';
 
 import { AuthProvider } from '@/components/auth-context';
 import { PreviewBanner } from '@/components/preview-banner';
-import { TopBar } from '@/components/top-bar';
 import { StagePlay } from '@/components/game/stage-play';
 import { apiFetch } from '@/lib/api-client';
 import { requireUser } from '@/lib/auth';
@@ -41,10 +40,23 @@ export default async function StagePlayPage({
 
   return (
     <AuthProvider user={user}>
-      <div className="flex min-h-full flex-col">
-        {context.is_preview && <PreviewBanner />}
-        <TopBar accent="student" />
-        <main className="flex-1">
+      {/* TRỌN MÀN HÌNH. Không có thanh điều hướng ở đây, và đó là chủ ý: màn
+          chơi là một khung cảnh, không phải một trang trong website. Đường ra
+          nằm ngay trong HUD ("Rời màn", góc trên phải), tức là ở chỗ người chơi
+          đang nhìn chứ không phải ở một thanh menu phía trên.
+
+          `h-dvh` chứ không `h-screen`: trên điện thoại, `100vh` tính cả phần bị
+          thanh địa chỉ che, nên cảnh bị cắt mất một dải dưới đáy.
+
+          Dải CHƠI THỬ thì vẫn giữ — nó là của giáo viên, mang nút Thoát và Xoá
+          tiến độ, và học sinh không bao giờ thấy nó. */}
+      <div className="flex h-dvh flex-col overflow-hidden">
+        {context.is_preview && (
+          <div className="shrink-0">
+            <PreviewBanner />
+          </div>
+        )}
+        <main className="min-h-0 flex-1">
           <StagePlay stageId={id} introVideoUrl={intro.intro_video_url ?? null} />
         </main>
       </div>

@@ -19,6 +19,24 @@ import type {
   RendererProps,
 } from "./types";
 import { parseTemplate } from "./template";
+
+/**
+ * Phát MỘT tiếng tại một thời điểm.
+ *
+ * Mỗi lần bấm một cái loa khác lại đẻ một thẻ `<audio>` mới thì bấm nhanh vài
+ * cái là bốn phương án nói chồng lên nhau. Giữ đúng một thẻ và cắt cái đang
+ * chạy trước khi mở cái mới.
+ */
+let dangPhat: HTMLAudioElement | null = null;
+
+function phat(src: string) {
+  if (dangPhat) {
+    dangPhat.pause();
+    dangPhat.currentTime = 0;
+  }
+  dangPhat = new Audio(src);
+  void dangPhat.play().catch(() => undefined);
+}
 import { AudioPrompt, resolvePrompt, type PromptKind } from "./audio-prompt";
 
 // --------------------------------------------------------------------------
@@ -33,6 +51,7 @@ export function McqRenderer({
   disabled,
   mode,
   answer,
+  optionAudio,
 }: RendererProps & { multi: boolean }) {
   const data = content as unknown as McqContent;
   const options = data.options ?? [];
@@ -75,7 +94,11 @@ export function McqRenderer({
           trên các phương án. */}
       {data.prompt && <p className="text-lg font-semibold">{data.prompt}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* THẤP hơn và SÁT nhau hơn bản trước (`gap-3`, `p-3`, cao tối thiểu
+          3rem). Ở màn hội thoại, bốn phương án hai dòng đẩy đoạn chat thành một
+          khe hẹp — mà đoạn chat mới là thứ đáng đọc, còn đây chỉ là chỗ bấm một
+          cái. Cao tối thiểu 2.5rem vẫn thừa cho một ngón tay. */}
+      <div className="grid gap-2 sm:grid-cols-2">
         {options.map((option, index) => {
           const isOn = selected.includes(option.id);
           const laDapAn = dapAnDung.has(option.id);
@@ -83,43 +106,82 @@ export function McqRenderer({
           const tone = !dangChuaBai
             ? null
             : laDapAn
-              ? "var(--color-semantic-success)"
+              ? "#34d399"
               : isOn
-                ? "var(--color-semantic-danger)"
+                ? "#f43f5e"
                 : null;
 
+          const tieng = optionAudio?.[option.id];
+
           return (
+            // Bọc thêm một lớp vì nút LOA không được nằm TRONG nút phương án:
+            // một `<button>` lồng trong `<button>` là HTML sai, và trình duyệt
+            // gỡ nó ra theo cách không ai đoán được.
+            //
+            // `h-full` ở CẢ HAI lớp: ô lưới tự giãn bằng hàng cao nhất, nhưng
+            // cái nút bên trong thì không — nó chỉ cao bằng chữ của chính nó.
+            // Thiếu nó thì phương án một dòng đứng cạnh phương án hai dòng ra
+            // hai chiều cao khác nhau, so le cả hàng.
+            <div key={option.id} className="relative h-full">
             <button
-              key={option.id}
               type="button"
               disabled={disabled}
               onClick={() => toggle(option.id)}
-              className="card card--interactive flex items-center gap-3 p-4 text-start"
+              className={`flex h-full min-h-10 w-full items-center gap-2.5 rounded-xl border-2 px-3 py-2 text-start text-[0.95rem] leading-snug transition disabled:opacity-60 ${
+                tieng ? "pe-10 " : ""
+              }${tone ? "" : isOn ? "" : "hover:brightness-125"}`}
               // Viền dày đổi màu thay vì chỉ đổi nền: người mù màu vẫn phân biệt
               // được ô đã chọn.
-              style={{
-                borderWidth: 2,
-                borderColor:
-                  tone ??
-                  (isOn ? "var(--color-brand-primary)" : "var(--color-surface-border)"),
-                background: tone
-                  ? `color-mix(in srgb, ${tone} 10%, var(--color-surface-card))`
+              //
+              // Trước đây khối này dùng `--color-brand-primary`,
+              // `--color-surface-card`, `--radius-pill` và class `.card` — KHÔNG
+              // cái nào được định nghĩa ở đâu trong `web/`. Chúng là đồ thừa của
+              // đợt copy từ LMS, và hậu quả nhìn thấy được là phương án hiện ra
+              // với viền TRẮNG thô, lạc hẳn khỏi tông của bảng.
+              /**
+               * Màu qua BIẾN CSS, giá trị lùi là màu đang chạy hôm nay.
+               *
+               * Khối này dùng chung với màn soạn câu hỏi của giáo viên. Màn ấy
+               * không nằm trong tấm bảng hội thoại nên không thấy biến nào, và
+               * rơi về đúng giá trị cũ — đổi theme của màn chơi không đụng tới
+               * nó một pixel.
+               *
+               * Màn CHỮA BÀI (`tone`) thì thắng tất: xanh là đáp án đúng, đỏ là
+               * em chọn sai, và hai màu ấy không được để theme nào nhuộm lại.
+               */
+              style={
+                tone
+                  ? { borderColor: tone, background: `${tone}1a` }
                   : isOn
-                    ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-surface-card))"
-                    : "var(--color-surface-card)",
-              }}
+                    ? {
+                        borderColor: "var(--q-opt-on-ring, #38bdf8)",
+                        background: "var(--q-opt-on-bg, rgba(14,165,233,0.15))",
+                        color: "var(--q-opt-ink, inherit)",
+                      }
+                    : {
+                        borderColor: "var(--q-opt-ring, rgba(255,255,255,0.15))",
+                        background: "var(--q-opt-bg, rgba(255,255,255,0.06))",
+                        color: "var(--q-opt-ink, inherit)",
+                      }
+              }
             >
               <span
                 aria-hidden
-                className="grid h-6 w-6 shrink-0 place-items-center text-xs font-bold"
-                style={{
-                  // Tròn = chọn một, vuông = chọn nhiều. Trẻ em nhận ra quy ước
-                  // này từ bài thi giấy.
-                  borderRadius: multi ? "var(--radius-sm)" : "var(--radius-pill)",
-                  border: "2px solid var(--color-brand-primary)",
-                  background: isOn ? "var(--color-brand-primary)" : "transparent",
-                  color: "var(--color-brand-primary-fg)",
-                }}
+                className={`grid size-5 shrink-0 place-items-center border-2 text-[0.65rem] font-bold ${
+                  multi ? "rounded" : "rounded-full"
+                }`}
+                style={
+                  isOn
+                    ? {
+                        borderColor: "var(--q-badge-on-bg, #38bdf8)",
+                        background: "var(--q-badge-on-bg, #38bdf8)",
+                        color: "var(--q-badge-on-ink, #04121f)",
+                      }
+                    : {
+                        borderColor: "var(--q-badge-ring, #38bdf8)",
+                        color: "var(--q-badge-ink, #38bdf8)",
+                      }
+                }
               >
                 {isOn ? "✓" : String.fromCharCode(65 + index)}
               </span>
@@ -127,12 +189,24 @@ export function McqRenderer({
               {dangChuaBai && laDapAn ? (
                 <span
                   className="ms-auto text-xs font-bold"
-                  style={{ color: "var(--color-semantic-success)" }}
+                  style={{ color: "#34d399" }}
                 >
                   ✓
                 </span>
               ) : null}
             </button>
+
+            {tieng && (
+              <button
+                type="button"
+                aria-label={option.text}
+                onClick={() => phat(tieng)}
+                className="absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full bg-black/25 text-xs transition hover:bg-lagoon-500/30"
+              >
+                🔊
+              </button>
+            )}
+            </div>
           );
         })}
       </div>
@@ -240,7 +314,7 @@ export function GapDropdownRenderer({
 /** Viền xanh/đỏ sau khi server chấm. `undefined` = chưa chấm, giữ nguyên. */
 function gapResultStyle(correct: boolean | undefined): React.CSSProperties {
   if (correct === undefined) return {};
-  const tone = correct ? "var(--color-semantic-success)" : "var(--color-semantic-danger)";
+  const tone = correct ? "#34d399" : "#f43f5e";
   return {
     borderColor: tone,
     boxShadow: `0 0 0 3px color-mix(in srgb, ${tone} 22%, transparent)`,
@@ -293,8 +367,7 @@ export function ShortAnswerRenderer({
           ngưỡng nào là bắt học sinh đoán xem bao nhiêu từ mới đủ. */}
       {maxWords ? (
         <p
-          className="text-right text-xs"
-          style={{ color: words > maxWords ? "var(--color-danger)" : "var(--color-text-muted)" }}
+          className={`text-right text-xs ${words > maxWords ? "text-coral-500" : "text-slate-400"}`}
         >
           {words}/{maxWords}
         </p>
@@ -303,7 +376,7 @@ export function ShortAnswerRenderer({
       {/* Chữa bài: chỉ ra cách viết được chấp nhận. Học sinh gõ sai mà không
           biết đáng lẽ phải gõ gì thì không học được gì từ câu đó. */}
       {mode === "review" && accepted.length > 0 && (
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        <p className="text-sm text-slate-400">
           ✓ {accepted.join(" / ")}
         </p>
       )}

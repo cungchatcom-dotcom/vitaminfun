@@ -1,8 +1,21 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import Link from 'next/link';
 import { Suspense } from 'react';
 
-import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LoginForm } from '@/components/login-form';
+import { localizedPath } from '@/lib/routes';
+import { selfSignupEnabled } from '@/lib/signup';
+
+/**
+ * DỰNG LẠI Ở MỖI REQUEST, không nướng sẵn vào bản build.
+ *
+ * Trang này đọc `ALLOW_SELF_SIGNUP` từ `.env`. Next mặc định dựng sẵn mọi trang
+ * không chạm vào dữ liệu của request — và khi đó `selfSignupEnabled()` chạy
+ * MỘT LẦN lúc `next build`, nên đổi biến trong `.env` rồi khởi động lại vẫn ra
+ * y hệt màn hình cũ. Một cái công tắc gạt mà đèn không đổi là thứ người ta sẽ
+ * gạt đi gạt lại rồi kết luận là hỏng.
+ */
+export const dynamic = 'force-dynamic';
 
 export default async function LoginPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -10,6 +23,11 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
 
   const t = await getTranslations('login');
   const tApp = await getTranslations('app');
+  const tSignup = await getTranslations('signup');
+
+  // Một biến `.env` duy nhất quyết định có lối tự mở tài khoản hay không —
+  // xem `lib/signup.ts`. Ở đây chỉ là cái nút; chốt thật nằm ở API.
+  const choDangKy = selfSignupEnabled();
 
   // Gợi ý tài khoản mẫu CHỈ hiện ở môi trường dev. Trên production đây là
   // một tấm biển chỉ đường cho người dò tài khoản.
@@ -18,14 +36,6 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
   return (
     <main className="flex min-h-full items-center justify-center bg-linear-to-b from-abyss-950 to-abyss-800 px-4 py-12">
       <div className="w-full max-w-sm">
-        {/* Bộ chọn ngôn ngữ đứng TRƯỚC ô đăng nhập. Giao diện mặc định là
-            tiếng Anh, nên một học sinh chưa đọc được tiếng Anh phải có lối
-            đổi ngay ở màn hình đầu tiên — chứ không phải đăng nhập xong,
-            vào tới thanh đầu trang mới thấy. */}
-        <div className="mb-6 flex justify-center">
-          <LocaleSwitcher />
-        </div>
-
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-orichalcum-400">{tApp('name')}</h1>
           <p className="mt-1 text-sm text-slate-400">{tApp('tagline')}</p>
@@ -38,6 +48,21 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
           <Suspense>
             <LoginForm />
           </Suspense>
+
+          {/* Lối mở tài khoản đứng NGAY DƯỚI ô đăng nhập, không nấp ở chân
+              trang: người chưa có tài khoản thì cả màn hình này chưa có việc
+              gì cho họ làm cả. */}
+          {choDangKy && (
+            <p className="mt-6 border-t border-abyss-800 pt-5 text-center text-sm text-slate-400">
+              {tSignup('noAccount')}{' '}
+              <Link
+                href={localizedPath('/signup', locale)}
+                className="font-medium text-lagoon-400 hover:text-lagoon-300"
+              >
+                {tSignup('cta')}
+              </Link>
+            </p>
+          )}
         </div>
 
         {showDemo && (

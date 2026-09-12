@@ -19,6 +19,7 @@ from app.core.errors import ErrorCode, NotFoundError
 from app.db.models import (
     QUEST_OBJECT_NPC,
     Chapter,
+    MediaAsset,
     PublishStatus,
     Quest,
     QuestPhase,
@@ -262,6 +263,73 @@ async def effective_character_height(db: AsyncSession, stage: Stage) -> int:
         .limit(1)
     )
     return first or DEFAULT_CHARACTER_HEIGHT
+
+
+async def effective_dialogue(db: AsyncSession, stage: Stage) -> dict[str, Any]:
+    """Bố cục màn hội thoại THẬT SỰ dùng cho màn này.
+
+    Hai nấc, dừng ở nấc đầu tiên có giá trị:
+
+      1. bố cục của chính màn này,
+      2. bố cục của màn ĐẦU TIÊN trong world (chương nhỏ nhất, thứ tự nhỏ nhất).
+
+    Không có nấc thứ ba: `{}` nghĩa là chưa ai căn gì, và giao diện tự dùng bố
+    cục mặc định của nó. Đặt sẵn một bộ toạ độ ở đây là chép cùng một mặc định
+    vào hai chỗ, rồi chúng lệch nhau.
+
+    Đọc LÚC CẦN chứ không sao chép xuống từng màn — cùng lý do với
+    `effective_character_height`: sao chép thì sửa lại màn 1 sau đó không lan
+    xuống đâu nữa, mà lan xuống mới là điều người dựng muốn.
+    """
+    if stage.dialogue_json:
+        return stage.dialogue_json
+
+    world_id = await db.scalar(select(Chapter.world_id).where(Chapter.id == stage.chapter_id))
+    if world_id is None:
+        return {}
+
+    first = await db.scalar(
+        select(Stage.dialogue_json)
+        .join(Chapter, Chapter.id == Stage.chapter_id)
+        .where(Chapter.world_id == world_id)
+        .order_by(Chapter.order_index, Stage.order_index)
+        .limit(1)
+    )
+    return first or {}
+
+
+async def block_urls(db: AsyncSession, layout: dict[str, Any]) -> dict[str, str]:
+    """URL anh nen cua tung khoi, tra MOT luot.
+
+    Khoi luu `media_id` chu khong luu URL: URL la thu doi khi kho anh doi, con
+    id thi khong. Nhung ca trinh thiet ke lan man choi deu can URL de ve, nen
+    doi o day - mot lan, ngay truoc khi gui di.
+
+    Tra ca loat vi mot bo cuc co sau khoi: hoi tung cai la sau luot di ve cho
+    mot man hinh.
+
+    Tra ve theo KHOA KHOI chu khong theo id anh: cho goi dang cam mot khoi va
+    can dung URL cua no, khong phai mot bang tra id.
+    """
+    ids = {
+        block["media_id"]
+        for block in layout.values()
+        if isinstance(block, dict) and block.get("media_id")
+    }
+    if not ids:
+        return {}
+
+    found = {
+        str(row.id): row.url
+        for row in await db.execute(
+            select(MediaAsset.id, MediaAsset.url).where(MediaAsset.id.in_(ids))
+        )
+    }
+    return {
+        key: found[str(block["media_id"])]
+        for key, block in layout.items()
+        if isinstance(block, dict) and str(block.get("media_id")) in found
+    }
 
 
 async def publish_blockers(db: AsyncSession, stage: Stage, world: World) -> list[dict[str, Any]]:

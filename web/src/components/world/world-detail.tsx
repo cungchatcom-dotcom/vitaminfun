@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { VerdictPanel } from './verdict-panel';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Badge, Card, EmptyState, PageHeader, SectionTitle } from '@/components/ui/primitives';
 import { ApiError } from '@/lib/api-error';
@@ -287,6 +288,18 @@ export function WorldDetail({ worldId }: { worldId: string }) {
         {chapters.length === 0 && (
           <EmptyState label={t('world.detail.noChapter')} hint={t('world.detail.noChapterHint')} />
         )}
+
+        {/* LỜI PHÁN — giọng điệu của cả world. Đặt SAU danh sách chương vì nó
+            không phải thứ người dựng đụng tới hằng ngày: soạn một lần lúc dựng
+            world, rồi thôi. */}
+        <VerdictPanel
+          value={world.verdict_json ?? {}}
+          onSave={(next) =>
+            withError(async () => {
+              setWorld(await updateWorld(world.id, { verdict_json: next }));
+            })
+          }
+        />
 
         <Card>
           {addingChapter ? (

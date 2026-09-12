@@ -38,6 +38,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tự mở tài khoản học sinh
+         * @description Mở tài khoản XONG LÀ ĐĂNG NHẬP LUÔN, trong một request.
+         *
+         *     Trả về đúng `LoginResponse` của `/auth/login` chứ không trả 201 rỗng: bắt
+         *     giao diện gọi tiếp `/auth/login` nghĩa là mật khẩu thô đi qua mạng hai lần
+         *     và có một khoảng giữa hai lời gọi để hỏng — mở được tài khoản nhưng không
+         *     vào được, một trạng thái không ai biết phải làm gì tiếp.
+         */
+        post: operations["signup_endpoint_api_v1_auth_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -202,6 +227,312 @@ export interface paths {
         put?: never;
         /** Tải một file lên */
         post: operations["upload_api_v1_media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Các dịch vụ giọng
+         * @description Danh sách dịch vụ đọc chữ thành tiếng, kèm số giọng đã kéo về.
+         *
+         *     Đi xuống từ SERVER chứ không viết cứng ở giao diện: thêm một nhà cung cấp là
+         *     thêm một dòng trong `PROVIDERS`, và ô chọn ngoài kia tự có thêm một mục.
+         */
+        get: operations["list_providers_api_v1_voices_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Danh mục giọng
+         * @description Lọc dần: dịch vụ → giới tính → nhóm tuổi.
+         *
+         *     Ba bộ lọc rời chứ không một ô chọn dài hai chục dòng: người dựng biết trước
+         *     họ cần một giọng nam trung niên, và bắt họ đọc hết cả danh sách để tìm là
+         *     bắt làm một việc máy làm được.
+         */
+        get: operations["list_voices_api_v1_voices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kéo danh mục giọng về
+         * @description Gọi nhà cung cấp, cập nhật kho.
+         *
+         *     CẬP NHẬT chứ không xoá-rồi-nạp-lại: nhân vật đang trỏ vào những dòng này, và
+         *     thay `id` của một giọng là gỡ giọng khỏi mọi nhân vật đang dùng nó. Khoá để
+         *     so là `(provider, external_id)` — thứ nhà cung cấp giữ ổn định.
+         *
+         *     Giọng nhà cung cấp đã bỏ đi thì Ở LẠI trong kho: một nhân vật đang dùng nó
+         *     vẫn nói được bằng chính mã đó, và xoá đi là một quyết định không hoàn tác
+         *     được, thực hiện bởi một thao tác đồng bộ mà người ta tưởng là chỉ đọc.
+         */
+        post: operations["sync_voices_api_v1_voices_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dịch vụ đọc chữ còn sống không
+         * @description Kiểm tra nhà cung cấp giọng đọc — KHÔNG tốn ký tự nào.
+         *
+         *     Có ba thứ hỏng được, và trước đây không phân biệt được cái nào: chưa đặt
+         *     khoá, khoá sai, hay mạng không tới. Cả ba đều hiện ra thành "sinh giọng thất
+         *     bại" lúc người dựng đã bấm nút và đã chờ.
+         *
+         *     Kèm số ký tự CÒN LẠI: sinh tám mươi câu cho một giọng là một khoản thật, và
+         *     biết trước còn bao nhiêu thì hơn là phát hiện giữa mẻ.
+         */
+        get: operations["voice_health_api_v1_voices_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{voice_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Một giọng */
+        get: operations["read_voice_api_v1_voices__voice_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/questions/{question_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tiếng đã sinh cho một câu hỏi
+         * @description Mọi bản thu của câu này, hoặc chỉ của MỘT giọng.
+         *
+         *     Không lọc = trả cả kho: popup xem câu hỏi cần thấy "câu này đã có tiếng của
+         *     những giọng nào", vì đó chính là thứ quyết định lắp nó vào màn khác có phải
+         *     sinh lại hay không.
+         */
+        get: operations["list_question_audio_api_v1_questions__question_id__audio_get"];
+        put?: never;
+        /**
+         * Sinh tiếng cho một câu hỏi
+         * @description Sinh tiếng cho MỘT câu, bằng những giọng được chỉ ra.
+         *
+         *     Ở mức này giọng phải nói rõ — không có nhiệm vụ nào quanh đây để suy ra
+         *     người canh giữ là ai.
+         */
+        post: operations["generate_question_audio_api_v1_questions__question_id__audio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quests/{quest_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tình trạng tiếng đọc của một nhiệm vụ */
+        get: operations["quest_audio_status_api_v1_quests__quest_id__audio_get"];
+        put?: never;
+        /**
+         * Sinh tiếng cho cả nhiệm vụ
+         * @description Sinh cho mọi câu của nhiệm vụ.
+         *
+         *     ĐỀ BÀI dùng giọng của người canh giữ — không ai chọn, nó đã được chọn lúc
+         *     gán NPC vào nhiệm vụ. PHƯƠNG ÁN thì dùng giọng của những nhân vật người dựng
+         *     chỉ ra, và chỉ những câu CÓ phương án mới sinh.
+         */
+        post: operations["generate_quest_audio_api_v1_quests__quest_id__audio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quests/{quest_id}/outro-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sinh tiếng cho lời chia tay của màn
+         * @description Đọc lời chia tay bằng giọng của NGƯỜI CANH GIỮ nhiệm vụ này.
+         *
+         *     Vào qua nhiệm vụ chứ không qua màn, dù lời chia tay là của MÀN: giọng đọc
+         *     nằm ở người canh giữ, mà người canh giữ nằm ở nhiệm vụ. Bắt màn tự đi tìm
+         *     xem nhiệm vụ nào có NPC là chép lại một luật đã có chỗ của nó.
+         *
+         *     Chỉ nhiệm vụ NPC. Nhiệm vụ thường cũng gán được người canh giữ, nhưng lời
+         *     chia tay chỉ vang lên đúng một lần trong màn — ở cổng vào.
+         */
+        post: operations["generate_outro_audio_api_v1_quests__quest_id__outro_audio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quests/{quest_id}/verdict-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sinh tiếng cho bộ câu phán của world
+         * @description Đọc bộ câu khen/chê của WORLD bằng giọng người canh giữ NHIỆM VỤ này.
+         *
+         *     Chữ là của world — cả thế giới ấy nói cùng một giọng điệu. Tiếng thì của
+         *     từng người canh giữ, vì mỗi nhiệm vụ một người.
+         *
+         *     Bản thu khoá theo `(giọng, nội dung câu)`, nên nhiệm vụ thứ hai chọn người
+         *     canh giữ khác mà **cùng giọng** thì bấm vào đây báo "đã có sẵn" hết và không
+         *     tốn thêm một xu nào. Đổi chữ một câu thì chỉ câu ấy cần thu lại — băm đổi
+         *     theo chữ.
+         */
+        post: operations["generate_verdict_audio_api_v1_quests__quest_id__verdict_audio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quests/{quest_id}/locked-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sinh tiếng cho câu khoá của nhiệm vụ
+         * @description Đọc câu khoá của nhiệm vụ này bằng giọng NGƯỜI GÁC CỬA của màn.
+         *
+         *     Giọng lấy từ nhiệm vụ NPC, không phải từ chính nhiệm vụ đang khoá: câu ấy do
+         *     người gác cửa nói, và cả màn chỉ có một người gác cửa. Hầu hết nhiệm vụ
+         *     thường không gán NPC nào, nên lấy giọng của chính chúng thì phần lớn cánh
+         *     cửa sẽ câm.
+         *
+         *     Chữ lấy THẲNG từ cột của nhiệm vụ, không nhận chuỗi client gửi lên: nhận bừa
+         *     là mở đường thu bất cứ gì bằng giọng của người khác.
+         */
+        post: operations["generate_locked_audio_api_v1_quests__quest_id__locked_audio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quests/{quest_id}/verdict-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Các câu phán và tiếng đọc của chúng
+         * @description Cả bộ câu phán của world, kèm URL tiếng theo giọng người canh giữ này.
+         *
+         *     Có `url` = nghe thử được ngay. `None` = chưa thu bằng giọng này — và đó
+         *     chính là thứ giao diện cần để đánh dấu câu nào còn thiếu.
+         */
+        get: operations["read_verdict_lines_api_v1_quests__quest_id__verdict_lines_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stages/{stage_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tình trạng tiếng đọc của cả màn */
+        get: operations["stage_audio_status_api_v1_stages__stage_id__audio_get"];
+        put?: never;
+        /**
+         * Sinh tiếng cho cả màn
+         * @description Chạy hết mọi nhiệm vụ của màn.
+         *
+         *     Nhiệm vụ nào chưa có giọng thì BỎ QUA và kể tên trong `missing_voice` —
+         *     không dừng cả mẻ vì một nhiệm vụ thiếu. Sinh được bao nhiêu thì sinh, rồi
+         *     người dựng đi vá chỗ còn lại.
+         */
+        post: operations["generate_stage_audio_api_v1_stages__stage_id__audio_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -583,6 +914,21 @@ export interface paths {
          *     Cùng bộ lọc hiển thị với `start`, nhưng KHÔNG kiểm điểm chiến lực: biết URL
          *     một đoạn video của màn chưa mở thì không mở được màn đó. Cái chặn nằm ở
          *     `start`, chỗ duy nhất tạo ra lượt chơi.
+         *
+         *     ## Đang chơi dở thì KHÔNG có video
+         *
+         *     Vào lại một màn còn dở là *chơi tiếp* — bài đang làm còn nguyên, đồng hồ vẫn
+         *     đang chạy từ `started_at`. Chiếu lại đoạn mở màn ở đó là kể lại phần mở đầu
+         *     cho người đã đi được nửa đường, và tệ hơn: nó ăn thêm giây của chính cái
+         *     đồng hồ đang chạy.
+         *
+         *     Quyết ở SERVER chứ không ở giao diện, vì server là nơi biết câu trả lời —
+         *     và nhờ vậy trình duyệt không tải một đoạn video rồi mới phát hiện ra mình
+         *     không cần nó.
+         *
+         *     Dùng chung đúng một hàm với `start_run` (`resumable_run`): hai bản chép của
+         *     luật "vào lại có chơi tiếp không" sẽ lệch nhau ở lượt vừa hết giờ, và hậu
+         *     quả là học sinh xem video xong bước vào một lượt chơi dở — hoặc ngược lại.
          */
         get: operations["stage_intro_api_v1_play_stages__stage_id__intro_get"];
         put?: never;
@@ -681,6 +1027,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/play/runs/{run_id}/quests/{quest_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Làm lại một nhiệm vụ từ đầu
+         * @description Mở một VÒNG mới cho một nhiệm vụ: mọi câu trở về trắng, lượt thử đếm lại.
+         *
+         *     Không cấm khi nhiệm vụ đã hoàn thành — đó mới là lúc người ta muốn chơi lại
+         *     nhất: đã qua rồi, giờ thử làm cho đẹp hơn. Nhật ký các vòng cũ được giữ
+         *     nguyên và báo cáo đọc vòng TỐT NHẤT, nên lần chơi lại không có gì để mất.
+         *
+         *     Trả về cả `RunOut` chứ không phải một con số: sau khi làm lại thì tiến độ,
+         *     điểm và bản nháp đều đổi, và màn chơi cần đúng một lượt gọi để vẽ lại.
+         */
+        post: operations["retry_quest_api_v1_play_runs__run_id__quests__quest_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/play/runs/{run_id}/questions/{question_id}/hints/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mua một gợi ý của câu hỏi
+         * @description Trả năng lượng để đọc bản dịch, hoặc lời thoại của câu nghe.
+         *
+         *     `POST` chứ không `GET`: nó TIÊU một thứ. Một đường `GET` thì trình duyệt,
+         *     proxy hay một cú tải lại trang đều có quyền gọi lại mà không hỏi ai.
+         *
+         *     Trả một lần rồi thì lần sau miễn phí — xem `buy_hint()`.
+         */
+        post: operations["buy_hint_api_v1_play_runs__run_id__questions__question_id__hints__kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/play/runs/{run_id}/position": {
         parameters: {
             query?: never;
@@ -762,6 +1160,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/play/runs/{run_id}/quests/{quest_id}/dialogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Đoạn chat với người canh giữ
+         * @description Cả đoạn chat của MÌNH với người canh giữ nhiệm vụ này.
+         *
+         *     Đọc lúc mở màn hội thoại: vào lại một nhiệm vụ đang dở thì cuộn lên vẫn thấy
+         *     nguyên những câu đã hỏi và đã trả lời, kể cả sau khi đóng trình duyệt hay
+         *     đổi máy.
+         */
+        get: operations["read_dialogue_api_v1_play_runs__run_id__quests__quest_id__dialogue_get"];
+        put?: never;
+        /**
+         * Ghi thêm câu nói vào đoạn chat
+         * @description Ghi lại đúng những câu vừa hiện ra trên màn hình.
+         *
+         *     Giao diện ghi, không phải server tự suy: lời khen chê bốc ngẫu nhiên trong
+         *     năm câu, bản dịch mua bằng năng lượng, câu mở đầu của nhiệm vụ — server
+         *     không dựng lại được cái nào cho khớp với thứ học sinh vừa đọc.
+         *
+         *     Trả về CẢ đoạn, không chỉ phần vừa thêm: giao diện vẽ một danh sách, nhận
+         *     về đúng thứ sắp vẽ thì không phải tự ghép hai nguồn.
+         */
+        post: operations["append_dialogue_api_v1_play_runs__run_id__quests__quest_id__dialogue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/characters": {
         parameters: {
             query?: never;
@@ -769,7 +1202,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Danh sách nhân vật */
+        /**
+         * Danh sách nhân vật
+         * @description Nhân vật, lọc được theo vai.
+         *
+         *     Không lọc = trả cả hai vai, vì màn quản lý cần thấy hết. Bộ chọn NPC ở
+         *     trình thiết kế nhiệm vụ thì gọi kèm `?kind=npc`, và màn chọn nhân vật của
+         *     học sinh đi đường khác (`/worlds/{id}/characters`) nên không đụng tới đây.
+         */
         get: operations["list_characters_api_v1_characters_get"];
         put?: never;
         /** Tạo nhân vật */
@@ -882,6 +1322,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/worlds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** World đã có người chơi */
+        get: operations["world_options_api_v1_reports_worlds_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Số liệu tổng quan */
+        get: operations["overview_api_v1_reports_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bảng xếp hạng người chơi */
+        get: operations["players_api_v1_reports_players_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/players/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chi tiết kết quả của một người chơi */
+        get: operations["player_detail_api_v1_reports_players__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -903,6 +1411,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AppendDialogueIn
+         * @description Một mẻ câu nói. Gửi cả mẻ chứ không từng câu một.
+         *
+         *     Một lượt hỏi-đáp sinh ra hai ba câu liền nhau, và ba lượt gọi mạng cho một
+         *     cú bấm là ba chỗ để hỏng lẻ tẻ — nửa đoạn chat ghi được, nửa không.
+         */
+        AppendDialogueIn: {
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["DialogueLineIn"][];
+        };
+        /**
+         * AudioGenerateIn
+         * @description Sinh cái gì, bằng giọng của ai, có ghi đè không.
+         */
+        AudioGenerateIn: {
+            /**
+             * Target
+             * @default prompt
+             * @enum {string}
+             */
+            target: "prompt" | "option";
+            /**
+             * Character Ids
+             * @default []
+             */
+            character_ids: string[];
+            /**
+             * Overwrite
+             * @default false
+             */
+            overwrite: boolean;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: string[];
+        };
+        /** AudioReportOut */
+        AudioReportOut: {
+            /** Generated */
+            generated: number;
+            /** Skipped */
+            skipped: number;
+            /**
+             * Missing Voice
+             * @default []
+             */
+            missing_voice: string[];
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Errors
+             * @default []
+             */
+            errors: string[];
+        };
         /**
          * AudioTrack
          * @description Một khối tiếng: file, âm lượng, tốc độ, có lặp hay không.
@@ -1065,6 +1636,12 @@ export interface components {
         };
         /** CharacterCreate */
         CharacterCreate: {
+            /**
+             * Kind
+             * @default player
+             * @enum {string}
+             */
+            kind: "player" | "npc";
             /** Name I18N */
             name_i18n: {
                 [key: string]: string;
@@ -1075,6 +1652,8 @@ export interface components {
             };
             /** Avatar Media Id */
             avatar_media_id?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
             /**
              * Position
              * @default 0
@@ -1096,6 +1675,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Kind
+             * @default player
+             * @enum {string}
+             */
+            kind: "player" | "npc";
             /** Name I18N */
             name_i18n: {
                 [key: string]: string;
@@ -1108,6 +1693,9 @@ export interface components {
             avatar_media_id: string | null;
             /** Avatar Url */
             avatar_url?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
+            voice?: components["schemas"]["VoiceOut"] | null;
             /** Position */
             position: number;
             /**
@@ -1120,6 +1708,8 @@ export interface components {
         };
         /** CharacterUpdate */
         CharacterUpdate: {
+            /** Kind */
+            kind?: ("player" | "npc") | null;
             /** Name I18N */
             name_i18n?: {
                 [key: string]: string;
@@ -1130,12 +1720,16 @@ export interface components {
             } | null;
             /** Avatar Media Id */
             avatar_media_id?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
             /** Position */
             position?: number | null;
             /** Status */
             status?: ("draft" | "published") | null;
             /** Clear Avatar */
             clear_avatar?: boolean | null;
+            /** Clear Voice */
+            clear_voice?: boolean | null;
         };
         /**
          * CollisionMap
@@ -1198,6 +1792,107 @@ export interface components {
                 number,
                 number
             ][] | null;
+        };
+        /**
+         * DayPoint
+         * @description Một cột của biểu đồ ngày.
+         */
+        DayPoint: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Players */
+            players: number;
+            /** Runs */
+            runs: number;
+        };
+        /**
+         * DialogueActor
+         * @description Một người đứng trong màn hội thoại: người canh giữ, hoặc học sinh.
+         *
+         *     Cùng một hình dạng cho cả hai vai, vì cả hai là `characters` và cả hai vẽ
+         *     bằng `character_actions`. Hai khai báo cho cùng một thứ là hai chỗ để lệch
+         *     nhau khi thêm tư thế.
+         *
+         *     `sprites` chỉ mang hành động CÓ ẢNH. Tư thế chưa tải thì lùi về tư thế nghỉ
+         *     rồi tới `avatar_url` — luật lùi nằm ở `web/src/game/character.ts`, một chỗ.
+         */
+        DialogueActor: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name I18N */
+            name_i18n: {
+                [key: string]: string;
+            };
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
+            /**
+             * Sprites
+             * @default []
+             */
+            sprites: components["schemas"]["RunSpriteOut"][];
+        };
+        /**
+         * DialogueLineIn
+         * @description Một câu vừa được nói ra, gửi lên để ghi lại.
+         */
+        DialogueLineIn: {
+            /** Role */
+            role: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Aside */
+            aside?: string | null;
+            /** Tone */
+            tone?: string | null;
+            /** Question Id */
+            question_id?: string | null;
+            /** Audio Url */
+            audio_url?: string | null;
+        };
+        /** DialogueLineOut */
+        DialogueLineOut: {
+            /** Seq */
+            seq: number;
+            /** Role */
+            role: string;
+            /** Kind */
+            kind: string;
+            /** Text */
+            text: string;
+            /** Aside */
+            aside?: string | null;
+            /** Tone */
+            tone?: string | null;
+            /** Question Id */
+            question_id?: string | null;
+            /** Audio Url */
+            audio_url?: string | null;
+        };
+        /** DialogueThreadOut */
+        DialogueThreadOut: {
+            /**
+             * Quest Id
+             * Format: uuid
+             */
+            quest_id: string;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["DialogueLineOut"][];
         };
         /** GalaxyOut */
         GalaxyOut: {
@@ -1503,6 +2198,33 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** OverviewOut */
+        OverviewOut: {
+            players: components["schemas"]["WindowCount"];
+            runs: components["schemas"]["WindowCount"];
+            /** Runs Won */
+            runs_won: number;
+            /** Runs Lost */
+            runs_lost: number;
+            /** Runs Abandoned */
+            runs_abandoned: number;
+            /** Runs Playing */
+            runs_playing: number;
+            /** Win Rate */
+            win_rate: number | null;
+            /** Avg Score Pct */
+            avg_score_pct: number | null;
+            /** Avg Duration Seconds */
+            avg_duration_seconds: number | null;
+            /** Quests Completed */
+            quests_completed: number;
+            /** Skill Pts Awarded */
+            skill_pts_awarded: number;
+            /** Daily */
+            daily: components["schemas"]["DayPoint"][];
+            /** Timezone */
+            timezone: string;
         };
         /** PickCharacterIn */
         PickCharacterIn: {
@@ -1934,6 +2656,74 @@ export interface components {
             /** Stages Published */
             stages_published: number;
         };
+        /** PlayerDetailOut */
+        PlayerDetailOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Created At */
+            created_at: string | null;
+            /** Runs */
+            runs: number;
+            /** Runs Won */
+            runs_won: number;
+            /** Play Seconds */
+            play_seconds: number;
+            /** Skill Pts */
+            skill_pts: number;
+            /** Worlds */
+            worlds: components["schemas"]["WorldResult"][];
+            /** Recent Runs */
+            recent_runs: components["schemas"]["RunRow"][];
+        };
+        /** PlayerListOut */
+        PlayerListOut: {
+            /** Items */
+            items: components["schemas"]["PlayerRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * PlayerRow
+         * @description Một hàng của bảng xếp hạng.
+         */
+        PlayerRow: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Rank */
+            rank: number;
+            /** Skill Pts */
+            skill_pts: number;
+            /** Stages Completed */
+            stages_completed: number;
+            /** Worlds Played */
+            worlds_played: number;
+            /** Runs */
+            runs: number;
+            /** Runs Won */
+            runs_won: number;
+            /** Play Seconds */
+            play_seconds: number;
+            /** Last Played At */
+            last_played_at: string | null;
+        };
         /**
          * PublishBlocker
          * @description Một lý do khiến màn chưa xuất bản được.
@@ -1948,6 +2738,51 @@ export interface components {
             params?: {
                 [key: string]: unknown;
             };
+        };
+        /** QuestAudioStatusOut */
+        QuestAudioStatusOut: {
+            /**
+             * Quest Id
+             * Format: uuid
+             */
+            quest_id: string;
+            /**
+             * Name I18N
+             * @default {}
+             */
+            name_i18n: {
+                [key: string]: string;
+            };
+            /** Npc Character Id */
+            npc_character_id?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
+            /** Voice Name */
+            voice_name?: string | null;
+            /**
+             * Questions
+             * @default []
+             */
+            questions: components["schemas"]["QuestionAudioStatusOut"][];
+            /** Outro Text */
+            outro_text?: string | null;
+            /**
+             * Outro Ready
+             * @default false
+             */
+            outro_ready: boolean;
+            /** Outro Url */
+            outro_url?: string | null;
+            /**
+             * Verdict Total
+             * @default 0
+             */
+            verdict_total: number;
+            /**
+             * Verdict Ready
+             * @default 0
+             */
+            verdict_ready: number;
         };
         /**
          * QuestCreate
@@ -1981,6 +2816,8 @@ export interface components {
             trigger_radius?: number | null;
             /** Icon Media Id */
             icon_media_id?: string | null;
+            /** Npc Character Id */
+            npc_character_id?: string | null;
             /** Icon Size */
             icon_size?: number | null;
             /** Pulse Percent */
@@ -2032,6 +2869,12 @@ export interface components {
             trigger_radius: number | null;
             /** Icon Media Id */
             icon_media_id: string | null;
+            /** Npc Character Id */
+            npc_character_id?: string | null;
+            /** Locked Message I18N */
+            locked_message_i18n?: {
+                [key: string]: string;
+            };
             /** Icon Size */
             icon_size: number | null;
             /** Pulse Percent */
@@ -2040,6 +2883,12 @@ export interface components {
             pulse_period_ms: number | null;
             /** Icon Url */
             icon_url?: string | null;
+            /** Npc Name I18N */
+            npc_name_i18n?: {
+                [key: string]: string;
+            };
+            /** Npc Avatar Url */
+            npc_avatar_url?: string | null;
             /** Energy Cost */
             energy_cost: number;
             /** Questions */
@@ -2111,6 +2960,10 @@ export interface components {
             question_deleted: boolean;
             /** Question Prompt */
             question_prompt?: string | null;
+            /** Stage Code */
+            stage_code?: string | null;
+            /** Quest Code */
+            quest_code?: string | null;
         };
         /** QuestQuestionUpdate */
         QuestQuestionUpdate: {
@@ -2141,6 +2994,12 @@ export interface components {
             trigger_radius?: number | null;
             /** Icon Media Id */
             icon_media_id?: string | null;
+            /** Npc Character Id */
+            npc_character_id?: string | null;
+            /** Locked Message I18N */
+            locked_message_i18n?: {
+                [key: string]: string;
+            } | null;
             /** Icon Size */
             icon_size?: number | null;
             /** Pulse Percent */
@@ -2153,6 +3012,59 @@ export interface components {
             pass_score?: number | null;
             /** Clear Pass Score */
             clear_pass_score?: boolean | null;
+        };
+        /** QuestionAudioOut */
+        QuestionAudioOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /**
+             * Voice Id
+             * Format: uuid
+             */
+            voice_id: string;
+            /** Voice Name */
+            voice_name?: string | null;
+            /** Target */
+            target: string;
+            /** Option Key */
+            option_key?: string | null;
+            /**
+             * Media Id
+             * Format: uuid
+             */
+            media_id: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** QuestionAudioStatusOut */
+        QuestionAudioStatusOut: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Type */
+            type: string;
+            /** Prompt */
+            prompt: string;
+            /** Prompt Ready */
+            prompt_ready: boolean;
+            /** Prompt Url */
+            prompt_url?: string | null;
+            /** Option Count */
+            option_count: number;
+            /** Options Wanted */
+            options_wanted: number;
+            /** Options Ready */
+            options_ready: number;
         };
         /**
          * QuestionCodesOut
@@ -2310,6 +3222,11 @@ export interface components {
             completed: boolean;
             /** Attempts Left */
             attempts_left: number | null;
+            /**
+             * Attempts Used
+             * @default 0
+             */
+            attempts_used: number;
             /** Draft */
             draft?: {
                 [key: string]: unknown;
@@ -2379,6 +3296,16 @@ export interface components {
              * Format: uuid
              */
             run_id: string;
+            /**
+             * Stage Id
+             * Format: uuid
+             */
+            stage_id: string;
+            /**
+             * World Id
+             * Format: uuid
+             */
+            world_id: string;
             /** Stage Name I18N */
             stage_name_i18n: {
                 [key: string]: string;
@@ -2405,6 +3332,10 @@ export interface components {
             order_index: number;
             /** Quest Object Key */
             quest_object_key: string;
+            /** Name I18N */
+            name_i18n?: {
+                [key: string]: string;
+            };
             /**
              * Phase
              * @enum {string}
@@ -2446,13 +3377,26 @@ export interface components {
             earned: number;
             /** Skill Pts Awarded */
             skill_pts_awarded: number;
+            /**
+             * Prompt Kind
+             * @default text
+             * @enum {string}
+             */
+            prompt_kind: "text" | "audio";
+            /**
+             * Show Transcript
+             * @default false
+             */
+            show_transcript: boolean;
+            /** Audio Url */
+            audio_url?: string | null;
         };
         /**
          * RunCharacterOut
          * @description Nhân vật người chơi đã chọn cho world của màn này.
          *
-         *     Chỉ những hành động CÓ ẢNH mới đi kèm: hành động chưa tải spritesheet thì
-         *     Phaser không có gì để nạp.
+         *     Không thêm trường nào so với `DialogueActor` — giữ tên riêng vì `RunOut`
+         *     dùng nó, và một cái tên nói đúng vai thì đọc chỗ gọi dễ hơn.
          */
         RunCharacterOut: {
             /**
@@ -2464,6 +3408,10 @@ export interface components {
             name_i18n: {
                 [key: string]: string;
             };
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
             /**
              * Sprites
              * @default []
@@ -2497,6 +3445,11 @@ export interface components {
             /** Is Trial */
             is_trial: boolean;
             snapshot: components["schemas"]["StageSnapshot"];
+            /**
+             * Hint Cost
+             * @default 0
+             */
+            hint_cost: number;
             /** My Energy Granted */
             my_energy_granted: number;
             /** My Energy Remaining */
@@ -2559,6 +3512,48 @@ export interface components {
             /** Got Map Shard */
             got_map_shard: boolean;
         };
+        /** RunRow */
+        RunRow: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Stage Id
+             * Format: uuid
+             */
+            stage_id: string;
+            /** Stage Name I18N */
+            stage_name_i18n: {
+                [key: string]: string;
+            };
+            /** World Name I18N */
+            world_name_i18n: {
+                [key: string]: string;
+            };
+            /** Status */
+            status: string;
+            /** Score */
+            score: number;
+            /** Max Score */
+            max_score: number;
+            /** Quests Completed */
+            quests_completed: number;
+            /** Skill Pts Earned */
+            skill_pts_earned: number;
+            /** Got Map Shard */
+            got_map_shard: boolean;
+            /** Duration Seconds */
+            duration_seconds: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Ended At */
+            ended_at: string | null;
+        };
         /**
          * RunSpriteOut
          * @description Một hành động của nhân vật, đúng thứ Phaser cần để cắt tấm ảnh:
@@ -2566,6 +3561,9 @@ export interface components {
          *         this.load.spritesheet(key, url, { frameWidth, frameHeight })
          *
          *     `frames = 1` là hợp lệ: ảnh một khung, vẽ như hình tĩnh.
+         *
+         *     Khai báo Ở ĐÂY, trên cùng, vì cả đề bài đóng băng lẫn `RunOut` đều cần —
+         *     người canh giữ nằm trong đề bài, nhân vật học sinh thì không.
          */
         RunSpriteOut: {
             /** Action Key */
@@ -2601,6 +3599,24 @@ export interface components {
             /** Y */
             y: number;
         };
+        /**
+         * SignupRequest
+         * @description Ba ô, không hơn.
+         *
+         *     Cố ý KHÔNG ràng buộc gì ở tầng Pydantic ngoài độ dài thô: mọi luật thật —
+         *     email có đúng dạng không, mật khẩu đủ dài chưa, tên có rỗng không — nằm ở
+         *     `service.signup()` và trả về MÃ LỖI RIÊNG cho từng ô. Để Pydantic từ chối
+         *     thì cả ba trường hợp ra chung một `VALIDATION_FAILED`, và người đăng ký
+         *     nhìn thấy "dữ liệu không hợp lệ" trên một biểu mẫu ba ô — tức là phải đoán.
+         */
+        SignupRequest: {
+            /** Email */
+            email: string;
+            /** Display Name */
+            display_name: string;
+            /** Password */
+            password: string;
+        };
         /** SnapshotQuest */
         SnapshotQuest: {
             /**
@@ -2632,6 +3648,7 @@ export interface components {
             trigger_radius?: number | null;
             /** Icon Url */
             icon_url?: string | null;
+            npc?: components["schemas"]["DialogueActor"] | null;
             /** Icon Size */
             icon_size?: number | null;
             /** Pulse Percent */
@@ -2642,6 +3659,34 @@ export interface components {
             energy_cost: number;
             /** Pass Score */
             pass_score: number;
+            /**
+             * Locked Message I18N
+             * @default {}
+             */
+            locked_message_i18n: {
+                [key: string]: string;
+            };
+            /**
+             * Locked Audio
+             * @default {}
+             */
+            locked_audio: {
+                [key: string]: string;
+            };
+            /**
+             * Verdict
+             * @default {}
+             */
+            verdict: {
+                [key: string]: string[];
+            };
+            /**
+             * Verdict Audio
+             * @default {}
+             */
+            verdict_audio: {
+                [key: string]: string;
+            };
             /** Questions */
             questions: components["schemas"]["SnapshotQuestion"][];
         };
@@ -2678,6 +3723,25 @@ export interface components {
             show_transcript: boolean;
             /** Audio Url */
             audio_url?: string | null;
+            /**
+             * Option Audio
+             * @default {}
+             */
+            option_audio: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /**
+             * Has Translation
+             * @default false
+             */
+            has_translation: boolean;
+            /**
+             * Has Transcript
+             * @default false
+             */
+            has_transcript: boolean;
         };
         /** SnapshotStage */
         SnapshotStage: {
@@ -2761,6 +3825,33 @@ export interface components {
             audio_urls: {
                 [key: string]: string;
             };
+            /**
+             * Dialogue
+             * @default {}
+             */
+            dialogue: {
+                [key: string]: unknown;
+            };
+            /**
+             * Dialogue Urls
+             * @default {}
+             */
+            dialogue_urls: {
+                [key: string]: string;
+            };
+        };
+        /** StageAudioStatusOut */
+        StageAudioStatusOut: {
+            /**
+             * Stage Id
+             * Format: uuid
+             */
+            stage_id: string;
+            /**
+             * Quests
+             * @default []
+             */
+            quests: components["schemas"]["QuestAudioStatusOut"][];
         };
         /**
          * StageBrief
@@ -2868,6 +3959,10 @@ export interface components {
             background_media_id?: string | null;
             /** Intro Video Media Id */
             intro_video_media_id?: string | null;
+            /** Dialogue Json */
+            dialogue_json?: {
+                [key: string]: unknown;
+            } | null;
             /** Advisor Portrait Media Id */
             advisor_portrait_media_id?: string | null;
             /** Advisor Outro I18N */
@@ -3014,6 +4109,18 @@ export interface components {
             cluebook_i18n?: {
                 [key: string]: string;
             };
+            /** Dialogue Json */
+            dialogue_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Dialogue Effective */
+            dialogue_effective?: {
+                [key: string]: unknown;
+            };
+            /** Dialogue Urls */
+            dialogue_urls?: {
+                [key: string]: string;
+            };
             collision?: components["schemas"]["CollisionMap"] | null;
             /** Audio */
             audio?: {
@@ -3031,6 +4138,42 @@ export interface components {
             quests: components["schemas"]["QuestOut"][];
             /** Publish Blockers */
             publish_blockers: components["schemas"]["PublishBlocker"][];
+        };
+        /** StageResult */
+        StageResult: {
+            /**
+             * Stage Id
+             * Format: uuid
+             */
+            stage_id: string;
+            /** Name I18N */
+            name_i18n: {
+                [key: string]: string;
+            };
+            /** Chapter Name I18N */
+            chapter_name_i18n: {
+                [key: string]: string;
+            };
+            /** Order Index */
+            order_index: number;
+            /** Best Score */
+            best_score: number;
+            /** Max Score */
+            max_score: number;
+            /** Best Quests Completed */
+            best_quests_completed: number;
+            /** Times Played */
+            times_played: number;
+            /** Skill Pts Earned Total */
+            skill_pts_earned_total: number;
+            /** Best Duration Seconds */
+            best_duration_seconds: number | null;
+            /** First Completed At */
+            first_completed_at: string | null;
+            /** Last Played At */
+            last_played_at: string | null;
+            /** Last Status */
+            last_status: string | null;
         };
         /**
          * StageSnapshot
@@ -3112,6 +4255,12 @@ export interface components {
             collision?: components["schemas"]["CollisionMap"] | null;
             /** Clear Collision */
             clear_collision?: boolean | null;
+            /** Dialogue Json */
+            dialogue_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Clear Dialogue */
+            clear_dialogue?: boolean | null;
             /** Audio */
             audio?: {
                 [key: string]: components["schemas"]["AudioTrack"];
@@ -3123,9 +4272,13 @@ export interface components {
          * SubmitQuestOut
          * @description Phản hồi khi nộp CẢ MỘT NHIỆM VỤ.
          *
-         *     ⚠️ Ba trường. Không điểm, không đáp án, không giải thích — xem ghi chú đầu
-         *     file. Muốn biết từng câu đúng sai thì đọc `my_progress` của lượt chơi, ở đó
-         *     cũng chỉ có xong/chưa xong.
+         *     ⚠️ KHÔNG điểm, KHÔNG đáp án, KHÔNG giải thích, KHÔNG điểm chiến lực — xem
+         *     ghi chú đầu file. Những trường dưới đây chỉ nói XONG hay CHƯA.
+         *
+         *     Mang đủ để màn chơi tự cập nhật, KHÔNG phải gọi thêm `GET /runs/{id}`. Lần
+         *     nộp nào cũng tải lại cả lượt chơi là gửi lại 66 KB, trong đó 62 KB là đề bài
+         *     đã đóng băng và không bao giờ đổi trong suốt một lượt — mỗi câu trả lời của
+         *     mỗi học sinh, suốt cả buổi.
          */
         SubmitQuestOut: {
             /** Quest Completed */
@@ -3134,6 +4287,13 @@ export interface components {
             attempts_left: number | null;
             /** My Energy */
             my_energy: number;
+            quest: components["schemas"]["QuestProgress"];
+            /** Unlocked */
+            unlocked: boolean;
+            /** Run Status */
+            run_status: string;
+            /** My Energy Granted */
+            my_energy_granted: number;
         };
         /**
          * TeammateProgress
@@ -3155,6 +4315,16 @@ export interface components {
             is_me: boolean;
             /** Quest Ids Completed */
             quest_ids_completed: string[];
+        };
+        /**
+         * TranslationOut
+         * @description Bản dịch của một câu hỏi, sau khi đã trả bằng năng lượng.
+         */
+        TranslationOut: {
+            /** Text */
+            text: string;
+            /** My Energy Remaining */
+            my_energy_remaining: number;
         };
         /**
          * UserSummary
@@ -3192,6 +4362,114 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VerdictLineOut
+         * @description Một câu phán, kèm tiếng đọc của giọng đang xét.
+         */
+        VerdictLineOut: {
+            /** Group */
+            group: string;
+            /** Text */
+            text: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** VerdictLinesOut */
+        VerdictLinesOut: {
+            /**
+             * Quest Id
+             * Format: uuid
+             */
+            quest_id: string;
+            /** Voice Name */
+            voice_name?: string | null;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["VerdictLineOut"][];
+        };
+        /** VoiceOut */
+        VoiceOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Provider */
+            provider: string;
+            /** External Id */
+            external_id: string;
+            /** Name */
+            name: string;
+            /** Gender */
+            gender?: string | null;
+            /** Age Group */
+            age_group?: string | null;
+            /** Accent */
+            accent?: string | null;
+            /** Style */
+            style?: string | null;
+            /** Use Case */
+            use_case?: string | null;
+            /**
+             * Language
+             * @default en
+             */
+            language: string;
+            /** Preview Url */
+            preview_url?: string | null;
+        };
+        /**
+         * VoiceProviderOut
+         * @description Một dịch vụ đọc chữ thành tiếng, cho ô chọn đầu tiên.
+         */
+        VoiceProviderOut: {
+            /** Key */
+            key: string;
+            /** Voice Count */
+            voice_count: number;
+        };
+        /** VoiceSyncIn */
+        VoiceSyncIn: {
+            /** Provider */
+            provider: string;
+            /**
+             * Language
+             * @default en
+             */
+            language: string;
+        };
+        /** VoiceSyncOut */
+        VoiceSyncOut: {
+            /** Provider */
+            provider: string;
+            /** Total */
+            total: number;
+            /** Added */
+            added: number;
+            /** Updated */
+            updated: number;
+        };
+        /**
+         * WindowCount
+         * @description Một con số đếm theo BỐN cửa sổ thời gian.
+         *
+         *     Gộp bốn mốc vào một khối thay vì tám trường phẳng (`players_today`,
+         *     `players_7d`…): giao diện vẽ chúng bằng CÙNG một ô thẻ, nên chúng nên có
+         *     cùng một hình dạng. Thêm mốc thứ năm sau này cũng chỉ là thêm một trường ở
+         *     đây, không phải thêm một ô vào mỗi chỗ đang đọc.
+         */
+        WindowCount: {
+            /** Today */
+            today: number;
+            /** Last 7D */
+            last_7d: number;
+            /** Last 30D */
+            last_30d: number;
+            /** Total */
+            total: number;
         };
         /** WorldCreate */
         WorldCreate: {
@@ -3240,6 +4518,25 @@ export interface components {
             scene_y?: number | null;
             /** Icon Size */
             icon_size?: number | null;
+        };
+        /**
+         * WorldOption
+         * @description Một lựa chọn của ô lọc world.
+         */
+        WorldOption: {
+            /**
+             * World Id
+             * Format: uuid
+             */
+            world_id: string;
+            /** Name I18N */
+            name_i18n: {
+                [key: string]: string;
+            };
+            /** Players */
+            players: number;
+            /** Runs */
+            runs: number;
         };
         /** WorldOut */
         WorldOut: {
@@ -3342,6 +4639,10 @@ export interface components {
             balance: {
                 [key: string]: unknown;
             };
+            /** Verdict Json */
+            verdict_json?: {
+                [key: string]: string[];
+            };
             /** Lobby Json */
             lobby_json?: {
                 [key: string]: unknown;
@@ -3377,6 +4678,36 @@ export interface components {
              * @default 0
              */
             stage_published_count: number;
+        };
+        /** WorldResult */
+        WorldResult: {
+            /**
+             * World Id
+             * Format: uuid
+             */
+            world_id: string;
+            /** Name I18N */
+            name_i18n: {
+                [key: string]: string;
+            };
+            /** Skill Pts */
+            skill_pts: number;
+            /** Stages Completed */
+            stages_completed: number;
+            /** Shards Owned */
+            shards_owned: number;
+            /** Shard Total */
+            shard_total: number;
+            /** First Played At */
+            first_played_at: string | null;
+            /** Last Played At */
+            last_played_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Gate Opened At */
+            gate_opened_at: string | null;
+            /** Stages */
+            stages: components["schemas"]["StageResult"][];
         };
         /** WorldUpdate */
         WorldUpdate: {
@@ -3472,6 +4803,10 @@ export interface components {
             balance_json?: {
                 [key: string]: unknown;
             } | null;
+            /** Verdict Json */
+            verdict_json?: {
+                [key: string]: string[];
+            } | null;
         };
     };
     responses: never;
@@ -3514,6 +4849,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signup_endpoint_api_v1_auth_signup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupRequest"];
             };
         };
         responses: {
@@ -3906,6 +5274,486 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_providers_api_v1_voices_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceProviderOut"][];
+                };
+            };
+        };
+    };
+    list_voices_api_v1_voices_get: {
+        parameters: {
+            query?: {
+                provider?: string | null;
+                gender?: ("male" | "female" | "neutral") | null;
+                age_group?: ("young" | "middle_aged" | "old") | null;
+                language?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_voices_api_v1_voices_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceSyncIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSyncOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    voice_health_api_v1_voices_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    read_voice_api_v1_voices__voice_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                voice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_question_audio_api_v1_questions__question_id__audio_get: {
+        parameters: {
+            query?: {
+                voice_id?: string | null;
+            };
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionAudioOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_question_audio_api_v1_questions__question_id__audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quest_audio_status_api_v1_quests__quest_id__audio_get: {
+        parameters: {
+            query?: {
+                character_ids?: string[];
+            };
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestAudioStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_quest_audio_api_v1_quests__quest_id__audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_outro_audio_api_v1_quests__quest_id__outro_audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_verdict_audio_api_v1_quests__quest_id__verdict_audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_locked_audio_api_v1_quests__quest_id__locked_audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_verdict_lines_api_v1_quests__quest_id__verdict_lines_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerdictLinesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stage_audio_status_api_v1_stages__stage_id__audio_get: {
+        parameters: {
+            query?: {
+                character_ids?: string[];
+            };
+            header?: never;
+            path: {
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StageAudioStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_stage_audio_api_v1_stages__stage_id__audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioGenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioReportOut"];
                 };
             };
             /** @description Validation Error */
@@ -4850,6 +6698,71 @@ export interface operations {
             };
         };
     };
+    retry_quest_api_v1_play_runs__run_id__quests__quest_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buy_hint_api_v1_play_runs__run_id__questions__question_id__hints__kind__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                question_id: string;
+                kind: "translation" | "transcript";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     save_position_api_v1_play_runs__run_id__position_put: {
         parameters: {
             query?: never;
@@ -4976,9 +6889,79 @@ export interface operations {
             };
         };
     };
-    list_characters_api_v1_characters_get: {
+    read_dialogue_api_v1_play_runs__run_id__quests__quest_id__dialogue_get: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DialogueThreadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    append_dialogue_api_v1_play_runs__run_id__quests__quest_id__dialogue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                quest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppendDialogueIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DialogueThreadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_characters_api_v1_characters_get: {
+        parameters: {
+            query?: {
+                kind?: ("player" | "npc") | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4992,6 +6975,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CharacterOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -5276,6 +7268,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CharacterOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    world_options_api_v1_reports_worlds_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorldOption"][];
+                };
+            };
+        };
+    };
+    overview_api_v1_reports_overview_get: {
+        parameters: {
+            query?: {
+                /** @description Bỏ trống = mọi world */
+                world_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    players_api_v1_reports_players_get: {
+        parameters: {
+            query?: {
+                /** @description Bỏ trống = mọi world */
+                world_id?: string | null;
+                page?: number;
+                size?: number;
+                /** @description Tìm theo họ tên hoặc email */
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    player_detail_api_v1_reports_players__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerDetailOut"];
                 };
             };
             /** @description Validation Error */

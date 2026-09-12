@@ -43,6 +43,9 @@ from app.db.models import (
 )
 from app.modules.play import service
 from app.modules.play.schemas import (
+    AppendDialogueIn,
+    DialogueLineOut,
+    DialogueThreadOut,
     PickCharacterIn,
     PlayCharacterOut,
     PlayChapterOut,
@@ -67,6 +70,7 @@ from app.modules.play.schemas import (
     SaveDraftIn,
     SavePositionIn,
     SubmitQuestOut,
+    TranslationOut,
     TeammateProgress,
 )
 from app.modules.worlds import service as worlds_service
@@ -317,24 +321,9 @@ async def _lobby(db: DbDep, world: World) -> PlayLobbyOut:
         )
 
     layout = world.lobby_json or {}
-    ids = {
-        element["media_id"]
-        for element in layout.values()
-        if isinstance(element, dict) and element.get("media_id")
-    }
-    urls: dict[str, str] = {}
-    if ids:
-        found = {
-            str(row.id): row.url
-            for row in await db.execute(
-                select(MediaAsset.id, MediaAsset.url).where(MediaAsset.id.in_(ids))
-            )
-        }
-        urls = {
-            key: found[str(element["media_id"])]
-            for key, element in layout.items()
-            if isinstance(element, dict) and str(element.get("media_id")) in found
-        }
+    # Cùng phép tra với khối hội thoại — khối phòng chờ và khối hội thoại là
+    # cùng một hình dạng dữ liệu (`LobbySaved`), nên cùng một hàm.
+    urls = await worlds_service.block_urls(db, layout)
 
     # MỘT id cho cả URL lẫn loại. Tính hai lần là mở cửa cho hai vế lệch nhau:
     # phòng chờ chưa đặt nền thì thừa nền thiên hà, và nếu vế loại quên mất
@@ -670,6 +659,10 @@ async def _run_character(
     Chưa chọn, hoặc chọn rồi mà nhân vật bị rút về nháp, thì trả `None` — cảnh
     chơi vẽ ký hiệu mặc định. Một màn chơi không được đứng hình chỉ vì một lựa
     chọn cũ đã hết hiệu lực.
+
+    Phần dựng spritesheet đi qua `service.actors_of`, dùng chung với người canh
+    giữ: hai bản chép của cùng phép cắt khung sẽ lệch nhau đúng vào lúc ai đó
+    thêm một tư thế.
     """
     character_id = await db.scalar(
         select(WorldProgress.character_id).where(
@@ -679,46 +672,80 @@ async def _run_character(
     if character_id is None:
         return None
 
-    character = await db.scalar(
-        select(Character).where(
+    # Kiểm XUẤT BẢN ở đây chứ không trong `actors_of`: học sinh chỉ được chơi
+    # nhân vật đã phát hành, còn người canh giữ thì người dựng vừa gán vào và
+    # phải thấy được ngay, kể cả khi còn nháp.
+    published = await db.scalar(
+        select(Character.id).where(
             Character.id == character_id, Character.status == PublishStatus.PUBLISHED
         )
     )
-    if character is None:
+    if published is None:
         return None
 
-    rows = list(
-        await db.execute(
-            select(CharacterAction, MediaAsset.url, MediaAsset.width, MediaAsset.height)
-            .join(MediaAsset, MediaAsset.id == CharacterAction.media_id)
-            .where(CharacterAction.character_id == character.id)
-        )
-    )
+    actor = (await service.actors_of(db, [character_id])).get(character_id)
+    if actor is None:
+        return None
+    return RunCharacterOut(**actor.model_dump())
 
-    sprites: list[RunSpriteOut] = []
-    for action, url, media_width, media_height in rows:
-        # Khổ khung để trống thì SUY từ khổ ảnh: một dải ngang `n` khung thì mỗi
-        # khung rộng `ảnh ÷ n`, cao bằng cả ảnh. Suy ở đây chứ không ở giao diện
-        # vì cắt sai một pixel là cả hoạt ảnh trượt khung.
-        width = action.frame_width or (
-            int(media_width // action.frames) if media_width else None
+
+def _quest_progress(
+    quest: dict,
+    mine: list[QuestAnswer],
+    me_row: StageRunPlayer | None,
+    drafts: dict,
+    max_attempts,
+    cleared: bool,
+) -> QuestProgress:
+    """Tiến độ của MỘT nhiệm vụ, nhìn từ phía một người chơi.
+
+    Tách ra vì hai chỗ cần đúng phép tính này: `_run_out` dựng cả danh sách, còn
+    lần nộp bài chỉ cần đúng một nhiệm vụ. Trước đây chỉ có chỗ thứ nhất, nên
+    lần nộp nào cũng phải tải lại cả `RunOut` — 66 KB, trong đó 62 KB là đề bài
+    đã đóng băng và không bao giờ đổi.
+    """
+    quest_id = uuid.UUID(quest["id"])
+
+    # ĐANG LÀM TỚI ĐÂU thì chỉ nhìn VÒNG hiện tại: bấm "Làm lại" là mọi câu trở
+    # về trắng, lượt thử đếm lại từ đầu. Còn cái NHÃN hoàn thành thì đọc vòng
+    # tốt nhất — xem `completed` ở dưới.
+    vong = service.round_now(me_row, quest_id)
+    trong_vong = service.same_round(mine, vong)
+
+    questions: list[QuestionProgress] = []
+    for question in quest["questions"]:
+        question_id = uuid.UUID(question["id"])
+        tries = [
+            a for a in trong_vong if a.quest_id == quest_id and a.question_id == question_id
+        ]
+        done = any(a.is_correct for a in tries)
+        # Nhiệm vụ NPC không đếm lượt — xem `service.submit_quest`.
+        left = (
+            None
+            if max_attempts is None or quest["phase"] == "advisor"
+            else (0 if done else max(0, int(max_attempts) - len(tries)))
         )
-        height = action.frame_height or media_height
-        if not width or not height:
-            continue
-        sprites.append(
-            RunSpriteOut(
-                action_key=action.action_key,
-                url=url,
-                frames=action.frames,
-                frame_width=width,
-                frame_height=height,
-                frame_rate=action.frame_rate,
+        questions.append(
+            QuestionProgress(
+                question_id=question_id,
+                completed=done,
+                attempts_left=left,
+                # Đếm từ chính nhật ký, không suy từ `attempts_left`: cái đó là
+                # `null` ở nhiệm vụ NPC, mà nhiệm vụ NPC mới là chỗ người ta thử
+                # nhiều lần nhất.
+                attempts_used=len(tries),
+                draft=drafts.get(question_id),
             )
         )
 
-    return RunCharacterOut(
-        id=character.id, name_i18n=character.name_i18n or {}, sprites=sprites
+    return QuestProgress(
+        quest_id=quest_id,
+        # VÒNG TỐT NHẤT: qua rồi thì mãi mãi là đã qua. Chơi lại mà kém hơn
+        # không lấy mất cái nhãn đã giành được — đó đúng là lý do người ta dám
+        # bấm Làm lại.
+        completed=service.quest_ever_passed(mine, quest),
+        locked=not cleared and quest["phase"] != "advisor",
+        questions=questions,
     )
 
 
@@ -737,41 +764,18 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
     cleared = service.advisor_cleared(run.snapshot_json, mine)
     drafts = await service.drafts_of(db, run.id, user.id)
 
-    progress: list[QuestProgress] = []
-    for quest in run.snapshot_json["quests"]:
-        quest_id = uuid.UUID(quest["id"])
-        questions: list[QuestionProgress] = []
-        for question in quest["questions"]:
-            question_id = uuid.UUID(question["id"])
-            tries = [a for a in mine if a.quest_id == quest_id and a.question_id == question_id]
-            done = any(a.is_correct for a in tries)
-            # Nhiệm vụ NPC không đếm lượt — xem `service.submit_quest`.
-            left = (
-                None
-                if max_attempts is None or quest["phase"] == "advisor"
-                else (0 if done else max(0, int(max_attempts) - len(tries)))
-            )
-            questions.append(
-                QuestionProgress(
-                    question_id=question_id,
-                    completed=done,
-                    attempts_left=left,
-                    draft=drafts.get(question_id),
-                )
-            )
-        progress.append(
-            QuestProgress(
-                quest_id=quest_id,
-                completed=service.quest_earned(mine, quest_id) >= quest["pass_score"],
-                locked=not cleared and quest["phase"] != "advisor",
-                questions=questions,
-            )
-        )
-
-    players = list(
+    players_now = list(
         await db.scalars(select(StageRunPlayer).where(StageRunPlayer.stage_run_id == run.id))
     )
-    me = next((p for p in players if p.user_id == user.id), None)
+    me_row = next((p for p in players_now if p.user_id == user.id), None)
+
+    progress = [
+        _quest_progress(quest, mine, me_row, drafts, max_attempts, cleared)
+        for quest in run.snapshot_json["quests"]
+    ]
+
+    players = players_now
+    me = me_row
     names = {
         u.id: u.display_name
         for u in await db.scalars(
@@ -785,7 +789,7 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
         done_ids = [
             uuid.UUID(q["id"])
             for q in run.snapshot_json["quests"]
-            if service.quest_earned(rows, uuid.UUID(q["id"])) >= q["pass_score"]
+            if service.quest_ever_passed(rows, q)
         ]
         team.append(
             TeammateProgress(
@@ -808,6 +812,7 @@ async def _run_out(db: DbDep, user: User, run) -> RunOut:
         status=run.status,
         is_trial=run.is_trial,
         snapshot=run.snapshot_json,
+        hint_cost=int(read_balance(world.balance_json)["energyCost"]["hint"]),
         my_energy_granted=me.energy_granted if me else 0,
         my_energy_remaining=me.energy_remaining if me else 0,
         my_pos_x=me.pos_x if me else None,
@@ -962,12 +967,78 @@ async def submit_quest(
     một đường nói khác đường kia.
     """
     run = await service.get_run(db, current, run_id)
-    quest_done, attempts_left, energy = await service.submit_quest(db, current, run, quest_id)
-    return SubmitQuestOut(
-        quest_completed=quest_done,
-        attempts_left=attempts_left,
-        my_energy=energy,
+    kq = await service.submit_quest(db, current, run, quest_id)
+
+    # Dựng tiến độ NGAY TỪ thứ vừa chấm xong, không hỏi lại database.
+    #
+    # Chỉ còn đúng một truy vấn thêm — bản nháp — vì `drafts` thuộc về màn hình
+    # chứ không phải phép chấm. Cả phản hồi nặng khoảng 1 KB, thay cho một vòng
+    # `GET /runs/{id}` nặng 66 KB sau mỗi câu trả lời của mỗi học sinh.
+    quest = next(
+        q for q in run.snapshot_json["quests"] if q["id"] == str(quest_id)
     )
+    drafts = await service.drafts_of(db, run.id, current.id)
+
+    return SubmitQuestOut(
+        quest_completed=kq.quest_done,
+        attempts_left=kq.attempts_left,
+        my_energy=kq.energy,
+        quest=_quest_progress(
+            quest, kq.answers, kq.player, drafts, kq.max_attempts, kq.cleared
+        ),
+        unlocked=kq.cleared,
+        run_status=kq.run_status,
+        my_energy_granted=kq.energy_granted,
+    )
+
+
+@router.post(
+    "/runs/{run_id}/quests/{quest_id}/retry",
+    response_model=RunOut,
+    summary="Làm lại một nhiệm vụ từ đầu",
+)
+async def retry_quest(
+    run_id: uuid.UUID,
+    quest_id: uuid.UUID,
+    current: CurrentUserDep,
+    db: DbDep,
+) -> RunOut:
+    """Mở một VÒNG mới cho một nhiệm vụ: mọi câu trở về trắng, lượt thử đếm lại.
+
+    Không cấm khi nhiệm vụ đã hoàn thành — đó mới là lúc người ta muốn chơi lại
+    nhất: đã qua rồi, giờ thử làm cho đẹp hơn. Nhật ký các vòng cũ được giữ
+    nguyên và báo cáo đọc vòng TỐT NHẤT, nên lần chơi lại không có gì để mất.
+
+    Trả về cả `RunOut` chứ không phải một con số: sau khi làm lại thì tiến độ,
+    điểm và bản nháp đều đổi, và màn chơi cần đúng một lượt gọi để vẽ lại.
+    """
+    run = await service.get_run(db, current, run_id)
+    await service.retry_quest(db, current, run, quest_id)
+    return await _run_out(db, current, run)
+
+
+@router.post(
+    "/runs/{run_id}/questions/{question_id}/hints/{kind}",
+    response_model=TranslationOut,
+    summary="Mua một gợi ý của câu hỏi",
+)
+async def buy_hint(
+    run_id: uuid.UUID,
+    question_id: uuid.UUID,
+    kind: Literal["translation", "transcript"],
+    current: CurrentUserDep,
+    db: DbDep,
+) -> TranslationOut:
+    """Trả năng lượng để đọc bản dịch, hoặc lời thoại của câu nghe.
+
+    `POST` chứ không `GET`: nó TIÊU một thứ. Một đường `GET` thì trình duyệt,
+    proxy hay một cú tải lại trang đều có quyền gọi lại mà không hỏi ai.
+
+    Trả một lần rồi thì lần sau miễn phí — xem `buy_hint()`.
+    """
+    run = await service.get_run(db, current, run_id)
+    text_vi, energy = await service.buy_hint(db, current, run, question_id, kind)
+    return TranslationOut(text=text_vi, my_energy_remaining=energy)
 
 
 @router.put(
@@ -1114,15 +1185,26 @@ async def review(run_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -> Revie
                     ],
                     earned=earned,
                     skill_pts_awarded=sum(a.skill_pts_awarded for a in tries),
+                    # Ba trường này đọc từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG. Câu cũ trong
+                    # snapshot có thể thiếu chúng — lượt chơi tạo ra trước khi
+                    # có `prompt_kind` vẫn phải xem lại được, nên `.get()` với
+                    # đúng mặc định của cột thay vì `[...]`.
+                    prompt_kind=question.get("prompt_kind") or "text",
+                    show_transcript=bool(question.get("show_transcript")),
+                    audio_url=question.get("audio_url"),
                 )
             )
 
-        quest_earned = service.quest_earned(answers, quest_id)
+        # Màn xem lại đọc VÒNG TỐT NHẤT, cùng con số với báo cáo. Cộng mọi
+        # vòng thì tổng điểm ở đây to hơn tổng điểm ở bảng kết quả, và người đọc
+        # phải tự đoán chỗ nào nói thật.
+        quest_earned = service.quest_best(answers, quest_id)
         quests.append(
             ReviewQuest(
                 quest_id=quest_id,
                 order_index=quest["order_index"],
                 quest_object_key=quest["quest_object_key"],
+                name_i18n=quest.get("name_i18n") or {},
                 phase=quest["phase"],
                 pass_score=quest["pass_score"],
                 earned=quest_earned,
@@ -1137,12 +1219,75 @@ async def review(run_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -> Revie
         )
     )
 
+    world = await service.world_of_run(db, run)
+
     return ReviewOut(
         run_id=run.id,
+        stage_id=run.stage_id,
+        world_id=world.id,
         stage_name_i18n=run.snapshot_json["stage"]["name_i18n"],
         status=run.status,
         quests=quests,
         total_earned=total_earned,
         total_max=total_max,
         skill_pts_earned=player.skill_pts_earned if player else 0,
+    )
+
+
+# --------------------------------------------------------------------------
+# NHẬT KÝ HỘI THOẠI
+# --------------------------------------------------------------------------
+
+
+@router.get(
+    "/runs/{run_id}/quests/{quest_id}/dialogue",
+    response_model=DialogueThreadOut,
+    summary="Đoạn chat với người canh giữ",
+)
+async def read_dialogue(
+    run_id: uuid.UUID,
+    quest_id: uuid.UUID,
+    current: CurrentUserDep,
+    db: DbDep,
+) -> DialogueThreadOut:
+    """Cả đoạn chat của MÌNH với người canh giữ nhiệm vụ này.
+
+    Đọc lúc mở màn hội thoại: vào lại một nhiệm vụ đang dở thì cuộn lên vẫn thấy
+    nguyên những câu đã hỏi và đã trả lời, kể cả sau khi đóng trình duyệt hay
+    đổi máy.
+    """
+    run = await service.get_run(db, current, run_id)
+    rows = await service.dialogue_messages(db, current, run, quest_id)
+    return DialogueThreadOut(
+        quest_id=quest_id, lines=[DialogueLineOut.model_validate(r) for r in rows]
+    )
+
+
+@router.post(
+    "/runs/{run_id}/quests/{quest_id}/dialogue",
+    response_model=DialogueThreadOut,
+    summary="Ghi thêm câu nói vào đoạn chat",
+)
+async def append_dialogue(
+    run_id: uuid.UUID,
+    quest_id: uuid.UUID,
+    payload: AppendDialogueIn,
+    current: CurrentUserDep,
+    db: DbDep,
+) -> DialogueThreadOut:
+    """Ghi lại đúng những câu vừa hiện ra trên màn hình.
+
+    Giao diện ghi, không phải server tự suy: lời khen chê bốc ngẫu nhiên trong
+    năm câu, bản dịch mua bằng năng lượng, câu mở đầu của nhiệm vụ — server
+    không dựng lại được cái nào cho khớp với thứ học sinh vừa đọc.
+
+    Trả về CẢ đoạn, không chỉ phần vừa thêm: giao diện vẽ một danh sách, nhận
+    về đúng thứ sắp vẽ thì không phải tự ghép hai nguồn.
+    """
+    run = await service.get_run(db, current, run_id)
+    rows = await service.append_dialogue(
+        db, current, run, quest_id, [line.model_dump() for line in payload.lines]
+    )
+    return DialogueThreadOut(
+        quest_id=quest_id, lines=[DialogueLineOut.model_validate(r) for r in rows]
     )
