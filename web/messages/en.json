@@ -149,8 +149,9 @@
     "faviconReplace": "Replace image",
     "faviconRemove": "Remove",
     "faviconSize": "A square PNG or SVG works best — 32×32 up to 512×512. It is shown at 16 pixels wide, so keep it simple.",
-    "lockedDim": "Locked stage dimming",
-    "lockedDimHint": "How much darker a locked stage looks on the student map. Higher = darker; the padlock has to stay readable on top of your artwork."
+    "lockedOpacity": "Locked stage opacity",
+    "lockedOpacityHint": "How visible a locked stage stays on the student map. Lower = fainter. It never disappears — the class should see that something is coming.",
+    "lockedOpacityPreview": "Stage 1"
   },
   "play": {
     "title": "Galaxy map",

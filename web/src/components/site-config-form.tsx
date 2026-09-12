@@ -34,14 +34,14 @@ export function SiteConfigForm() {
   const [saving, setSaving] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [dim, setDim] = useState(75);
+  const [mo, setMo] = useState(50);
   const oFile = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getSiteConfig()
       .then((c) => {
         setConfig(c);
-        setDim(c.locked_stage_dim ?? 75);
+        setMo(c.locked_stage_opacity ?? 50);
       })
       .catch((error: unknown) =>
         setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR'),
@@ -106,36 +106,40 @@ export function SiteConfigForm() {
         <p className="mt-1 text-[11px] text-slate-600">{t('perLocale', { locale })}</p>
       </Card>
 
-      {/* ĐỘ TỐI CỦA MÀN ĐANG KHOÁ.
-          Lớp phủ tối để cái ổ khoá và tên màn còn đọc được trên bất kỳ tấm ảnh
-          nào người dựng tải lên — mà "bao nhiêu là vừa" thì phụ thuộc vào chính
-          những tấm ảnh ấy. Người duy nhất nhìn thấy chúng là người dựng world,
-          nên cái núm vặn phải nằm trong tay họ, không nằm trong một lớp
-          Tailwind. */}
+      {/* ĐỘ MỜ CỦA MÀN ĐANG KHOÁ.
+          Độ mờ chứ không phải một lớp đen phủ lên: lớp đen giữ nguyên hình khối
+          và chỉ rút ánh sáng ra, nên vặn mạnh là cái chấm thành một đồng xu đen
+          — vẫn to tiếng trên bản đồ, chỉ là không đọc được nữa. Bao nhiêu là
+          vừa thì phụ thuộc vào chính những tấm ảnh người dựng tải lên, tức thứ
+          chỉ họ nhìn thấy. */}
       <Card className="mb-6">
-        <SectionTitle>{t('lockedDim')}</SectionTitle>
-        <p className="mb-3 text-xs text-slate-500">{t('lockedDimHint')}</p>
+        <SectionTitle>{t('lockedOpacity')}</SectionTitle>
+        <p className="mb-3 text-xs text-slate-500">{t('lockedOpacityHint')}</p>
 
         <div className="flex flex-wrap items-center gap-4">
           <input
             type="range"
-            min={0}
+            // Sàn 10%, không phải 0: kéo hết cỡ xuống 0 là màn chơi BIẾN MẤT
+            // khỏi bản đồ, mà cả lý do giữ nó hiện ra là để lớp biết còn có gì
+            // phía trước. Một thanh kéo làm được điều ngược hẳn ý định của
+            // chính nó thì không phải một lựa chọn, nó là một cái bẫy.
+            min={10}
             max={100}
             step={5}
-            value={dim}
+            value={mo}
             // KÉO thì chỉ đổi trên màn hình; NHẢ TAY mới lưu. Lưu theo từng
             // nấc kéo là hai chục lần gọi mạng cho một lần chỉnh.
-            onChange={(e) => setDim(Number(e.target.value))}
-            onPointerUp={() => void luu({ locked_stage_dim: dim })}
-            onKeyUp={() => void luu({ locked_stage_dim: dim })}
+            onChange={(e) => setMo(Number(e.target.value))}
+            onPointerUp={() => void luu({ locked_stage_opacity: mo })}
+            onKeyUp={() => void luu({ locked_stage_opacity: mo })}
             className="h-2 w-64 max-w-full accent-lagoon-500"
           />
-          <span className="w-12 font-mono text-sm text-slate-200">{dim}%</span>
+          <span className="w-12 font-mono text-sm text-slate-200">{mo}%</span>
 
-          {/* XEM THỬ ngay tại chỗ: hai vòng tròn cạnh nhau, cùng một tấm nền
+          {/* XEM THỬ ngay tại chỗ: hai vòng tròn cạnh nhau trên cùng một tấm nền
               giả, một cái mở và một cái khoá. Con số phần trăm không nói được
-              "tối chừng nào là vừa"; hai vòng tròn cạnh nhau thì nói được. */}
-          <div className="flex items-center gap-3">
+              "mờ chừng nào là vừa"; hai vòng tròn cạnh nhau thì nói được. */}
+          <div className="flex items-center gap-3 rounded-xl bg-abyss-950/60 p-2">
             {[false, true].map((khoa) => (
               <span
                 key={String(khoa)}
@@ -144,16 +148,22 @@ export function SiteConfigForm() {
                   borderColor: khoa ? 'rgba(255,255,255,0.3)' : '#f0b429',
                   backgroundImage:
                     'linear-gradient(135deg,#2dd4bf 0%,#0ea5e9 45%,#a855f7 100%)',
-                  filter: khoa ? 'grayscale(1)' : undefined,
+                  // Chỉ ĐỘ MỜ. Không xám, không tối — xem thử phải giống hệt
+                  // thứ màn chơi vẽ ra, nếu không thì nó không phải xem thử.
+                  opacity: khoa ? mo / 100 : undefined,
                 }}
               >
-                <span
-                  className="absolute inset-0"
-                  style={{ background: `rgba(4,18,31,${(khoa ? dim : 55) / 100})` }}
-                />
-                <span className="relative text-sm font-bold text-white drop-shadow">
-                  {khoa ? '🔒' : 'A'}
+                {!khoa && <span className="absolute inset-0 bg-abyss-950/55" />}
+                {/* Giống hệt màn thật: tên ở CÙNG MỘT CHỖ trên cả hai, ổ khoá
+                    đè lên giữa. Xem thử mà vẽ khác đi thì nó không phải xem thử. */}
+                <span className="relative text-[10px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                  {t('lockedOpacityPreview')}
                 </span>
+                {khoa && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+                    🔒
+                  </span>
+                )}
               </span>
             ))}
           </div>

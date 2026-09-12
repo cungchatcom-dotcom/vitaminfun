@@ -48,7 +48,7 @@ async def _ra(db: AsyncSession, row: SiteConfig) -> SiteConfigOut:
         title_i18n=row.title_i18n or {},
         favicon_media_id=row.favicon_media_id,
         favicon_url=url,
-        locked_stage_dim=row.locked_stage_dim,
+        locked_stage_opacity=row.locked_stage_opacity,
     )
 
 
@@ -64,8 +64,8 @@ async def sua(db: AsyncSession, payload: SiteConfigUpdate) -> SiteConfigOut:
         # cả bảng mỗi lần lưu, và đó cũng là cách `name_i18n` ở mọi nơi khác làm.
         row.title_i18n = {k: v.strip() for k, v in payload.title_i18n.items() if v and v.strip()}
 
-    if payload.locked_stage_dim is not None:
-        row.locked_stage_dim = payload.locked_stage_dim
+    if payload.locked_stage_opacity is not None:
+        row.locked_stage_opacity = payload.locked_stage_opacity
 
     if payload.clear_favicon:
         row.favicon_media_id = None

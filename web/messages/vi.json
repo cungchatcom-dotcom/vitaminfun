@@ -149,8 +149,9 @@
     "faviconReplace": "Đổi ảnh khác",
     "faviconRemove": "Gỡ ảnh",
     "faviconSize": "Ảnh PNG hoặc SVG vuông là hợp nhất — từ 32×32 tới 512×512. Nó hiện ra ở bề ngang 16 pixel, nên đừng nhiều chi tiết.",
-    "lockedDim": "Độ tối của màn đang khoá",
-    "lockedDimHint": "Màn đang khoá trên bản đồ của học sinh tối đi bao nhiêu. Càng cao càng tối; cái ổ khoá vẫn phải đọc được trên ảnh của bạn."
+    "lockedOpacity": "Độ mờ của màn đang khoá",
+    "lockedOpacityHint": "Màn đang khoá trên bản đồ của học sinh hiện rõ tới đâu. Càng thấp càng mờ. Không bao giờ mất hẳn — lớp vẫn phải thấy là còn có gì phía trước.",
+    "lockedOpacityPreview": "Màn 1"
   },
   "play": {
     "title": "Bản đồ thiên hà",

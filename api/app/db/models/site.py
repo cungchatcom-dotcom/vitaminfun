@@ -26,8 +26,8 @@ class SiteConfig(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "site_config"
     __table_args__ = (
         CheckConstraint(
-            "locked_stage_dim >= 0 AND locked_stage_dim <= 100",
-            name="locked_stage_dim_range",
+            "locked_stage_opacity >= 0 AND locked_stage_opacity <= 100",
+            name="locked_stage_opacity_range",
         ),
     )
 
@@ -55,18 +55,18 @@ class SiteConfig(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=True,
     )
 
-    #: MÀN ĐANG KHOÁ trên minimap tối đi bao nhiêu phần trăm.
+    #: MÀN ĐANG KHOÁ trên minimap hiện rõ bao nhiêu phần trăm (độ mờ).
     #:
-    #: `0` = giữ nguyên ảnh, `100` = đen kịt. Lớp phủ tối này để cái ổ khoá và
-    #: tên màn còn đọc được trên bất kỳ tấm ảnh nào người dựng tải lên — mà
-    #: "bao nhiêu là vừa" thì phụ thuộc vào chính những tấm ảnh ấy, tức là thứ
-    #: chỉ người dựng world mới nhìn thấy.
+    #: `100` = rõ như màn đã mở, `0` = biến mất. Đây là ĐỘ MỜ của cả cái chấm,
+    #: không phải một lớp đen phủ lên: lớp đen giữ nguyên hình khối và chỉ rút
+    #: ánh sáng ra, nên vặn mạnh là cái chấm thành một đồng xu đen — vẫn to
+    #: tiếng trên bản đồ, chỉ là không đọc được nữa. Độ mờ thì đúng thứ mắt chờ
+    #: đợi ở "chưa tới lượt": cả cái chấm lùi về phía nền, giữ nguyên màu, nhỏ
+    #: tiếng dần.
     #:
-    #: Trước đây con số này nằm trong một lớp Tailwind (`bg-abyss-950/75`), nên
-    #: "tối quá" là một lần sửa mã, một lần build và một lần triển khai.
-    #:
-    #: Phần trăm chứ không phải số thực 0..1: màn hình hiện "70%", và một cột
-    #: giữ đúng thứ màn hình hiện là bớt được một phép quy đổi để làm sai.
-    locked_stage_dim: Mapped[int] = mapped_column(
-        SmallInteger, default=75, server_default=text("75"), nullable=False
+    #: Bao nhiêu là vừa thì phụ thuộc vào chính những tấm ảnh người dựng tải
+    #: lên, tức là thứ chỉ họ nhìn thấy — nên núm vặn nằm ở màn Cấu hình, không
+    #: nằm trong một lớp Tailwind.
+    locked_stage_opacity: Mapped[int] = mapped_column(
+        SmallInteger, default=50, server_default=text("50"), nullable=False
     )

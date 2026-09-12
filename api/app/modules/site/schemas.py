@@ -17,8 +17,8 @@ class SiteConfigOut(BaseModel):
     #: URL dựng sẵn để `<link rel="icon">` dùng thẳng. `None` = chưa đặt ảnh.
     favicon_url: str | None = None
 
-    #: Màn đang khoá trên minimap tối đi bao nhiêu phần trăm (0..100).
-    locked_stage_dim: int = 75
+    #: Màn đang khoá trên minimap hiện rõ bao nhiêu phần trăm (độ mờ, 0..100).
+    locked_stage_opacity: int = 50
 
 
 class SiteConfigUpdate(BaseModel):
@@ -32,4 +32,4 @@ class SiteConfigUpdate(BaseModel):
     title_i18n: I18nText | None = None
     favicon_media_id: uuid.UUID | None = None
     clear_favicon: bool = False
-    locked_stage_dim: int | None = Field(default=None, ge=0, le=100)
+    locked_stage_opacity: int | None = Field(default=None, ge=0, le=100)

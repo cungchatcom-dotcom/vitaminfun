@@ -166,8 +166,12 @@ function StageDot({
   lockedLabel: string;
 }) {
   const name = pickText(stage.name_i18n, locale);
-  // Độ tối của màn đang khoá — người dựng chỉnh ở màn Cấu hình.
-  const doToi = useSiteConfig().locked_stage_dim ?? 75;
+  // ĐỘ MỜ của màn đang khoá — người dựng chỉnh ở màn Cấu hình.
+  //
+  // Áp lên CẢ cái chấm, không phải một lớp đen phủ lên: lớp đen giữ nguyên hình
+  // khối và chỉ rút ánh sáng ra, nên vặn mạnh là cái chấm thành một đồng xu đen
+  // — vẫn to tiếng trên bản đồ, chỉ là không đọc được nữa.
+  const doMo = useSiteConfig().locked_stage_opacity ?? 50;
 
   const dot = (
     <span
@@ -176,48 +180,55 @@ function StageDot({
           ? 'group border-orichalcum-400 bg-abyss-950/70 transition hover:bg-orichalcum-500/25'
           : 'border-white/30 bg-abyss-950/70'
       }`}
+      style={stage.unlocked ? undefined : { opacity: doMo / 100 }}
     >
       {stage.background_url && (
         <>
           {/* `still`: nền của màn có thể là VIDEO, và minimap vẽ nhiều màn cùng
               lúc. Ở đây nó được ghim ở khung hình đầu — cho tất cả chạy vòng lặp
               là bắt máy học sinh nuôi N bộ giải mã để vẽ mấy vòng tròn nhỏ. */}
+          {/* Màn khoá KHÔNG xám đi và KHÔNG tối đi — chỉ mờ (`opacity` ở thẻ
+              ngoài). Ảnh giữ nguyên màu của nó; thứ duy nhất đổi là nó hiện rõ
+              tới đâu. */}
           <BackgroundLayer
             url={stage.background_url}
             kind={stage.background_kind}
             still
-            className={`pointer-events-none absolute inset-0 size-full object-cover ${
-              stage.unlocked ? '' : 'grayscale'
-            }`}
+            className="pointer-events-none absolute inset-0 size-full object-cover"
           />
-          {/* Lớp phủ tối: ảnh nền do người dựng tải lên, sáng tối tuỳ ý, mà tên
-              màn thì phải đọc được trên bất kỳ ảnh nào. Rê chuột vào thì lớp phủ
-              mỏng đi — ảnh sáng lên đúng lúc người chơi đang nhìn nó.
+          {/* Lớp phủ tối CHỈ Ở MÀN ĐÃ MỞ: ảnh nền do người dựng tải lên, sáng
+              tối tuỳ ý, mà tên màn thì phải đọc được trên bất kỳ ảnh nào. Rê
+              chuột vào thì lớp phủ mỏng đi — ảnh sáng lên đúng lúc người chơi
+              đang nhìn nó.
 
-              MÀN ĐANG KHOÁ thì độ tối lấy từ CẤU HÌNH TRANG, không phải một lớp
-              Tailwind: "tối quá" hay "chưa đủ tối" phụ thuộc vào chính những
-              tấm ảnh người dựng tải lên, mà người duy nhất nhìn thấy chúng là
-              họ. Núm vặn ở màn Cấu hình. */}
-          {stage.unlocked ? (
+              Màn KHOÁ không có lớp này: nó là cách làm tối, mà màn khoá chỉ
+              được mờ đi chứ không tối đi. Chữ ở đó đọc được nhờ bóng đổ của
+              chính nó. */}
+          {stage.unlocked && (
             <span className="pointer-events-none absolute inset-0 bg-abyss-950/55 transition group-hover:bg-abyss-950/25" />
-          ) : (
-            <span
-              className="pointer-events-none absolute inset-0 transition"
-              style={{ background: `rgba(4,18,31,${doToi / 100})` }}
-            />
           )}
         </>
       )}
 
-      {stage.unlocked ? (
-        <span className="relative line-clamp-3 text-[11px] leading-tight font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-          {name || stage.order_index}
-        </span>
-      ) : (
+      {/* TÊN MÀN vẽ Y HỆT nhau ở cả hai trạng thái — cùng chỗ, cùng cỡ, cùng
+          kiểu. Màn khoá là một màn chơi có thật đang chờ tới lượt, không phải
+          một ô trống, nên nó phải trông giống hàng xóm của nó.
+
+          Ổ KHOÁ nằm ĐÈ LÊN GIỮA, là một lớp riêng phủ kín cái chấm: xếp nó
+          thành một dòng trong cột chữ thì cái tên tụt xuống và màn khoá lệch
+          khỏi format của cả hàng — đúng thứ vừa phải sửa.
+
+          Bóng đổ trên chữ chứ không phải lớp phủ dưới chữ: bóng làm chữ đọc
+          được mà không đụng gì tới ảnh. */}
+      <span className="relative line-clamp-3 text-[11px] leading-tight font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+        {name || stage.order_index}
+      </span>
+
+      {!stage.unlocked && (
         <span
           aria-label={lockedLabel}
           title={lockedLabel}
-          className="relative text-lg drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
         >
           🔒
         </span>

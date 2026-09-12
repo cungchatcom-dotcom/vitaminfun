@@ -3737,10 +3737,10 @@ export interface components {
             /** Favicon Url */
             favicon_url?: string | null;
             /**
-             * Locked Stage Dim
-             * @default 75
+             * Locked Stage Opacity
+             * @default 50
              */
-            locked_stage_dim: number;
+            locked_stage_opacity: number;
         };
         /**
          * SiteConfigUpdate
@@ -3762,8 +3762,8 @@ export interface components {
              * @default false
              */
             clear_favicon: boolean;
-            /** Locked Stage Dim */
-            locked_stage_dim?: number | null;
+            /** Locked Stage Opacity */
+            locked_stage_opacity?: number | null;
         };
         /** SnapshotQuest */
         SnapshotQuest: {

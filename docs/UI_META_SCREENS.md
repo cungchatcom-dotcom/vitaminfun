@@ -607,11 +607,17 @@ admin thấy). Chỗ để những thứ áp cho CẢ TRANG, với mọi ngườ
   (kiểm loại, kiểm dung lượng, tên theo nội dung); xoá ảnh thì cột về `NULL`
   thay vì trỏ vào hư không. Chỉ khai `icons` KHI CÓ ảnh — khai mảng rỗng sẽ chặn
   mất `/favicon.ico` mặc định và tab thành trống trơn.
-- **Độ tối của màn đang khoá** (`site_config.locked_stage_dim`, phần trăm, mặc
-  định 75). Lớp phủ tối trên minimap để ổ khoá và tên màn còn đọc được trên bất
-  kỳ tấm ảnh nào — mà "bao nhiêu là vừa" phụ thuộc vào chính những tấm ảnh ấy,
-  tức thứ chỉ người dựng world nhìn thấy. Trước đây nó là một lớp Tailwind
-  (`bg-abyss-950/75`), nên "tối quá" là một lần sửa mã + build + triển khai.
+- **Độ mờ của màn đang khoá** (`site_config.locked_stage_opacity`, phần trăm,
+  mặc định 50). Cả cái chấm trên minimap mờ đi, KHÔNG phải một lớp đen phủ lên:
+  lớp đen giữ nguyên hình khối và chỉ rút ánh sáng ra, nên vặn mạnh là cái chấm
+  thành một đồng xu đen — vẫn to tiếng trên bản đồ, chỉ là không đọc được nữa.
+  Độ mờ thì đúng thứ mắt chờ đợi ở "chưa tới lượt": cả cái chấm lùi về phía nền,
+  giữ nguyên màu, nhỏ tiếng dần. "Bao nhiêu là vừa" phụ thuộc vào chính những
+  tấm ảnh người dựng tải lên, tức thứ chỉ họ nhìn thấy; trước đây con số này là
+  một lớp Tailwind, nên chỉnh nó là một lần sửa mã + build + triển khai.
+  - **Sàn 10%, không phải 0**: kéo hết cỡ xuống 0 là màn chơi biến mất khỏi bản
+    đồ, mà cả lý do giữ nó hiện ra là để lớp biết còn có gì phía trước. Một
+    thanh kéo làm được điều ngược hẳn ý định của chính nó là một cái bẫy.
   - Thanh kéo có **xem thử ngay tại chỗ**: hai vòng tròn cạnh nhau, một mở một
     khoá, trên cùng một tấm nền giả. Con số phần trăm không nói được "tối chừng
     nào là vừa"; hai vòng tròn cạnh nhau thì nói được.
