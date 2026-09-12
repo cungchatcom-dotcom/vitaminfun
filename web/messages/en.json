@@ -202,7 +202,8 @@
     "SIGNUP_EMAIL_TAKEN": "That email already has an account. Sign in instead.",
     "SIGNUP_EMAIL_INVALID": "That does not look like an email address.",
     "SIGNUP_PASSWORD_TOO_SHORT": "Password must be at least {min} characters.",
-    "SIGNUP_NAME_REQUIRED": "Please enter your name."
+    "SIGNUP_NAME_REQUIRED": "Please enter your name.",
+    "WORLD_HAS_CHAPTERS": "This world still has {chapterCount} chapters. Delete them first."
   },
   "common": {
     "loading": "Loading…",
@@ -432,7 +433,9 @@
       "unpublishWorld": "Back to draft",
       "publishWorldHint": "Students only see a world once it is published.",
       "worldCode": "World code",
-      "worldCodeHint": "For future content files. No file uses it yet, so empty is correct."
+      "worldCodeHint": "For future content files. No file uses it yet, so empty is correct.",
+      "deleteWorld": "Delete world",
+      "confirmDeleteWorld": "Delete this world? This cannot be undone."
     },
     "characters": {
       "title": "Characters ({count})",

@@ -195,6 +195,7 @@ nút bấm: tạo màn (chỉ 4 trường, server điền phần còn lại) →
 - [x] Sửa tên · cảnh Phaser · NPC · số thứ tự của **màn chơi**
 - [x] **Rút màn về nháp** và **xoá màn**
 - [x] **Phát hành / rút world** — cần cho Bước 6, học sinh chỉ thấy world đã phát hành
+- [x] `DELETE /worlds/{id}` — chặn nếu world còn chương (`WORLD_HAS_CHAPTERS`); nút chỉ hiện khi world đã rỗng
 - [x] `DELETE /chapters/{id}` — chặn nếu chương còn màn (`CHAPTER_HAS_STAGES`)
 - [x] `DELETE /stages/{id}` — chặn nếu màn đã có lượt chơi (`STAGE_HAS_RUNS`)
 - [x] Tách `question_deleted` khỏi `question_status` — câu hỏi xoá mềm vẫn mang

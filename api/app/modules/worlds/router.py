@@ -824,6 +824,42 @@ async def update_world(
     return await _world_out(db, world)
 
 
+@router.delete(
+    "/worlds/{world_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Xoá world",
+)
+async def delete_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -> None:
+    """Xoá world — CHỈ khi nó đã rỗng, tức không còn chương nào.
+
+    Cùng luật với `delete_chapter` và `delete_stage`, và cùng một lý do: khoá
+    ngoại là CASCADE. Xoá thẳng một world đang có nội dung sẽ kéo theo chương,
+    màn, nhiệm vụ, toàn bộ lượt chơi, bài làm, điểm chiến lực và mảnh bản đồ của
+    MỌI học sinh trong world ấy — sau đúng một cú bấm, và không có đường hoàn
+    tác. Bắt xoá từ trong ra ngoài là để cái giá ấy được nhìn thấy từng bước.
+
+    Câu hỏi trong kho KHÔNG mất theo: chúng thuộc về kho, không thuộc về world,
+    và `quest_questions` chỉ là mối nối. Xoá world là mất chỗ LẮP câu hỏi, không
+    mất câu hỏi.
+
+    `world_progress` và `map_shards_owned` thì đi theo world (CASCADE). Một world
+    đã rỗng chương thì không còn màn nào để chơi, nên những dòng ấy chỉ là dấu
+    vết của nội dung đã bị xoá trước đó — nhưng nếu bạn muốn giữ lịch sử để làm
+    báo cáo, hãy xuất báo cáo TRƯỚC khi xoá.
+    """
+    world = await service.get_world(db, current, world_id)
+
+    chapters = await db.scalar(
+        select(func.count()).select_from(Chapter).where(Chapter.world_id == world.id)
+    )
+    if chapters:
+        raise ConflictError(ErrorCode.WORLD_HAS_CHAPTERS, chapterCount=chapters)
+
+    await db.delete(world)
+    await db.commit()
+
+
 # --------------------------------------------------------------------------
 # Chương
 # --------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import {
   createChapter,
   createStage,
   deleteChapter,
+  deleteWorld,
   getWorld,
   listChapters,
   updateChapter,
@@ -98,6 +99,24 @@ export function WorldDetail({ worldId }: { worldId: string }) {
     },
   );
 
+  /**
+   * Xoá world rồi VỀ DANH SÁCH.
+   *
+   * Không dùng `withError` như mọi nút khác: `withError` gọi `reload()` sau khi
+   * xong, mà ở đây thứ vừa bị xoá chính là cái trang đang đứng — nạp lại nó là
+   * đi thẳng vào nhánh 404.
+   */
+  const { run: xoaWorld, pending: dangXoa } = useAsyncAction(async () => {
+    setErrorKey(null);
+    try {
+      await deleteWorld(worldId);
+      router.replace(localizedPath('/teacher/worlds', locale));
+      router.refresh();
+    } catch (error) {
+      setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
+    }
+  });
+
   if (loading) return <p className="p-8 text-slate-400">{t('common.loading')}</p>;
   if (!world) {
     return (
@@ -157,6 +176,29 @@ export function WorldDetail({ worldId }: { worldId: string }) {
                   : 'world.detail.publishWorld',
               )}
             </Button>
+
+            {/* XOÁ WORLD — chỉ hiện khi world đã RỖNG.
+                Cùng luật với nút xoá chương bên dưới, và cùng một lý do: khoá
+                ngoại là CASCADE, nên xoá một world đang có nội dung sẽ kéo theo
+                cả chương, màn, nhiệm vụ, mọi lượt chơi và mọi điểm chiến lực
+                của học sinh trong world ấy — sau một cú bấm, không hoàn tác
+                được. Ẩn nút đi khi còn chương là bắt người dựng đi qua từng
+                bước, và mỗi bước là một lần nhìn thấy mình sắp mất gì.
+
+                Đây là ẩn CÁI NÚT, không phải cái chặn: server vẫn từ chối bằng
+                `WORLD_HAS_CHAPTERS`. */}
+            {chapters.length === 0 && (
+              <Button
+                variant="danger"
+                loading={dangXoa}
+                onClick={() => {
+                  if (!window.confirm(t('world.detail.confirmDeleteWorld'))) return;
+                  void xoaWorld();
+                }}
+              >
+                {t('world.detail.deleteWorld')}
+              </Button>
+            )}
           </>
         }
       />

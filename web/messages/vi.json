@@ -202,7 +202,8 @@
     "SIGNUP_EMAIL_TAKEN": "Email này đã có tài khoản. Hãy đăng nhập.",
     "SIGNUP_EMAIL_INVALID": "Chuỗi này không giống một địa chỉ email.",
     "SIGNUP_PASSWORD_TOO_SHORT": "Mật khẩu phải có ít nhất {min} ký tự.",
-    "SIGNUP_NAME_REQUIRED": "Hãy nhập họ tên của bạn."
+    "SIGNUP_NAME_REQUIRED": "Hãy nhập họ tên của bạn.",
+    "WORLD_HAS_CHAPTERS": "World này còn {chapterCount} chương. Xoá chương trước đã."
   },
   "common": {
     "loading": "Đang tải…",
@@ -432,7 +433,9 @@
       "unpublishWorld": "Rút về nháp",
       "publishWorldHint": "World phát hành rồi thì học sinh mới nhìn thấy.",
       "worldCode": "Mã world",
-      "worldCodeHint": "Dành cho file nội dung sau này. Hiện chưa có file nào dùng, để trống là đúng."
+      "worldCodeHint": "Dành cho file nội dung sau này. Hiện chưa có file nào dùng, để trống là đúng.",
+      "deleteWorld": "Xoá world",
+      "confirmDeleteWorld": "Xoá world này? Không hoàn tác được."
     },
     "characters": {
       "title": "Nhân vật ({count})",

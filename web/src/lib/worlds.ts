@@ -78,6 +78,14 @@ export const createChapter = (worldId: string, payload: ChapterCreatePayload) =>
 export const updateChapter = (id: string, payload: ChapterUpdatePayload) =>
   request<Chapter>(`/chapters/${id}`, { method: 'PATCH', body: payload });
 
+/**
+ * Xoá world. Server chỉ cho xoá khi world ĐÃ RỖNG — không còn chương nào; nếu
+ * còn thì trả `WORLD_HAS_CHAPTERS` kèm số chương, và giao diện hiện đúng câu
+ * đó. Frontend KHÔNG tự kiểm: hai bản của cùng một luật thì có ngày lệch nhau,
+ * và bản sai ở đây là bản xoá mất tiến trình của cả lớp.
+ */
+export const deleteWorld = (id: string) => request<void>(`/worlds/${id}`, { method: 'DELETE' });
+
 export const deleteChapter = (id: string) =>
   request<void>(`/chapters/${id}`, { method: 'DELETE' });
 

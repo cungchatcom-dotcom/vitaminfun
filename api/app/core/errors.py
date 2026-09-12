@@ -100,6 +100,8 @@ class ErrorCode:
     IMPORT_NO_ROWS = "IMPORT_NO_ROWS"
 
     # --- Dựng nội dung game ---
+    #: World còn chương bên trong — xoá chương trước đã.
+    WORLD_HAS_CHAPTERS = "WORLD_HAS_CHAPTERS"
     #: Chương còn màn chơi bên trong — xoá màn trước đã.
     CHAPTER_HAS_STAGES = "CHAPTER_HAS_STAGES"
     #: Màn đã có người chơi — xoá là mất lịch sử chơi và mọi báo cáo dựa trên nó.
