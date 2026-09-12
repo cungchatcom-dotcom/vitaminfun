@@ -610,6 +610,23 @@ class Stage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     status: Mapped[str] = mapped_column(String(16), default=PublishStatus.DRAFT, nullable=False)
 
+    #: KHOÁ TAY: màn đã dựng xong, đã phát hành, nhưng người dựng chủ động giữ
+    #: kín cho tới một thời điểm nào đó.
+    #:
+    #: Khác `status`: bản NHÁP là "chưa xong, học sinh không được thấy"; khoá
+    #: tay là "xong rồi, thấy được, nhưng chưa tới lúc vào". Trên minimap nó
+    #: hiện y như một màn chưa đủ điểm — có cửa, và cửa đang đóng. Giấu hẳn thì
+    #: lớp không biết là còn có gì phía trước, và bản đồ thủng một lỗ.
+    #:
+    #: Khác `required_skill_pts`: điểm chiến lực là luật CHƠI — cứ đủ là mở, tự
+    #: học sinh mở lấy. Cột này là quyết định của GIÁO VIÊN, và không có cách nào
+    #: chơi cho nó mở ra.
+    #:
+    #: Mặc định `False`: mọi màn đang có vẫn mở đúng như trước khi có cột này.
+    is_locked: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+
     def __repr__(self) -> str:
         return f"<Stage #{self.order_index} {self.name_i18n.get('vi', '?')}>"
 

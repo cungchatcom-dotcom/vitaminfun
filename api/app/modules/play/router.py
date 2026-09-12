@@ -603,7 +603,12 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
                     required_skill_pts=required,
                     # Nhảy bậc là HỆ QUẢ của luật này, không phải ngoại lệ phải
                     # viết riêng: đủ điểm thì mở, bất kể đã chơi màn trước hay chưa.
-                    unlocked=can_bypass or skill_pts >= required,
+                    #
+                    # KHOÁ TAY thắng mọi thứ điểm: người dựng đóng cửa thì không
+                    # có cách nào chơi cho nó mở ra. Chỉ chế độ chơi thử đi qua
+                    # được — giáo viên phải thử được cái màn họ vừa khoá.
+                    unlocked=can_bypass or (skill_pts >= required and not stage.is_locked),
+                    locked_by_teacher=stage.is_locked,
                     completed=stage.map_shard_index in owned,
                     times_played=progress.times_played if progress else 0,
                     best_score=progress.best_score if progress else 0,

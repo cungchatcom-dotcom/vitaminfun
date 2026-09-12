@@ -537,6 +537,13 @@ class PlayStageOut(BaseModel):
     required_skill_pts: int
     #: Đủ điểm để vào chưa. Giáo viên và admin chơi thử thì luôn true.
     unlocked: bool
+    #: Người dựng đang KHOÁ TAY màn này.
+    #:
+    #: Tách khỏi `unlocked` vì hai lý do khoá khác nhau cần hai câu nói khác
+    #: nhau: "cần thêm 120 điểm" là việc học sinh làm được, còn "chưa tới lúc"
+    #: thì có cày thêm bao nhiêu điểm cũng không mở ra. Nói nhầm câu là để các
+    #: em ngồi cày một cánh cửa không mở bằng điểm.
+    locked_by_teacher: bool = False
     #: Đã lấy được mảnh bản đồ của màn này chưa.
     completed: bool
     times_played: int

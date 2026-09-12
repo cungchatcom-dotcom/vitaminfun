@@ -545,6 +545,8 @@ class StageUpdate(BaseModel):
     stage_code: ContentCode = None
     name_i18n: I18nText | None = None
     synopsis_i18n: I18nText | None = None
+    #: KHOÁ TAY. `None` = không gửi, giữ nguyên — xem `STAGE_KEEP_FIELDS`.
+    is_locked: bool | None = None
     order_index: int | None = Field(default=None, ge=1, le=999)
     scene_key: str | None = Field(default=None, min_length=1, max_length=64)
     map_shard_index: int | None = Field(default=None, ge=1, le=200)
@@ -624,6 +626,8 @@ class StageBrief(BaseModel):
     map_shard_index: int
     stage_code: str | None = None
     status: Literal["draft", "published"]
+    #: KHOÁ TAY — xem `Stage.is_locked`. Đã phát hành vẫn khoá được.
+    is_locked: bool = False
     quest_count: int = 0
     #: Điểm chiến lực cần để mở — đã tính từ balance nếu không đặt riêng.
     required_skill_pts_effective: int = 0

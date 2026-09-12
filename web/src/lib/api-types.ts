@@ -2589,6 +2589,11 @@ export interface components {
             required_skill_pts: number;
             /** Unlocked */
             unlocked: boolean;
+            /**
+             * Locked By Teacher
+             * @default false
+             */
+            locked_by_teacher: boolean;
             /** Completed */
             completed: boolean;
             /** Times Played */
@@ -3731,6 +3736,11 @@ export interface components {
             favicon_media_id?: string | null;
             /** Favicon Url */
             favicon_url?: string | null;
+            /**
+             * Locked Stage Dim
+             * @default 75
+             */
+            locked_stage_dim: number;
         };
         /**
          * SiteConfigUpdate
@@ -3752,6 +3762,8 @@ export interface components {
              * @default false
              */
             clear_favicon: boolean;
+            /** Locked Stage Dim */
+            locked_stage_dim?: number | null;
         };
         /** SnapshotQuest */
         SnapshotQuest: {
@@ -4022,6 +4034,11 @@ export interface components {
              */
             status: "draft" | "published";
             /**
+             * Is Locked
+             * @default false
+             */
+            is_locked: boolean;
+            /**
              * Quest Count
              * @default 0
              */
@@ -4151,6 +4168,11 @@ export interface components {
              * @enum {string}
              */
             status: "draft" | "published";
+            /**
+             * Is Locked
+             * @default false
+             */
+            is_locked: boolean;
             /**
              * Quest Count
              * @default 0
@@ -4332,6 +4354,8 @@ export interface components {
             synopsis_i18n?: {
                 [key: string]: string;
             } | null;
+            /** Is Locked */
+            is_locked?: boolean | null;
             /** Order Index */
             order_index?: number | null;
             /** Scene Key */

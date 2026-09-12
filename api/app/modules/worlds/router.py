@@ -257,6 +257,7 @@ async def _stage_brief(db: DbDep, stage: Stage, world: World) -> StageBrief:
         scene_key=stage.scene_key,
         map_shard_index=stage.map_shard_index,
         status=stage.status,
+        is_locked=stage.is_locked,
         quest_count=await service.quest_count(db, stage.id),
         required_skill_pts_effective=service.effective_required_skill_pts(stage, world),
     )
@@ -604,6 +605,7 @@ STAGE_KEEP_FIELDS: tuple[str, ...] = (
     "cluebook_title_i18n",
     "cluebook_i18n",
     "status",
+    "is_locked",
 )
 
 #: Trường của MÀN CHƠI đi qua `_apply_optional`: `null` = XOÁ.

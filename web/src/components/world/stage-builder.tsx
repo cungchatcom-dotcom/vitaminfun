@@ -179,6 +179,15 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
     withError(() => publishStage(stageId)),
   );
 
+  /** Khoá / mở khoá tay. Đảo đúng cái cờ đang có, không đoán từ chỗ khác. */
+  const { run: doiKhoa, pending: khoaDangChay } = useAsyncAction(() =>
+    withError(async () => {
+      if (!stage) return;
+      await updateStage(stage.id, { is_locked: !stage.is_locked });
+      await reload();
+    }),
+  );
+
   const crumbs = [
     { label: t('teacher.title'), href: localizedPath('/teacher', locale) },
     { label: t('world.list.title'), href: localizedPath('/teacher/worlds', locale) },
@@ -228,9 +237,15 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
         }
         description={t('stage.builder.subtitle', { shard: stage.map_shard_index })}
         badge={
-          <Badge tone={stage.status === 'published' ? 'success' : 'neutral'}>
-            {t(stage.status === 'published' ? 'status.published' : 'status.draft')}
-          </Badge>
+          <>
+            <Badge tone={stage.status === 'published' ? 'success' : 'neutral'}>
+              {t(stage.status === 'published' ? 'status.published' : 'status.draft')}
+            </Badge>
+            {/* KHOÁ là một trạng thái THỨ HAI, không thay trạng thái phát hành:
+                "đã phát hành nhưng đang khoá" mới là chỗ cái nút này sinh ra để
+                phục vụ. Hai huy hiệu cạnh nhau nói đúng hai việc đó. */}
+            {stage.is_locked && <Badge tone="warning">🔒 {t('stage.builder.locked')}</Badge>}
+          </>
         }
         actions={
           <>
@@ -244,6 +259,23 @@ export function StageBuilder({ stageId, worldId }: { stageId: string; worldId: s
             >
               🧪 {t('stage.builder.playTest')}
             </Link>
+            {/* KHOÁ / MỞ KHOÁ — độc lập với phát hành.
+                Bản nháp thì học sinh đã không thấy gì, nên cái nút này chỉ có
+                nghĩa khi màn ĐÃ phát hành: đó đúng là tình huống người dựng
+                mô tả — soạn xong, phát hành rồi, nhưng để dành tới một buổi
+                học nào đó mới mở. */}
+            {stage.status === 'published' && (
+              <Button
+                variant={stage.is_locked ? 'primary' : 'secondary'}
+                loading={khoaDangChay}
+                onClick={() => void doiKhoa()}
+              >
+                {stage.is_locked
+                  ? `🔓 ${t('stage.builder.unlock')}`
+                  : `🔒 ${t('stage.builder.lock')}`}
+              </Button>
+            )}
+
             {stage.status === 'published' ? (
               <Button variant="secondary" onClick={() => withError(() => unpublishStage(stageId))}>
                 {t('stage.builder.unpublish')}

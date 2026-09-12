@@ -148,7 +148,9 @@
     "faviconUpload": "Tải ảnh lên",
     "faviconReplace": "Đổi ảnh khác",
     "faviconRemove": "Gỡ ảnh",
-    "faviconSize": "Ảnh PNG hoặc SVG vuông là hợp nhất — từ 32×32 tới 512×512. Nó hiện ra ở bề ngang 16 pixel, nên đừng nhiều chi tiết."
+    "faviconSize": "Ảnh PNG hoặc SVG vuông là hợp nhất — từ 32×32 tới 512×512. Nó hiện ra ở bề ngang 16 pixel, nên đừng nhiều chi tiết.",
+    "lockedDim": "Độ tối của màn đang khoá",
+    "lockedDimHint": "Màn đang khoá trên bản đồ của học sinh tối đi bao nhiêu. Càng cao càng tối; cái ổ khoá vẫn phải đọc được trên ảnh của bạn."
   },
   "play": {
     "title": "Bản đồ thiên hà",
@@ -221,7 +223,8 @@
     "SIGNUP_EMAIL_INVALID": "Chuỗi này không giống một địa chỉ email.",
     "SIGNUP_PASSWORD_TOO_SHORT": "Mật khẩu phải có ít nhất {min} ký tự.",
     "SIGNUP_NAME_REQUIRED": "Hãy nhập họ tên của bạn.",
-    "WORLD_HAS_CHAPTERS": "World này còn {chapterCount} chương. Xoá chương trước đã."
+    "WORLD_HAS_CHAPTERS": "World này còn {chapterCount} chương. Xoá chương trước đã.",
+    "STAGE_NOT_PLAYABLE": "Màn này chưa mở."
   },
   "common": {
     "loading": "Đang tải…",
@@ -571,7 +574,11 @@
       "questRequired": "Bắt buộc",
       "renameStage": "Bấm để đổi tên màn chơi",
       "passScoreHint": "Điểm cần đạt để qua nhiệm vụ. Mặc định bằng tổng điểm của nhiệm vụ ({total}) — để nguyên bằng tổng thì thêm bớt câu hỏi ngưỡng tự đi theo.",
-      "renameQuest": "Bấm để đổi tên nhiệm vụ — đây là cái tên học sinh nhìn thấy trong game."
+      "renameQuest": "Bấm để đổi tên nhiệm vụ — đây là cái tên học sinh nhìn thấy trong game.",
+      "lock": "Khoá màn",
+      "unlock": "Mở khoá",
+      "locked": "Đang khoá",
+      "lockHint": "Học sinh vẫn thấy màn trên bản đồ kèm ổ khoá, nhưng chưa vào được cho tới khi bạn mở."
     },
     "preview": {
       "subtitle": "Xem trước nội dung màn chơi. Hoàn thành tất cả nhiệm vụ để nhận Mảnh bản đồ #{shard}.",
@@ -1011,7 +1018,8 @@
       "locked": "Chưa mở",
       "prev": "Màn trước",
       "next": "Màn tiếp",
-      "open": "Mở danh sách màn chơi"
+      "open": "Mở danh sách màn chơi",
+      "lockedByTeacher": "Chưa tới lúc mở"
     },
     "play": {
       "resume": "Chơi tiếp “{stage}” — bạn đang dở màn này"

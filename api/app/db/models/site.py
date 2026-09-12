@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +24,12 @@ from app.db.base import Base, TimestampMixin, TranslatableText, UUIDPrimaryKeyMi
 
 class SiteConfig(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "site_config"
+    __table_args__ = (
+        CheckConstraint(
+            "locked_stage_dim >= 0 AND locked_stage_dim <= 100",
+            name="locked_stage_dim_range",
+        ),
+    )
 
     #: Tên trang, hiện ở tab trình duyệt và ở thanh đầu trang.
     #:
@@ -47,4 +53,20 @@ class SiteConfig(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True),
         ForeignKey("media_assets.id", ondelete="SET NULL"),
         nullable=True,
+    )
+
+    #: MÀN ĐANG KHOÁ trên minimap tối đi bao nhiêu phần trăm.
+    #:
+    #: `0` = giữ nguyên ảnh, `100` = đen kịt. Lớp phủ tối này để cái ổ khoá và
+    #: tên màn còn đọc được trên bất kỳ tấm ảnh nào người dựng tải lên — mà
+    #: "bao nhiêu là vừa" thì phụ thuộc vào chính những tấm ảnh ấy, tức là thứ
+    #: chỉ người dựng world mới nhìn thấy.
+    #:
+    #: Trước đây con số này nằm trong một lớp Tailwind (`bg-abyss-950/75`), nên
+    #: "tối quá" là một lần sửa mã, một lần build và một lần triển khai.
+    #:
+    #: Phần trăm chứ không phải số thực 0..1: màn hình hiện "70%", và một cột
+    #: giữ đúng thứ màn hình hiện là bớt được một phép quy đổi để làm sai.
+    locked_stage_dim: Mapped[int] = mapped_column(
+        SmallInteger, default=75, server_default=text("75"), nullable=False
     )

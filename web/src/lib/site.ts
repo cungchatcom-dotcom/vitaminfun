@@ -21,6 +21,10 @@ export const EMPTY_SITE_CONFIG: SiteConfig = {
   title_i18n: {},
   favicon_media_id: null,
   favicon_url: null,
+  // Bằng đúng giá trị mặc định ở server. Hai con số phải khớp: đây là thứ hiện
+  // ra trong khoảnh khắc API chưa trả lời, và một độ tối khác sẽ thành một cú
+  // nháy màu ở mọi lần vào phòng chờ.
+  locked_stage_dim: 75,
 };
 
 export const getSiteConfig = () => request<SiteConfig>('/site/config');

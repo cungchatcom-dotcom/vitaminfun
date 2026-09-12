@@ -34,11 +34,15 @@ export function SiteConfigForm() {
   const [saving, setSaving] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [dim, setDim] = useState(75);
   const oFile = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getSiteConfig()
-      .then(setConfig)
+      .then((c) => {
+        setConfig(c);
+        setDim(c.locked_stage_dim ?? 75);
+      })
       .catch((error: unknown) =>
         setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR'),
       )
@@ -100,6 +104,60 @@ export function SiteConfigForm() {
           }}
         />
         <p className="mt-1 text-[11px] text-slate-600">{t('perLocale', { locale })}</p>
+      </Card>
+
+      {/* ĐỘ TỐI CỦA MÀN ĐANG KHOÁ.
+          Lớp phủ tối để cái ổ khoá và tên màn còn đọc được trên bất kỳ tấm ảnh
+          nào người dựng tải lên — mà "bao nhiêu là vừa" thì phụ thuộc vào chính
+          những tấm ảnh ấy. Người duy nhất nhìn thấy chúng là người dựng world,
+          nên cái núm vặn phải nằm trong tay họ, không nằm trong một lớp
+          Tailwind. */}
+      <Card className="mb-6">
+        <SectionTitle>{t('lockedDim')}</SectionTitle>
+        <p className="mb-3 text-xs text-slate-500">{t('lockedDimHint')}</p>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={dim}
+            // KÉO thì chỉ đổi trên màn hình; NHẢ TAY mới lưu. Lưu theo từng
+            // nấc kéo là hai chục lần gọi mạng cho một lần chỉnh.
+            onChange={(e) => setDim(Number(e.target.value))}
+            onPointerUp={() => void luu({ locked_stage_dim: dim })}
+            onKeyUp={() => void luu({ locked_stage_dim: dim })}
+            className="h-2 w-64 max-w-full accent-lagoon-500"
+          />
+          <span className="w-12 font-mono text-sm text-slate-200">{dim}%</span>
+
+          {/* XEM THỬ ngay tại chỗ: hai vòng tròn cạnh nhau, cùng một tấm nền
+              giả, một cái mở và một cái khoá. Con số phần trăm không nói được
+              "tối chừng nào là vừa"; hai vòng tròn cạnh nhau thì nói được. */}
+          <div className="flex items-center gap-3">
+            {[false, true].map((khoa) => (
+              <span
+                key={String(khoa)}
+                className="relative flex size-14 items-center justify-center overflow-hidden rounded-full border-2"
+                style={{
+                  borderColor: khoa ? 'rgba(255,255,255,0.3)' : '#f0b429',
+                  backgroundImage:
+                    'linear-gradient(135deg,#2dd4bf 0%,#0ea5e9 45%,#a855f7 100%)',
+                  filter: khoa ? 'grayscale(1)' : undefined,
+                }}
+              >
+                <span
+                  className="absolute inset-0"
+                  style={{ background: `rgba(4,18,31,${(khoa ? dim : 55) / 100})` }}
+                />
+                <span className="relative text-sm font-bold text-white drop-shadow">
+                  {khoa ? '🔒' : 'A'}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
       </Card>
 
       <Card>

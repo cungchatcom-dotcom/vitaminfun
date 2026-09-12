@@ -607,6 +607,16 @@ admin thấy). Chỗ để những thứ áp cho CẢ TRANG, với mọi ngườ
   (kiểm loại, kiểm dung lượng, tên theo nội dung); xoá ảnh thì cột về `NULL`
   thay vì trỏ vào hư không. Chỉ khai `icons` KHI CÓ ảnh — khai mảng rỗng sẽ chặn
   mất `/favicon.ico` mặc định và tab thành trống trơn.
+- **Độ tối của màn đang khoá** (`site_config.locked_stage_dim`, phần trăm, mặc
+  định 75). Lớp phủ tối trên minimap để ổ khoá và tên màn còn đọc được trên bất
+  kỳ tấm ảnh nào — mà "bao nhiêu là vừa" phụ thuộc vào chính những tấm ảnh ấy,
+  tức thứ chỉ người dựng world nhìn thấy. Trước đây nó là một lớp Tailwind
+  (`bg-abyss-950/75`), nên "tối quá" là một lần sửa mã + build + triển khai.
+  - Thanh kéo có **xem thử ngay tại chỗ**: hai vòng tròn cạnh nhau, một mở một
+    khoá, trên cùng một tấm nền giả. Con số phần trăm không nói được "tối chừng
+    nào là vừa"; hai vòng tròn cạnh nhau thì nói được.
+  - Kéo thì chỉ đổi trên màn hình, **nhả tay mới lưu** — lưu theo từng nấc kéo
+    là hai chục lần gọi mạng cho một lần chỉnh.
 - Thêm mục cấu hình mới = thêm một `Card`, không phải sắp xếp lại cả trang.
 
 ## T1 — KHO CÂU HỎI

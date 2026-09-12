@@ -510,6 +510,25 @@ quest_questions   id, quest_id, question_id → ⭐questions (RESTRICT),
   - Cỡ chữ tính bằng `cqw` (phần trăm bề rộng CỦA KHUNG), không bằng `px`. Kéo khung to nhỏ thì chữ co giãn theo đúng tỉ lệ; đặt `px` cố định thì khung nhỏ lại là chữ tràn qua viền, khung to ra là chữ lọt thỏm.
   - **`*_color` và `*_font` đặt cho CÁI KHUNG, không cho từng world.** Chữ của thiên hà và chữ của mọi world đều hiện ra ở đúng chỗ đó, nên cấu hình riêng từng world nghĩa là rê chuột qua ba world là chữ đổi màu ba lần. `*_font` là **phần trăm** so với cỡ nền (100 = giữ nguyên, 40…250) — lưu một con số `px` sẽ sai ngay khi ai đó kéo cái khung to ra.
   - Mã màu kiểm ở CẢ Pydantic lẫn `CHECK` của Postgres. Chỉ có `CHECK` thì một chuỗi rác trả về 500 thay vì 422 kèm chỗ sai.
+- **`stages.is_locked` — KHOÁ TAY một màn đã phát hành.** Khác `status`: bản
+  nháp là "chưa xong, học sinh không được thấy"; khoá tay là "xong rồi, thấy
+  được, nhưng chưa tới lúc vào". Khác `required_skill_pts`: điểm chiến lực là
+  luật CHƠI, cứ đủ là mở và học sinh tự mở lấy; cột này là quyết định của GIÁO
+  VIÊN, và không có cách nào chơi cho nó mở ra.
+  - Trên minimap, màn ấy vẫn hiện — xám, đeo ổ khoá, chú thích **"Chưa tới lúc
+    mở"** (khác **"Chưa mở"** của màn thiếu điểm: hai lý do khoá cần hai câu
+    nói, vì một câu làm học sinh ngồi cày điểm cho một cánh cửa không mở bằng
+    điểm). Giấu hẳn thì lớp không biết là còn có gì phía trước, và bản đồ thủng
+    một lỗ.
+  - **Chặn ở `start_run`, không chỉ ở giao diện**: địa chỉ một màn là một đường
+    dẫn, gõ tay hoặc mở lại tab cũ là đi thẳng vào. Nhưng chặn SAU nhánh "chơi
+    tiếp": khoá là đóng cửa với người CHƯA vào, không phải đuổi người đang ngồi
+    trong phòng ra — ai đang chơi dở lúc giáo viên bấm khoá thì chơi nốt lượt
+    ấy. Chơi thử của giáo viên vẫn qua được.
+  - Nút **Khoá màn / Mở khoá** ở `/teacher/worlds/{id}/stages/{sid}`, chỉ hiện
+    khi màn ĐÃ phát hành — bản nháp thì học sinh vốn đã không thấy gì.
+  - Nút **Chơi ngay** ở phòng chờ nhắm tới màn MỞ cuối cùng, nên một màn khoá
+    tay tự khắc không phải là đích; không có luật thứ hai nào phải viết thêm.
 - **`worlds.is_locked` là cột RIÊNG, không suy ra từ số màn đã xuất bản.** Giáo viên phải khoá được một world đã có nội dung — đang sửa dở, để dành học kỳ sau — và điều đó không suy ra từ đâu được. World mới tạo mặc định `true`: lúc đó nó chưa có chương hay màn nào.
 - **Khoá HIỂN THỊ ≠ cột `is_locked`.** Trên bản đồ thiên hà, một world hiện ổ khoá khi `is_locked` **HOẶC** chưa có màn nào phát hành. Vế thứ hai phải đếm màn nên chỉ server tính được; `PlayWorldOut.is_locked` trả về giá trị ĐÃ TÍNH, không phải cột thô.
 - **`PlayWorldOut.can_enter` tách khỏi `is_locked`** vì hai câu hỏi khác nhau: ổ khoá là thứ VẼ RA cho mọi người thấy, còn vào được hay không thì giáo viên chơi thử khác học sinh. Trộn hai thứ vào một cờ là hoặc giáo viên không xem trước được, hoặc học sinh đi thẳng vào world chưa phát hành.

@@ -568,6 +568,7 @@ async def start_run(db: AsyncSession, user: User, stage: Stage) -> StageRun:
     if stage.status != PublishStatus.PUBLISHED and not is_preview:
         raise ConflictError(PlayError.STAGE_NOT_PLAYABLE, status=stage.status)
 
+
     # ---------------------------------------------------------------- chơi tiếp
     #
     # Vào lại mà lượt cũ CÒN GIỜ thì trả về đúng lượt đó, không mở lượt mới.
@@ -594,6 +595,19 @@ async def start_run(db: AsyncSession, user: User, stage: Stage) -> StageRun:
             return existing
         await settle_run(db, existing, RunStatus.LOST_TIME)
 
+    # KHOÁ TAY chặn ở ĐÂY, không chỉ ở giao diện. Minimap vẽ ổ khoá và không cho
+    # bấm, nhưng địa chỉ một màn chơi là một đường dẫn — gõ tay, hoặc mở lại một
+    # tab cũ từ tuần trước, là đi thẳng vào. Một cánh cửa chỉ khoá bằng cách
+    # không vẽ nút bấm thì không phải cửa khoá.
+    #
+    # SAU nhánh "chơi tiếp", có chủ ý: khoá là đóng cửa với người CHƯA vào, không
+    # phải đuổi người đang ngồi trong phòng ra. Ai đang chơi dở lúc giáo viên bấm
+    # khoá thì vẫn chơi nốt được lượt ấy; hết giờ hoặc chơi xong thì mới không
+    # vào lại được nữa.
+    #
+    # Chơi thử vẫn qua: giáo viên phải thử được cái màn họ vừa khoá.
+    if stage.is_locked and not is_preview:
+        raise ConflictError(PlayError.STAGE_NOT_PLAYABLE, reason="locked")
 
     snapshot, answer_key = await build_snapshot(db, stage)
     if not snapshot["quests"]:

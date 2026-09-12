@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Modal } from '@/components/ui/modal';
+import { useSiteConfig } from '@/components/site-config-context';
 import { BackgroundLayer } from './background-layer';
 import { pickText } from '@/lib/i18n-text';
 import { localizedPath } from '@/lib/routes';
@@ -100,7 +101,19 @@ export function ChapterMinimap({
                 >
                   {shown.map((stage) => (
                     <li key={stage.id}>
-                      <StageDot stage={stage} locale={locale} lockedLabel={t('lobby.minimap.locked')} />
+                      {/* Hai lý do khoá, hai câu nói. "Cần thêm điểm" là việc
+                          học sinh làm được; "chưa tới lúc mở" thì cày bao nhiêu
+                          điểm cũng không mở ra, và nói nhầm câu là để các em
+                          ngồi cày một cánh cửa không mở bằng điểm. */}
+                      <StageDot
+                        stage={stage}
+                        locale={locale}
+                        lockedLabel={t(
+                          stage.locked_by_teacher
+                            ? 'lobby.minimap.lockedByTeacher'
+                            : 'lobby.minimap.locked',
+                        )}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -153,6 +166,8 @@ function StageDot({
   lockedLabel: string;
 }) {
   const name = pickText(stage.name_i18n, locale);
+  // Độ tối của màn đang khoá — người dựng chỉnh ở màn Cấu hình.
+  const doToi = useSiteConfig().locked_stage_dim ?? 75;
 
   const dot = (
     <span
@@ -177,12 +192,20 @@ function StageDot({
           />
           {/* Lớp phủ tối: ảnh nền do người dựng tải lên, sáng tối tuỳ ý, mà tên
               màn thì phải đọc được trên bất kỳ ảnh nào. Rê chuột vào thì lớp phủ
-              mỏng đi — ảnh sáng lên đúng lúc người chơi đang nhìn nó. */}
-          <span
-            className={`pointer-events-none absolute inset-0 transition ${
-              stage.unlocked ? 'bg-abyss-950/55 group-hover:bg-abyss-950/25' : 'bg-abyss-950/75'
-            }`}
-          />
+              mỏng đi — ảnh sáng lên đúng lúc người chơi đang nhìn nó.
+
+              MÀN ĐANG KHOÁ thì độ tối lấy từ CẤU HÌNH TRANG, không phải một lớp
+              Tailwind: "tối quá" hay "chưa đủ tối" phụ thuộc vào chính những
+              tấm ảnh người dựng tải lên, mà người duy nhất nhìn thấy chúng là
+              họ. Núm vặn ở màn Cấu hình. */}
+          {stage.unlocked ? (
+            <span className="pointer-events-none absolute inset-0 bg-abyss-950/55 transition group-hover:bg-abyss-950/25" />
+          ) : (
+            <span
+              className="pointer-events-none absolute inset-0 transition"
+              style={{ background: `rgba(4,18,31,${doToi / 100})` }}
+            />
+          )}
         </>
       )}
 

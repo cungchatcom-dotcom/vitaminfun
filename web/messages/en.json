@@ -148,7 +148,9 @@
     "faviconUpload": "Upload image",
     "faviconReplace": "Replace image",
     "faviconRemove": "Remove",
-    "faviconSize": "A square PNG or SVG works best — 32×32 up to 512×512. It is shown at 16 pixels wide, so keep it simple."
+    "faviconSize": "A square PNG or SVG works best — 32×32 up to 512×512. It is shown at 16 pixels wide, so keep it simple.",
+    "lockedDim": "Locked stage dimming",
+    "lockedDimHint": "How much darker a locked stage looks on the student map. Higher = darker; the padlock has to stay readable on top of your artwork."
   },
   "play": {
     "title": "Galaxy map",
@@ -221,7 +223,8 @@
     "SIGNUP_EMAIL_INVALID": "That does not look like an email address.",
     "SIGNUP_PASSWORD_TOO_SHORT": "Password must be at least {min} characters.",
     "SIGNUP_NAME_REQUIRED": "Please enter your name.",
-    "WORLD_HAS_CHAPTERS": "This world still has {chapterCount} chapters. Delete them first."
+    "WORLD_HAS_CHAPTERS": "This world still has {chapterCount} chapters. Delete them first.",
+    "STAGE_NOT_PLAYABLE": "This stage is not open yet."
   },
   "common": {
     "loading": "Loading…",
@@ -571,7 +574,11 @@
       "questRequired": "Required",
       "renameStage": "Click to rename this stage",
       "passScoreHint": "Points needed to clear this quest. Defaults to the quest total ({total}) — leave it at the total and it follows along when you add or remove questions.",
-      "renameQuest": "Click to rename the quest — this is the name students see in the game."
+      "renameQuest": "Click to rename the quest — this is the name students see in the game.",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "locked": "Locked",
+      "lockHint": "Students see the stage on the map with a padlock, but cannot enter until you unlock it."
     },
     "preview": {
       "subtitle": "Content preview. Complete every quest to earn Map Shard #{shard}.",
@@ -1011,7 +1018,8 @@
       "locked": "Locked",
       "prev": "Previous stages",
       "next": "More stages",
-      "open": "Open the stage list"
+      "open": "Open the stage list",
+      "lockedByTeacher": "Not open yet"
     },
     "play": {
       "resume": "Continue “{stage}” — you have a run in progress"
