@@ -21,6 +21,7 @@ from app.modules.voices.router import router as voices_router
 from app.modules.characters.router import router as characters_router
 from app.modules.play.router import router as play_router
 from app.modules.reports.router import router as reports_router
+from app.modules.site.router import router as site_router
 from app.modules.questions.router import router as questions_router
 from app.modules.users.router import router as users_router
 from app.modules.worlds.router import router as worlds_router
@@ -121,6 +122,7 @@ app.include_router(worlds_router, prefix=settings.api_prefix)
 app.include_router(play_router, prefix=settings.api_prefix)
 app.include_router(characters_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
+app.include_router(site_router, prefix=settings.api_prefix)
 
 # Cùng một /health ở cả gốc lẫn dưới api_prefix: nginx và monitoring hay gọi
 # đường có tiền tố, còn smoke test lúc dev thì gọi đường gốc cho nhanh.

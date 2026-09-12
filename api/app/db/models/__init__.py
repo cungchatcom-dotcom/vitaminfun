@@ -31,9 +31,11 @@ from app.db.models.user import User, UserRole, UserStatus
 from app.db.models.question_audio import AudioTarget, QuestionAudio
 from app.db.models.voice_line import VoiceLine, line_hash
 from app.db.models.voice import Voice, VoiceAge, VoiceGender
+from app.db.models.site import SiteConfig
 
 __all__ = [
     "Base",
+    "SiteConfig",
     # nội dung
     "Universe",
     "Galaxy",

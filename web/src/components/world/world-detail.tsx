@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { BalancePanel } from './balance-panel';
 import { VerdictPanel } from './verdict-panel';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Badge, Card, EmptyState, PageHeader, SectionTitle } from '@/components/ui/primitives';
@@ -330,6 +331,17 @@ export function WorldDetail({ worldId }: { worldId: string }) {
         {chapters.length === 0 && (
           <EmptyState label={t('world.detail.noChapter')} hint={t('world.detail.noChapterHint')} />
         )}
+
+        {/* CÂN BẰNG — luật chơi áp cho cả world. Cùng nhóm với Lời phán: đặt
+            một lần lúc dựng world rồi thôi, nên nằm sau danh sách chương. */}
+        <BalancePanel
+          balance={(world.balance ?? {}) as Record<string, unknown>}
+          onSave={(balanceJson) =>
+            withError(async () => {
+              setWorld(await updateWorld(world.id, { balance_json: balanceJson }));
+            })
+          }
+        />
 
         {/* LỜI PHÁN — giọng điệu của cả world. Đặt SAU danh sách chương vì nó
             không phải thứ người dựng đụng tới hằng ngày: soạn một lần lúc dựng

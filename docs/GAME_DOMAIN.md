@@ -148,8 +148,8 @@ Ba thứ chặn không cho biến nó thành trò đoán mò:
 | Chặn bằng | Cụ thể |
 |---|---|
 | **Năng lượng đội** | Mỗi lần sai trừ `energyCost.wrongAnswer` khỏi quỹ chung. Đoán bừa là làm hại đồng đội |
-| **Trần số lần thử** | `balance_json.maxAttemptsPerQuestion`, mặc định `2` — tính theo TỪNG CÂU. Hết lượt thì người canh giữ chuyển sang câu khác, câu đó 0 điểm; nhiệm vụ vẫn qua được nếu các câu khác đủ điểm (§3f) |
-| **Điểm giảm dần** | `balance_json.attemptPenalty = [1.0, 0.6]` — đúng ngay lần đầu ăn đủ điểm, đúng ở lần hai còn 60%. Mảng này phải dài đúng bằng `maxAttemptsPerQuestion`: một phần tử thứ ba không bao giờ tới lượt chỉ làm người đọc tưởng còn lần thử thứ ba |
+| **Trần số lần thử** | `balance_json.maxAttemptsPerQuestion`, mặc định `2` — tính theo TỪNG CÂU. Giáo viên chỉnh ở `/teacher/worlds/{id}` → thẻ **Cân bằng**, và ở đó nó hiện ra bằng đơn vị **SỐ LẦN ĐƯỢC SAI** (= số lượt − 1): cột đếm lượt gồm cả lần đầu, còn người dựng thì nghĩ bằng "được sai mấy lần", và hai cách đếm lệch nhau đúng 1. Hết lượt thì người canh giữ chuyển sang câu khác, câu đó 0 điểm; nhiệm vụ vẫn qua được nếu các câu khác đủ điểm (§3f) |
+| **Điểm theo lượt** | `balance_json.attemptPenalty`, mặc định `[1.0, 1.0]` — đúng ở lượt nào cũng ăn đủ điểm. Cắt điểm của câu làm sai rồi sửa đúng là dạy học sinh rằng đoán bừa lần đầu rẻ hơn nghĩ kỹ rồi sửa; trường nào muốn siết thì hạ ở màn **Cân bằng**. Mảng phải dài đúng bằng `maxAttemptsPerQuestion` — màn Cân bằng SINH số hàng từ số lượt nên hai thứ không lệch được; vượt bảng thì `attempt_multiplier` lấy giá trị cuối |
 
 Không có ba thứ này thì một câu trắc nghiệm 3 lựa chọn luôn được giải sau tối đa 3 lần bấm, và điểm chiến lực mất hết ý nghĩa — nó sẽ đo độ kiên nhẫn chứ không đo trình độ tiếng Anh.
 
@@ -1340,7 +1340,7 @@ giới hạn ở stages.skill_pts_max
   "energyBonus": [ { "minRemainingPct": 50, "bonus": 0.2 },
                    { "minRemainingPct": 25, "bonus": 0.1 } ],
   "maxAttemptsPerQuestion": 2,        // sai 1 lần được làm lại; lần 2 thì NPC chuyển câu (§3f)
-  "attemptPenalty": [1.0, 0.6],       // hệ số điểm theo lần thử thứ 1, 2
+  "attemptPenalty": [1.0, 1.0],       // hệ số điểm theo lượt 1, 2 — mặc định KHÔNG phạt
   "replayRatio": 1.0,                 // chơi lại được bao nhiêu phần điểm. 1.0 = cộng đủ mỗi lần
   "replayCapMultiplier": null,        // trần tích luỹ mỗi màn (bội số của skill_pts_max). null = không trần
   "lobbyCountdownSeconds": 30,        // chờ đủ người rồi tự bắt đầu

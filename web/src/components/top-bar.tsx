@@ -4,10 +4,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { pickText } from '@/lib/i18n-text';
 import { localizedPath } from '@/lib/routes';
 import { HOME_ROUTE } from '@/lib/session';
 
 import { useCurrentUser } from './auth-context';
+import { useSiteConfig } from './site-config-context';
 import { LocaleSwitcher } from './locale-switcher';
 
 /** Thanh trên cùng dùng chung cho mọi vai trò. */
@@ -18,6 +20,10 @@ export function TopBar({ accent }: { accent: 'teacher' | 'student' | 'admin' }) 
   const user = useCurrentUser();
   const router = useRouter();
   const locale = useLocale();
+
+  // TÊN TRANG do giáo viên đặt ở màn Cấu hình; chưa đặt thì lùi về tên trong
+  // `messages/`. Một chỗ đặt tên, hiện ở cả tab trình duyệt lẫn đây.
+  const tenTrang = pickText(useSiteConfig().title_i18n ?? {}, locale) || tApp('name');
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -44,7 +50,7 @@ export function TopBar({ accent }: { accent: 'teacher' | 'student' | 'admin' }) 
           href={localizedPath(HOME_ROUTE[user.role], locale)}
           className={`font-bold no-underline transition hover:opacity-80 ${accentClass}`}
         >
-          {tApp('name')}
+          {tenTrang}
         </Link>
         <span className="rounded-full bg-abyss-800 px-2.5 py-0.5 text-xs text-slate-300">
           {tRole(user.role)}
@@ -60,9 +66,12 @@ export function TopBar({ accent }: { accent: 'teacher' | 'student' | 'admin' }) 
             nhiệm vụ, kho câu hỏi nuôi các nhiệm vụ ấy, nhân vật dùng xuyên suốt.
             Từ rộng tới hẹp là thứ tự người ta đi khi dựng một world mới.
 
-            Mục thứ tư — Báo cáo — đứng cuối vì nó thuộc về NỬA KIA của công
-            việc: ba mục trước là dựng nội dung, mục này là xem nội dung ấy chạy
-            ra sao khi có học sinh chơi.
+            Mục thứ tư — Báo cáo — thuộc về NỬA KIA của công việc: ba mục trước
+            là dựng nội dung, mục này là xem nội dung ấy chạy ra sao khi có học
+            sinh chơi.
+
+            Mục cuối — Cấu hình — đứng sau cùng vì nó không thuộc về việc hằng
+            ngày: tên trang và biểu tượng tab đặt một lần rồi thôi.
 
             `<Link>` chứ không phải `<button onClick={router.push}>`: đây là điều
             hướng, nên phải mở được tab mới bằng chuột giữa và hiện địa chỉ đích. */}
@@ -73,6 +82,7 @@ export function TopBar({ accent }: { accent: 'teacher' | 'student' | 'admin' }) 
               ['/teacher/questions', 'questions'],
               ['/teacher/characters', 'characters'],
               ['/teacher/reports', 'reports'],
+              ['/teacher/config', 'config'],
             ] as const
           ).map(([href, key]) => (
             <Link

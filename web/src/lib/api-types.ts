@@ -1443,6 +1443,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/site/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cấu hình chung của trang */
+        get: operations["read_config_api_v1_site_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Sửa cấu hình chung */
+        patch: operations["update_config_api_v1_site_config_patch"];
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -3702,6 +3720,38 @@ export interface components {
             display_name: string;
             /** Password */
             password: string;
+        };
+        /** SiteConfigOut */
+        SiteConfigOut: {
+            /** Title I18N */
+            title_i18n?: {
+                [key: string]: string;
+            };
+            /** Favicon Media Id */
+            favicon_media_id?: string | null;
+            /** Favicon Url */
+            favicon_url?: string | null;
+        };
+        /**
+         * SiteConfigUpdate
+         * @description `None` = KHÔNG GỬI, giữ nguyên. Xem `QUEST_KEEP_FIELDS` cho cùng luật ấy.
+         *
+         *     Xoá favicon thì gửi `clear_favicon = true`, không gửi `favicon_media_id =
+         *     null`: `null` ở đây đã mang nghĩa "không đụng tới", và một trường không thể
+         *     mang hai nghĩa trái ngược nhau.
+         */
+        SiteConfigUpdate: {
+            /** Title I18N */
+            title_i18n?: {
+                [key: string]: string;
+            } | null;
+            /** Favicon Media Id */
+            favicon_media_id?: string | null;
+            /**
+             * Clear Favicon
+             * @default false
+             */
+            clear_favicon: boolean;
         };
         /** SnapshotQuest */
         SnapshotQuest: {
@@ -7533,6 +7583,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_config_api_v1_site_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteConfigOut"];
+                };
+            };
+        };
+    };
+    update_config_api_v1_site_config_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteConfigOut"];
                 };
             };
             /** @description Validation Error */

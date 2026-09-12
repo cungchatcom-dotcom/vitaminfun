@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Vitaverse",
-    "tagline": "Play to Learn"
+    "tagline": "Play to Learn",
+    "metaDescription": "Học tiếng Anh qua trò chơi phiêu lưu"
   },
   "nav": {
     "logout": "Đăng xuất",
@@ -11,7 +12,8 @@
     "accounts": "Tài khoản",
     "play": "Vào chơi",
     "characters": "Nhân vật",
-    "reports": "Báo cáo"
+    "reports": "Báo cáo",
+    "config": "Cấu hình"
   },
   "role": {
     "admin": "Quản trị viên",
@@ -131,6 +133,22 @@
     },
     "noMatch": "Không tìm thấy người chơi nào khớp",
     "noMatchHint": "Thử một phần của tên, hoặc địa chỉ email."
+  },
+  "siteConfig": {
+    "title": "Cấu hình trang",
+    "subtitle": "Áp dụng cho cả trang, với mọi người.",
+    "loading": "Đang tải…",
+    "saved": "Đã lưu",
+    "siteTitle": "Tên trang",
+    "siteTitleHint": "Hiện ở tab trình duyệt và thanh đầu trang. Để trống thì dùng tên mặc định.",
+    "siteTitlePlaceholder": "ví dụ: Vitaverse — Play to Learn",
+    "perLocale": "Đang sửa bản “{locale}”. Đổi ngôn ngữ ở thanh đầu trang để sửa bản kia.",
+    "favicon": "Biểu tượng tab (favicon)",
+    "faviconHint": "Cái hình nhỏ trên tab trình duyệt. Để trống thì dùng file mặc định.",
+    "faviconUpload": "Tải ảnh lên",
+    "faviconReplace": "Đổi ảnh khác",
+    "faviconRemove": "Gỡ ảnh",
+    "faviconSize": "Ảnh PNG hoặc SVG vuông là hợp nhất — từ 32×32 tới 512×512. Nó hiện ra ở bề ngang 16 pixel, nên đừng nhiều chi tiết."
   },
   "play": {
     "title": "Bản đồ thiên hà",
@@ -478,6 +496,18 @@
       "revisit": "Gặp lại — nhiệm vụ đã xong",
       "revisitHint": "Học sinh đi ngang qua một nhiệm vụ đã hoàn thành.",
       "revisitPlaceholder": "Nhiệm vụ này ngươi đã làm xong rồi."
+    },
+    "balance": {
+      "title": "Cân bằng",
+      "hint": "Áp cho mọi câu hỏi trong world này.",
+      "wrongAllowed": "Số lần được trả lời sai mỗi câu",
+      "wrongAllowedHint": "Tổng {tries} lượt trả lời, tính cả lần đầu. Sai thêm một lần nữa thì người canh giữ chuyển câu, câu đó 0 điểm.",
+      "scoreByTry": "Điểm theo lượt",
+      "scoreByTryHint": "Trả lời đúng ở lượt đó thì ăn bao nhiêu phần trăm điểm. Để 100% hết nghĩa là đúng ở lần hai cũng được điểm như lần đầu.",
+      "try": "Lượt {n}",
+      "save": "Lưu",
+      "saved": "Đã lưu",
+      "gateNote": "Nhiệm vụ NPC (cổng vào) không tính trần này — ở đó sai bao nhiêu lần cũng được, có chủ ý."
     }
   },
   "stage": {

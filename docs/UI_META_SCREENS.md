@@ -569,6 +569,46 @@ Những chỗ dễ làm sai, và đã chốt:
   và màn hình ghi rõ điều đó ngay cạnh bảng.
 - Chi tiết một người tải KHI BẤM, không tải sẵn năm mươi bản cho một cú bấm.
 
+## T0c — CẤU HÌNH TRANG
+
+`/teacher/config`, vào từ mục **Cấu hình** ở thanh đầu trang (chỉ giáo viên và
+admin thấy). Chỗ để những thứ áp cho CẢ TRANG, với mọi người — hôm nay có hai:
+
+```
++=========================================================================================+
+|  CẤU HÌNH TRANG    Áp dụng cho cả trang, với mọi người.                                 |
++-----------------------------------------------------------------------------------------+
+|  TÊN TRANG                                                                              |
+|  Hiện ở tab trình duyệt và thanh đầu trang. Để trống thì dùng tên mặc định.             |
+|  [ Vitaverse — Play to Learn ................................ ]                         |
+|  Đang sửa bản "vi". Đổi ngôn ngữ ở thanh đầu trang để sửa bản kia.                      |
++-----------------------------------------------------------------------------------------+
+|  BIỂU TƯỢNG TAB (FAVICON)                                                               |
+|  [◼]  [ Tải ảnh lên ]  [ Gỡ ảnh ]                                                       |
++=========================================================================================+
+```
+
+- **Bảng `site_config`, một dòng**, không phải mấy biến trong `.env`. `.env` giữ
+  những thứ của NGƯỜI VẬN HÀNH (cổng, chuỗi kết nối, khoá API); bảng này giữ
+  những thứ của NGƯỜI DÙNG — giáo viên đổi từ trong giao diện, lúc trang đang
+  chạy, không phải vào máy chủ sửa file rồi khởi động lại.
+- **RỖNG là mặc định và là trạng thái đúng**: tên trống = dùng chuỗi trong
+  `messages/*.json`, favicon trống = dùng file tĩnh sẵn có. Một bản cài chưa ai
+  mở màn này thì không thấy gì đổi.
+- **`GET /site/config` KHÔNG cần đăng nhập**; `PATCH` thì chỉ giáo viên/admin.
+  Cái tên và cái favicon nằm trên chính màn ĐĂNG NHẬP — bắt đăng nhập mới đọc
+  được nghĩa là trang đăng nhập mang tên mặc định còn mọi trang khác mang tên
+  thật, và người dùng thấy hai sản phẩm khác nhau.
+- **Tiêu đề dựng ở `generateMetadata`**, không phải hằng số `metadata`: giá trị
+  này đổi lúc đang chạy, nên phải hỏi lại mỗi request. `readSiteConfig()` gói
+  trong `cache()` của React để `generateMetadata` và thân layout dùng chung một
+  lượt gọi.
+- **Favicon trỏ tới `media_assets`**, đi qua đúng đường tải lên của mọi ảnh khác
+  (kiểm loại, kiểm dung lượng, tên theo nội dung); xoá ảnh thì cột về `NULL`
+  thay vì trỏ vào hư không. Chỉ khai `icons` KHI CÓ ảnh — khai mảng rỗng sẽ chặn
+  mất `/favicon.ico` mặc định và tab thành trống trơn.
+- Thêm mục cấu hình mới = thêm một `Card`, không phải sắp xếp lại cả trang.
+
 ## T1 — KHO CÂU HỎI
 
 Copy từ LMS gần như nguyên vẹn.

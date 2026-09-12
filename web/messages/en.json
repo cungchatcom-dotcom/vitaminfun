@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Vitaverse",
-    "tagline": "Play to Learn"
+    "tagline": "Play to Learn",
+    "metaDescription": "Learn English through an adventure game"
   },
   "nav": {
     "logout": "Log out",
@@ -11,7 +12,8 @@
     "accounts": "Accounts",
     "play": "Play",
     "characters": "Characters",
-    "reports": "Reports"
+    "reports": "Reports",
+    "config": "Config"
   },
   "role": {
     "admin": "Administrator",
@@ -131,6 +133,22 @@
     },
     "noMatch": "No player matches that search",
     "noMatchHint": "Try part of the name, or the email address."
+  },
+  "siteConfig": {
+    "title": "Site settings",
+    "subtitle": "Applies to the whole site, for everyone.",
+    "loading": "Loading…",
+    "saved": "Saved",
+    "siteTitle": "Site title",
+    "siteTitleHint": "Shown on the browser tab and in the top bar. Leave empty to use the built-in name.",
+    "siteTitlePlaceholder": "e.g. Vitaverse — Play to Learn",
+    "perLocale": "Editing the \"{locale}\" version. Switch language in the top bar to edit the other one.",
+    "favicon": "Favicon",
+    "faviconHint": "The little icon on the browser tab. Leave empty to use the default file.",
+    "faviconUpload": "Upload image",
+    "faviconReplace": "Replace image",
+    "faviconRemove": "Remove",
+    "faviconSize": "A square PNG or SVG works best — 32×32 up to 512×512. It is shown at 16 pixels wide, so keep it simple."
   },
   "play": {
     "title": "Galaxy map",
@@ -478,6 +496,18 @@
       "revisit": "Again — quest already done",
       "revisitHint": "The student walks back into a quest they finished.",
       "revisitPlaceholder": "You have already finished this one."
+    },
+    "balance": {
+      "title": "Game balance",
+      "hint": "Applies to every question in this world.",
+      "wrongAllowed": "Wrong answers allowed per question",
+      "wrongAllowedHint": "{tries} tries in total, counting the first. Wrong once more and the guardian moves on; that question scores 0.",
+      "scoreByTry": "Score by try",
+      "scoreByTryHint": "Share of the points a correct answer earns on that try. 100% on every try means a second-try answer is worth as much as a first.",
+      "try": "Try {n}",
+      "save": "Save",
+      "saved": "Saved",
+      "gateNote": "The NPC gate quest ignores this — unlimited tries there, on purpose."
     }
   },
   "stage": {

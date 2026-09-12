@@ -33,8 +33,16 @@ DEFAULT_BALANCE: dict[str, Any] = {
     #: Đổi tên từ `maxAttemptsPerQuest` khi một nhiệm vụ mang nhiều câu hỏi —
     #: lượt thử áp cho từng câu, không phải cho cả cụm.
     "maxAttemptsPerQuestion": 2,
-    #: Hệ số điểm theo lần thử thứ 1, 2, 3. null = không phạt.
-    "attemptPenalty": [1.0, 0.6],
+    #: Hệ số điểm theo lần thử thứ 1, 2, 3… Dài đúng bằng số lượt thử.
+    #:
+    #: MẶC ĐỊNH KHÔNG PHẠT: trả lời đúng ở lần hai ăn đủ điểm như lần đầu. Một
+    #: câu tiếng Anh làm sai rồi làm lại đúng là học sinh vừa HỌC ĐƯỢC gì đó —
+    #: cắt điểm ở đúng khoảnh khắc ấy là dạy các em rằng đoán bừa lần đầu rẻ hơn
+    #: nghĩ kỹ rồi sửa. Trường nào muốn siết thì hạ con số ở màn Cân bằng.
+    #:
+    #: Vượt quá độ dài bảng thì `attempt_multiplier` lấy giá trị CUỐI, nên bảng
+    #: ngắn hơn số lượt không làm mất điểm của ai.
+    "attemptPenalty": [1.0, 1.0],
     # --- Chơi lại (§6, đã chốt: cộng đủ điểm mỗi lần) ---
     "replayRatio": 1.0,
     "replayCapMultiplier": None,
