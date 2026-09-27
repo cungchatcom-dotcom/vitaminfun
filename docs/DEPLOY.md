@@ -546,7 +546,9 @@ sudo systemctl restart vitaminfun-api vitaminfun-web
 ```nginx
 server {
   listen 80;
-  server_name <tên-miền>;
+  # NHIỀU TÊN MIỀN cùng trỏ vào một bản cài: liệt kê hết, cách nhau bằng dấu
+  # cách. Xem §7b.
+  server_name abc.vita.com xyz.vita.com;
 
   # Trần upload của API là 32MB (media/service.py MAX_BYTES). Để đúng 32M thì
   # phần bọc multipart đẩy request qua ngưỡng và nginx trả 413 TRƯỚC khi
@@ -608,6 +610,52 @@ Từ **Bước 7** sẽ cần thêm đúng một block, vì WebSocket nối th�
   }
 ```
 
+### 7b. NHIỀU TÊN MIỀN trỏ vào một bản cài
+
+`abc.vita.com`, `xyz.vita.com` cùng ra một nơi. Bốn chỗ cần biết, và chỉ một
+chỗ từng làm sai:
+
+| Chỗ | Làm gì |
+|---|---|
+| `server_name` | Liệt kê tất cả, cách nhau bằng dấu cách. Một block là đủ. |
+| `certbot` | `-d abc.vita.com -d xyz.vita.com` — một chứng chỉ, nhiều tên. |
+| `CORS_ORIGINS` | Danh sách, ngăn bằng dấu phẩy: `https://abc.vita.com,https://xyz.vita.com`. Trình duyệt không gọi thẳng API (§1) nên phần này hiếm khi động tới, nhưng để thiếu thì lúc cần sẽ mất một buổi để tìm ra. |
+| `STORAGE_PUBLIC_URL` | **`/media`** — tương đối. Đây là chỗ hay sai. |
+
+**Vì sao `STORAGE_PUBLIC_URL` phải tương đối.** `media_assets.url` được ghi MỘT
+LẦN lúc tải file lên. Để tuyệt đối (`https://abc.vita.com/media/...`) là đóng
+đinh một tên miền vào **dữ liệu**:
+
+- người vào bằng `xyz` vẫn tải ảnh từ `abc` — một tên miền phục vụ cho cả hai,
+  và nếu `abc` ngừng dùng thì mọi ảnh đã tải lên trước đó chết theo;
+- ảnh đến từ origin KHÁC với trang, nên `<canvas>` của Phaser phải đi qua CORS —
+  thêm một thứ để hỏng mà không được gì;
+- sửa lại là một lượt `UPDATE` trên cả bảng, chứ không phải đổi một dòng `.env`.
+
+Tương đối thì mỗi tên miền tự phục vụ file của mình (`location /media/` đọc
+thẳng từ đĩa), và dữ liệu không biết gì về tên miền cả. Bản cài cũ đã lỡ ghi
+tuyệt đối thì nắn lại một lần:
+
+```bash
+api/.venv/bin/python scripts/fix_media_urls.py   # chạy lại nhiều lần vô hại
+```
+
+Chỉ đặt tuyệt đối khi file thật sự nằm ở một CDN hay máy chủ khác.
+
+**Ảnh chụp đề bài của lượt chơi CŨ** (`stage_runs.snapshot_json`) vẫn giữ địa
+chỉ tuyệt đối — đó là đề bài đã đóng băng, sửa nó là sửa lịch sử. Lượt mới đóng
+băng địa chỉ mới; ai đang chơi dở lúc đổi thì bấm **Chơi lại** là xong.
+
+**Đăng nhập KHÔNG dùng chung giữa các tên miền.** Cookie phiên đặt theo host,
+nên đăng nhập ở `abc` rồi mở `xyz` là phải đăng nhập lại. Muốn dùng chung thì
+đặt cookie ở tên miền cha (`Domain=.vita.com`) trong `web/src/app/api/auth/`,
+và phải cân nhắc: khi đó một phiên mở cửa cho MỌI tên miền con, kể cả cái sau
+này mới dựng.
+
+Nội dung thì **giống hệt nhau** ở mọi tên miền: hệ thống không có khái niệm
+trung tâm/tenant (ARCHITECTURE §7). Muốn mỗi tên miền một world khác nhau thì đó
+là một tính năng chưa có, không phải một dòng cấu hình.
+
 ### HTTPS
 
 ```bash
@@ -616,7 +664,7 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d <tên-miền>
+sudo certbot --nginx -d abc.vita.com -d xyz.vita.com   # liệt kê hết tên miền
 ```
 
 Certbot tự sửa file trên thành `listen 443 ssl` và thêm block chuyển hướng 80 → 443. **Sau đó `STORAGE_PUBLIC_URL` phải là `https://`** — nếu lúc đó đã có file tải lên bằng `http://` thì xem §9.

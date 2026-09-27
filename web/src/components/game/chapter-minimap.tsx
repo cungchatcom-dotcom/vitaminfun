@@ -7,13 +7,12 @@ import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { useSiteConfig } from '@/components/site-config-context';
 import { BackgroundLayer } from './background-layer';
+import { usePortraitScreen } from '@/game/pointer';
 import { pickText } from '@/lib/i18n-text';
 import { localizedPath } from '@/lib/routes';
 
 import type { PlayChapter, PlayStage } from '@/lib/types';
 
-/** Số màn hiện cùng lúc trên một hàng ngang. Cùng nhịp với hàng chương. */
-const PER_PAGE = 5;
 
 /**
  * Minimap của một chương: bảng mở ra khi học sinh bấm vào chương ở phòng chờ.
@@ -27,14 +26,31 @@ const PER_PAGE = 5;
  */
 export function ChapterMinimap({
   chapter,
+  perPage,
+  highlighted,
   onClose,
 }: {
   chapter: PlayChapter;
+  /**
+   * Số màn mỗi trang — người dựng chọn, RIÊNG cho từng hướng (nằm trên khối
+   * hàng chương của bố cục đó). Năm vòng tròn trên một màn dọc rộng 390px là
+   * năm cái chấm không bấm trúng nổi.
+   */
+  perPage: number;
+  /** Màn đang được tô sáng — xem `highlightedStageIds`. */
+  highlighted: Set<string>;
   onClose: () => void;
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [page, setPage] = useState(0);
+  const stages = chapter.stages ?? [];
+  const doc = usePortraitScreen();
+
+  // Mở đúng TRANG có màn đang sáng. Tô sáng một màn ở trang hai mà mở ra ở
+  // trang một thì cái viền sáng không ai thấy — và đó lại đúng là màn người ta
+  // mở minimap ra để tìm.
+  const viTriSang = stages.findIndex((stage) => highlighted.has(stage.id));
+  const [page, setPage] = useState(viTriSang >= 0 ? Math.floor(viTriSang / perPage) : 0);
 
   const name = pickText(chapter.name_i18n, locale);
 
@@ -44,9 +60,31 @@ export function ChapterMinimap({
      ra kết quả đẹp hơn. Nhưng một tấm ảnh hơi bị kéo giãn vẫn hơn hẳn một mảng
      đen trống, và ảnh chương thì luôn nói đúng về chương này. */
   const background = chapter.minimap_url || chapter.cover_url;
-  const stages = chapter.stages ?? [];
-  const pages = Math.max(1, Math.ceil(stages.length / PER_PAGE));
-  const shown = stages.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const pages = Math.max(1, Math.ceil(stages.length / perPage));
+  const shown = stages.slice(page * perPage, page * perPage + perPage);
+
+  const lockedLabel = (stage: PlayStage) =>
+    t(stage.locked_by_teacher ? 'lobby.minimap.lockedByTeacher' : 'lobby.minimap.locked');
+
+  if (doc) {
+    return (
+      <Modal label={t('lobby.minimap.title', { chapter: name })} onClose={onClose}>
+        <PortraitMinimap
+          title={`${chapter.order_index}. ${name}`}
+          background={background}
+          stages={shown}
+          empty={stages.length === 0}
+          highlighted={highlighted}
+          locale={locale}
+          lockedLabel={lockedLabel}
+          page={page}
+          pages={pages}
+          setPage={setPage}
+          onClose={onClose}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal label={t('lobby.minimap.title', { chapter: name })} onClose={onClose}>
@@ -97,7 +135,7 @@ export function ChapterMinimap({
 
                 <ul
                   className="grid flex-1 gap-3"
-                  style={{ gridTemplateColumns: `repeat(${PER_PAGE}, minmax(0, 1fr))` }}
+                  style={{ gridTemplateColumns: `repeat(${perPage}, minmax(0, 1fr))` }}
                 >
                   {shown.map((stage) => (
                     <li key={stage.id}>
@@ -107,6 +145,7 @@ export function ChapterMinimap({
                           ngồi cày một cánh cửa không mở bằng điểm. */}
                       <StageDot
                         stage={stage}
+                        current={highlighted.has(stage.id)}
                         locale={locale}
                         lockedLabel={t(
                           stage.locked_by_teacher
@@ -140,6 +179,153 @@ export function ChapterMinimap({
 }
 
 /**
+ * Minimap ở MÀN DỌC: con đường ZÍCH-ZẮC từ trên xuống.
+ *
+ * Bản ngang xếp một hàng ngang; trên màn rộng 390px, năm vòng tròn cộng hai mũi
+ * tên chỉ còn mỗi cái ~50px — tên màn không đọc nổi, ngón tay bấm trượt. Ở đây
+ * mỗi vòng tròn rộng 40% bề ngang hộp, đi so le trái–phải để các vòng sát nhau
+ * theo chiều dọc mà không chạm nhau, nối bằng một đường nét đứt — vẫn là một con
+ * đường, màn 1 dẫn tới màn 2.
+ *
+ * Lật trang dời xuống ĐÁY, thành hàng nút cỡ đầu ngón tay, thay vì kẹp hai bên.
+ */
+const PATH = { DOT: 40, STEP: 27, LEFT: 27, RIGHT: 73 } as const;
+
+function PortraitMinimap({
+  title,
+  background,
+  stages,
+  empty,
+  highlighted,
+  locale,
+  lockedLabel,
+  page,
+  pages,
+  setPage,
+  onClose,
+}: {
+  title: string;
+  background: string | null | undefined;
+  stages: PlayStage[];
+  empty: boolean;
+  highlighted: Set<string>;
+  locale: string;
+  lockedLabel: (stage: PlayStage) => string;
+  page: number;
+  pages: number;
+  setPage: (update: (p: number) => number) => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations();
+  // Mọi số đo tính theo PHẦN TRĂM BỀ RỘNG hộp đường đi, nên cả con đường co
+  // giãn theo máy mà vòng tròn luôn tròn.
+  const n = stages.length;
+  const height = PATH.DOT + Math.max(0, n - 1) * PATH.STEP;
+  const center = (i: number) => ({
+    x: i % 2 === 0 ? PATH.LEFT : PATH.RIGHT,
+    y: PATH.DOT / 2 + i * PATH.STEP,
+  });
+  const centers = stages.map((_, i) => center(i));
+
+  return (
+    <div className="relative flex max-h-[88dvh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-900 shadow-2xl">
+      {background && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={background}
+            alt=""
+            className="pointer-events-none absolute inset-0 size-full object-cover"
+            draggable={false}
+          />
+          <div className="pointer-events-none absolute inset-0 bg-abyss-950/55" />
+        </>
+      )}
+
+      <header className="relative flex items-center justify-between gap-3 px-4 py-3">
+        <h2 className="truncate text-lg font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+          {title}
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('common.close')}
+          className="flex size-11 shrink-0 items-center justify-center text-xl text-white/70 transition hover:text-white"
+        >
+          ✕
+        </button>
+      </header>
+
+      <div className="relative min-h-0 flex-1 overflow-y-auto px-5 pb-3">
+        {empty ? (
+          <p className="py-10 text-center text-sm text-white/70">{t('lobby.minimap.empty')}</p>
+        ) : (
+          <div className="relative w-full" style={{ aspectRatio: `100 / ${height}` }}>
+            <svg
+              aria-hidden
+              className="pointer-events-none absolute inset-0 size-full"
+              viewBox={`0 0 100 ${height}`}
+              preserveAspectRatio="none"
+            >
+              <polyline
+                points={centers.map((c) => `${c.x},${c.y}`).join(' ')}
+                fill="none"
+                stroke="rgba(255,255,255,0.45)"
+                strokeWidth={3}
+                strokeDasharray="2 8"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            <ul>
+              {stages.map((stage, i) => (
+                <li
+                  key={stage.id}
+                  className="absolute"
+                  style={{
+                    width: `${PATH.DOT}%`,
+                    left: `${center(i).x - PATH.DOT / 2}%`,
+                    top: `${((center(i).y - PATH.DOT / 2) / height) * 100}%`,
+                  }}
+                >
+                  <StageDot
+                    stage={stage}
+                    current={highlighted.has(stage.id)}
+                    locale={locale}
+                    lockedLabel={lockedLabel(stage)}
+                    big
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {pages > 1 && (
+        <footer className="relative flex items-center justify-between gap-3 px-4 pb-4">
+          <PageArrow
+            label={t('lobby.minimap.prev')}
+            arrow="‹"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          />
+          <span className="font-mono text-sm text-white/70">
+            {page + 1} / {pages}
+          </span>
+          <PageArrow
+            label={t('lobby.minimap.next')}
+            arrow="›"
+            disabled={page >= pages - 1}
+            onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+          />
+        </footer>
+      )}
+    </div>
+  );
+}
+
+/**
  * Một màn chơi trên minimap.
  *
  * Mặt của vòng tròn là ẢNH NỀN CỦA CHÍNH MÀN ĐÓ — đúng tấm ảnh sẽ hiện ra khi
@@ -160,10 +346,16 @@ function StageDot({
   stage,
   locale,
   lockedLabel,
+  current = false,
+  big = false,
 }: {
   stage: PlayStage;
   locale: string;
   lockedLabel: string;
+  /** Vòng tròn to của minimap dọc — chữ và ổ khoá to theo. */
+  big?: boolean;
+  /** Màn đang chơi dở hoặc màn mở cuối cùng — vầng sáng thở chậm. */
+  current?: boolean;
 }) {
   const name = pickText(stage.name_i18n, locale);
   // ĐỘ MỜ của màn đang khoá — người dựng chỉnh ở màn Cấu hình.
@@ -179,7 +371,7 @@ function StageDot({
         stage.unlocked
           ? 'group border-orichalcum-400 bg-abyss-950/70 transition hover:bg-orichalcum-500/25'
           : 'border-white/30 bg-abyss-950/70'
-      }`}
+      } ${current ? 'glow-current' : ''}`}
       style={stage.unlocked ? undefined : { opacity: doMo / 100 }}
     >
       {stage.background_url && (
@@ -220,7 +412,7 @@ function StageDot({
 
           Bóng đổ trên chữ chứ không phải lớp phủ dưới chữ: bóng làm chữ đọc
           được mà không đụng gì tới ảnh. */}
-      <span className="relative line-clamp-3 text-[11px] leading-tight font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+      <span className={`relative line-clamp-3 leading-tight font-bold ${big ? 'text-sm' : 'text-[11px]'} text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]`}>
         {name || stage.order_index}
       </span>
 
@@ -228,10 +420,15 @@ function StageDot({
         <span
           aria-label={lockedLabel}
           title={lockedLabel}
-          className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
+          className={`pointer-events-none absolute inset-0 flex items-center justify-center ${big ? 'text-4xl' : 'text-2xl'} drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]`}
         >
           🔒
         </span>
+      )}
+
+      {/* Lớp sáng HẮT VÀO, nằm TRÊN ảnh nền của màn — xem `.glow-current-inner`. */}
+      {current && (
+        <span className="glow-current-inner pointer-events-none absolute inset-0 rounded-full" />
       )}
     </span>
   );
@@ -267,7 +464,10 @@ function PageArrow({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="shrink-0 rounded-lg border border-white/40 bg-abyss-950/50 px-2 py-1 text-xl text-white transition hover:border-lagoon-400 disabled:pointer-events-none disabled:opacity-30"
+      // Trên cảm ứng: sàn 44×44px — cỡ đầu ngón tay. Minimap mở ra trên điện
+      // thoại dựng đứng, và một nút 28px kẹp giữa mép màn với hàng vòng tròn
+      // là thứ bấm trượt sang vòng tròn bên cạnh.
+      className="flex shrink-0 items-center justify-center rounded-lg border border-white/40 bg-abyss-950/50 px-2 py-1 text-xl text-white transition hover:border-lagoon-400 active:bg-abyss-950/80 disabled:pointer-events-none disabled:opacity-30 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:text-2xl"
     >
       {arrow}
     </button>

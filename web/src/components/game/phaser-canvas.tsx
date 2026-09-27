@@ -4,7 +4,12 @@ import { useEffect, useRef } from 'react';
 
 import { StageScene, type StageSceneData } from '@/game/scenes/StageScene';
 
+import { sharedAudioContext } from '@/game/shared-audio';
+
 import { useMusicPrefs } from './music-controls';
+
+/** Những cú chạm iOS coi là "người dùng cho phép phát tiếng". */
+const WAKE_EVENTS = ['touchend', 'pointerup', 'click', 'keydown'] as const;
 
 /**
  * Ranh giới React ↔ Phaser.
@@ -61,20 +66,44 @@ export function PhaserCanvas({
     if (!holder.current || game.current) return;
 
     let cancelled = false;
+    let observer: ResizeObserver | null = null;
+    let unwake: (() => void) | null = null;
 
     // import động: Phaser đụng `window` ngay lúc nạp module.
     void import('phaser').then((PhaserModule) => {
       if (cancelled || !holder.current) return;
       const Phaser = PhaserModule.default;
 
+      // Màn hình mật độ cao (điện thoại DPR 2–3): canvas phải có ĐỦ điểm ảnh
+      // thật, không thì trình duyệt phóng một canvas cỡ CSS lên gấp 2–3 lần và
+      // chữ nhòe hẳn. RESIZE của Phaser bỏ qua `zoom`, nên ở đây tự đo khung:
+      // game rộng CSS×dpr, `zoom = 1/dpr` thu thẻ canvas về đúng cỡ CSS.
+      // DPR 1 (máy bàn) đi đường cũ y nguyên.
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const sharp = dpr > 1;
+      const box = holder.current;
+      const scale = sharp
+        ? {
+            mode: Phaser.Scale.NONE,
+            width: Math.max(1, Math.round(box.clientWidth * dpr)),
+            height: Math.max(1, Math.round(box.clientHeight * dpr)),
+            zoom: 1 / dpr,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+          }
+        : {
+            mode: Phaser.Scale.RESIZE,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+          };
+
       const instance = new Phaser.Game({
         type: Phaser.AUTO,
         parent: holder.current,
         backgroundColor: '#04121f',
-        scale: {
-          mode: Phaser.Scale.RESIZE,
-          autoCenter: Phaser.Scale.CENTER_BOTH,
-        },
+        scale,
+        // Ngữ cảnh âm thanh DÙNG CHUNG giữa các lượt — xem `game/shared-audio`.
+        // Để Phaser tự tạo thì mỗi lần Chơi lại là một ngữ cảnh mới, và iOS bắt
+        // nó câm tới cú chạm đầu tiên.
+        audio: { context: sharedAudioContext() ?? undefined },
         // Không dùng physics: di chuyển là tween và kiểm tra đa giác bằng tay.
         // Bật Arcade chỉ để đó là thêm một vòng lặp chạy mỗi khung hình.
         scene: [StageScene],
@@ -101,10 +130,67 @@ export function PhaserCanvas({
 
       game.current = instance;
       instance.scene.start(StageScene.KEY, latest.current);
+
+      // Tiếng trên điện thoại. Hai cái bẫy của iOS:
+      //
+      // 1. Công tắc im lặng tắt Web Audio (Phaser dùng) nhưng KHÔNG tắt thẻ
+      //    `<audio>` (phòng chờ dùng) — nên phòng chờ có nhạc, vào màn thì câm.
+      //    `audioSession.type = 'playback'` (Safari 16.4+) xếp trang vào loại
+      //    "phát nhạc" như thẻ `<audio>`.
+      // 2. Phaser mở khoá ngay ở `touchstart`; iOS chưa coi đó là cú chạm hợp
+      //    lệ, `resume()` hỏng, và Phaser gỡ LUÔN mọi trình nghe — không bao giờ
+      //    thử lại. Ở đây thử lại ở mỗi cú chạm tới khi ngữ cảnh chạy thật.
+      const nav = navigator as Navigator & { audioSession?: { type: string } };
+      try {
+        if (nav.audioSession) nav.audioSession.type = 'playback';
+      } catch {
+        // Trình duyệt không cho đặt — bỏ qua, vẫn còn bước 2.
+      }
+      const sound = instance.sound as unknown as {
+        locked: boolean;
+        context?: AudioContext;
+        unlocked: boolean;
+      };
+      const wake = () => {
+        const ctx = sound.context;
+        if (!ctx) return;
+        if (ctx.state === 'running') {
+          if (sound.locked) sound.unlocked = true;
+          return;
+        }
+        void ctx.resume().then(
+          () => {
+            if (sound.locked) sound.unlocked = true;
+          },
+          () => undefined,
+        );
+      };
+      for (const type of WAKE_EVENTS) window.addEventListener(type, wake, true);
+      // Thử NGAY một lần, không đợi chạm: ngữ cảnh dùng chung đã được mở khoá
+      // ở lượt trước (hay ở phòng chờ) thì `resume()` lúc này được chấp nhận,
+      // và nhạc nền vào luôn cùng lượt mới.
+      wake();
+      unwake = () => {
+        for (const type of WAKE_EVENTS) window.removeEventListener(type, wake, true);
+      };
+
+      if (sharp) {
+        // Chế độ NONE không tự theo khung cha — đo lại mỗi khi khung đổi cỡ.
+        observer = new ResizeObserver(() => {
+          const w = Math.max(1, Math.round(box.clientWidth * dpr));
+          const h = Math.max(1, Math.round(box.clientHeight * dpr));
+          if (w !== instance.scale.width || h !== instance.scale.height) {
+            instance.scale.resize(w, h);
+          }
+        });
+        observer.observe(box);
+      }
     });
 
     return () => {
       cancelled = true;
+      observer?.disconnect();
+      unwake?.();
       // `true` = phá luôn thẻ canvas. Không dọn thì rời màn rồi quay lại là có
       // hai vòng lặp game cùng chạy, và cái cũ vẫn nghe EventBus.
       game.current?.destroy(true);

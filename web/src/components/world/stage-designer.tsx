@@ -10,7 +10,14 @@ import { Badge, Card, PageHeader, SectionTitle } from '@/components/ui/primitive
 import type { AudioSlot, AudioTrack } from '@/game/audio';
 import { HERO_FOOT_Y } from '@/game/character';
 import { canWalkAt, readCollision, type CollisionMap } from '@/game/collision';
-import { DEFAULT_ICON_SIZE, WORLD, resolvePulse, resolveSpawn } from '@/game/world';
+import {
+  DEFAULT_ICON_SIZE,
+  WORLD,
+  resolvePulse,
+  resolveSpawn,
+  type Orientation,
+} from '@/game/world';
+import { HUD_KEYS, hudBox, stageCanvas, type HudKey } from '@/game/stage-layout';
 import { ApiError } from '@/lib/api-error';
 import { ownText, pickText } from '@/lib/i18n-text';
 import { BACKGROUND_ACCEPT, IMAGE_ACCEPT, uploadMedia } from '@/lib/media';
@@ -58,6 +65,18 @@ const CHARACTER_ID = 'character';
  * hình. Khung ở đây co giãn theo bề rộng cửa sổ, nên lưu pixel màn hình là mở
  * trên máy khác thì vật thể nằm chỗ khác.
  */
+/**
+ * Tiền tố id cho ba cụm HUD trong bộ kéo thả. Id nhiệm vụ là UUID nên không
+ * bao giờ đụng; nhân vật đã có `CHARACTER_ID` riêng.
+ */
+const HUD_PREFIX = 'hud:';
+
+function hudKeyOf(id: string): HudKey | null {
+  if (!id.startsWith(HUD_PREFIX)) return null;
+  const key = id.slice(HUD_PREFIX.length) as HudKey;
+  return (HUD_KEYS as readonly string[]).includes(key) ? key : null;
+}
+
 export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: string }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -102,9 +121,42 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
    * `value` theo tham chiếu để biết có nên đồng bộ lại từ server không, nên một
    * object mới ở mỗi lần vẽ lại sẽ ghi đè liên tục lên bản đang sửa.
    */
+  // ------------------------------------------------------- ngang hay dọc
+
+  /**
+   * Bố cục đang sửa. Đổi cái này là đổi CẢ khung vẽ, CẢ chỗ đọc, CẢ chỗ ghi —
+   * ba thứ phải đi cùng nhau, nếu không thì kéo ở bản dọc mà ghi vào bản ngang.
+   */
+  const [huong, setHuong] = useState<Orientation>('landscape');
+  const doc = huong === 'portrait';
+  const khung = stageCanvas(doc);
+
+  /**
+   * CỠ KHUNG XEM TRƯỚC, phần trăm của cỡ nền. Nhớ RIÊNG theo từng hướng.
+   *
+   * Cỡ nền khác nhau ở hai hướng, và đó là chủ ý:
+   *
+   *   - NGANG: vừa hết bề rộng cột, đúng như trước khi có bố cục dọc. Không
+   *     đụng tới một pixel nào của bản đang chạy.
+   *   - DỌC: chặn theo CHIỀU CAO (51vh, cùng con số với trình thiết kế thiên
+   *     hà). Để `w-full` thì khung cao gấp ba bề ngang cột — dài hơn cả màn
+   *     hình, và người dựng phải cuộn mới thấy hết một thứ đáng ra phải nhìn
+   *     trọn để căn.
+   */
+  const [zoomTheoHuong, setZoomTheoHuong] = useState<Record<Orientation, number>>({
+    landscape: 100,
+    // Bản dọc mặc định 150%: ở 100% (tức cao 51vh) khung chỉ rộng chừng 230px
+    // trên một cửa sổ thường, và căn một vật thể trong dải đó thì mỗi pixel là
+    // gần tám đơn vị toạ độ. 150% cho ~350px mà vẫn vừa màn hình — 200% như
+    // bên bản đồ thiên hà thì phải cuộn mới thấy hết.
+    portrait: 150,
+  });
+  const zoom = zoomTheoHuong[huong];
+  const setZoom = (v: number) => setZoomTheoHuong((prev) => ({ ...prev, [huong]: v }));
+
   const collision: CollisionMap | null = useMemo(
-    () => readCollision(stage?.collision),
-    [stage?.collision],
+    () => readCollision(doc ? stage?.portrait?.collision : stage?.collision),
+    [stage?.collision, stage?.portrait?.collision, doc],
   );
 
   const reload = useCallback(async () => {
@@ -177,6 +229,46 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
     );
   }
 
+
+  /** GHI một bản vá TRÌNH BÀY của màn vào đúng hướng đang sửa. */
+  function ghiMan(payload: Record<string, unknown>) {
+    return updateStage(stageId, doc ? { portrait: payload } : payload);
+  }
+
+  /** Chỗ đứng ba cụm HUD ở bản dọc. `{}` = dùng chỗ mặc định. */
+  const hud = (stage?.portrait?.hud ?? {}) as Record<string, Record<string, unknown>>;
+
+  /**
+   * GHI chỗ đứng / cỡ của MỘT cụm HUD. Server gộp ở mức cụm.
+   *
+   * VÁ KẾT QUẢ VÀO STATE, không chỉ gửi đi: bộ kéo thả xoá `ghost` ngay khi
+   * thả tay, rồi khối vẽ lại theo `stage.portrait.hud`. Không cập nhật chỗ đó
+   * thì khối nhảy về chỗ cũ ngay trước mắt — trông y như kéo thả không chạy,
+   * dù server đã lưu đúng. Đó chính là lỗi vừa gặp.
+   *
+   * Gửi TRỌN bốn con số chứ không chỉ cái vừa đổi: server gộp ở mức cụm, nên
+   * gửi mỗi `{x, y}` sẽ làm mất bề rộng và chiều cao đang có.
+   */
+  async function ghiHud(key: HudKey, change: Record<string, number>) {
+    const cu = hudBox(key, hud[key]);
+    try {
+      const fresh = await tracked(() => ghiMan({ hud: { [key]: { ...cu, ...change } } }));
+      setStage((prev) => (prev ? { ...prev, ...fresh } : prev));
+    } catch (error) {
+      setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
+    }
+  }
+
+  /** GHI chỗ đứng / cỡ của một nhiệm vụ vào đúng hướng đang sửa. */
+  function ghiNhiemVu(id: string, payload: Record<string, unknown>) {
+    return updateQuest(id, doc ? { portrait: payload } : payload);
+  }
+
+  /** ĐỌC chỗ đứng / cỡ của một nhiệm vụ theo hướng đang sửa. */
+  function docNhiemVu(quest: Quest) {
+    return doc ? quest.portrait : quest;
+  }
+
   // ---------------------------------------------------------------- kéo thả
 
   // Toàn bộ phép toán kéo/thả/đổi cỡ nằm ở `useDesignBoard()`, dùng chung với
@@ -184,23 +276,29 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
   // cầm chuột giống hệt, và hai bản sao của cùng một phép quy đổi toạ độ sẽ
   // lệch nhau đúng vào lúc không ai kịp nhận ra.
   const board = useDesignBoard({
-    canvas: WORLD,
+    canvas: khung,
     minSize: 16,
     maxSize: 2000,
-    onMove: (id, x, y) =>
-      id === CHARACTER_ID
-        ? void patchSpawn(x, y)
-        : void patchQuest(id, { scene_x: x, scene_y: y }),
+    onMove: (id, x, y) => {
+      if (id === CHARACTER_ID) return void patchSpawn(x, y);
+      const cum = hudKeyOf(id);
+      if (cum) return void ghiHud(cum, { x, y });
+      void patchQuest(id, { scene_x: x, scene_y: y });
+    },
     // Ảnh vật thể giữ tỉ lệ gốc, nên chỉ bề rộng là thứ lưu được — chiều cao
     // suy ra từ ảnh. Vì vậy màn này chỉ có tay cầm ở GÓC, và chỉ đọc `w`.
     //
     // Nhân vật thì ngược lại: đọc `h`. Cảnh chơi đặt cỡ nhân vật theo CHIỀU CAO
     // (`HERO_HEIGHT`), nên đây phải đo đúng cái chiều đó — lưu bề rộng rồi quy
     // ra chiều cao là thêm một phép đổi để sai.
-    onResize: (id, size) =>
-      id === CHARACTER_ID
-        ? void patchStageHeight(size.h)
-        : void patchQuest(id, { icon_size: size.w }),
+    onResize: (id, size) => {
+      if (id === CHARACTER_ID) return void patchStageHeight(size.h);
+      // Cụm HUD có CHIỀU CAO thật — cả cụm co giãn theo nó, nên phải lưu cả
+      // hai chiều. Vật thể nhiệm vụ thì chỉ lưu bề rộng (chiều cao suy từ ảnh).
+      const cum = hudKeyOf(id);
+      if (cum) return void ghiHud(cum, { w: size.w, h: size.h });
+      void patchQuest(id, { icon_size: size.w });
+    },
   });
 
   // ------------------------------------------------------------ vùng đi được
@@ -214,10 +312,9 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
    */
   const walk = useWalkarea({
     value: collision,
+    canvas: khung,
     onSave: (map) =>
-      void withError(() =>
-        updateStage(stageId, map ? { collision: map } : { clear_collision: true }),
-      ),
+      void withError(() => ghiMan(map ? { collision: map } : { clear_collision: true })),
   });
 
   /**
@@ -246,7 +343,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
    */
   async function patchStageHeight(height: number) {
     await withError(async () => {
-      const fresh = await updateStage(stageId, { character_height: Math.round(height) });
+      const fresh = await ghiMan({ character_height: Math.round(height) });
       setStage((prev) => (prev ? { ...prev, ...fresh } : prev));
     });
   }
@@ -261,7 +358,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
    */
   async function patchSpawn(x: number, y: number) {
     await withError(async () => {
-      const fresh = await updateStage(stageId, { spawn_x: x, spawn_y: y });
+      const fresh = await ghiMan({ spawn_x: x, spawn_y: y });
       setStage((prev) => (prev ? { ...prev, ...fresh } : prev));
     });
   }
@@ -297,10 +394,44 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
     });
   }
 
+  /**
+   * Những trường của nhiệm vụ thuộc về BỐ CỤC, tức phải ghi theo hướng.
+   *
+   * Mọi trường khác — tên, người canh giữ, điểm, nhịp thở, câu hỏi — là của
+   * chính nhiệm vụ và DÙNG CHUNG cho cả hai hướng.
+   */
+  const TRUONG_BO_CUC = ['scene_x', 'scene_y', 'icon_size', 'trigger_radius'];
+
+  /**
+   * Ghi một bản vá từ BẢNG THUỘC TÍNH — chỗ này trộn cả hai loại trường.
+   *
+   * Tách ra rồi gửi hai lượt nếu cần: bảng có cả ô "cỡ ảnh" (thuộc bố cục) lẫn
+   * ô "điểm qua ải" (dùng chung), và gửi trọn cục vào một trong hai chỗ thì một
+   * nửa rơi sai nơi. Bản trước ghi thẳng vào bản ngang bất kể đang sửa hướng
+   * nào — cùng loại lỗi với `moveGroup` ở phòng chờ.
+   */
+  async function ghiThuocTinh(id: string, payload: Record<string, unknown>) {
+    const boCuc: Record<string, unknown> = {};
+    const chung: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(payload)) {
+      (TRUONG_BO_CUC.includes(k) ? boCuc : chung)[k] = v;
+    }
+
+    let ra = null;
+    if (Object.keys(chung).length) ra = await updateQuest(id, chung);
+    if (Object.keys(boCuc).length) {
+      ra = await updateQuest(id, doc ? { portrait: boCuc } : boCuc);
+    }
+    return ra ?? (await updateQuest(id, {}));
+  }
+
   /** Sửa một nhiệm vụ và vá kết quả vào chỗ, không nạp lại cả màn. */
-  async function patchQuest(id: string, payload: Parameters<typeof updateQuest>[1]) {
+  async function patchQuest(id: string, payload: Record<string, unknown>) {
     try {
-      applyQuest(await tracked(() => updateQuest(id, payload)));
+      // Chỗ đứng, cỡ và bán kính chạm ghi vào HƯỚNG ĐANG SỬA. Mọi trường khác
+      // của nhiệm vụ (câu hỏi, người canh giữ, điểm) dùng chung — chúng đi qua
+      // `updateQuest` thẳng, không qua đây.
+      applyQuest(await tracked(() => ghiNhiemVu(id, payload)));
     } catch (error) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
     }
@@ -312,7 +443,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
     setUploading(true);
     try {
       const asset = await uploadMedia(file, 'stage-backgrounds');
-      await withError(() => updateStage(stageId, { background_media_id: asset.id }));
+      await withError(() => ghiMan({ background_media_id: asset.id }));
     } catch (error) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
     } finally {
@@ -330,8 +461,8 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
         name_i18n: { [locale]: t('designer.newQuestName', { n: nextOrder }) },
         phase: 'main',
         // Đặt giữa màn: giáo viên kéo tới chỗ mình muốn ngay sau đó.
-        scene_x: Math.round(WORLD.width / 2),
-        scene_y: Math.round(WORLD.height / 2),
+        scene_x: Math.round(khung.width / 2),
+        scene_y: Math.round(khung.height / 2),
         energy_cost: 0,
       }),
     );
@@ -366,17 +497,30 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
   const selected = stage.quests.find((q) => q.id === selectedId) ?? null;
   const editing = stage.quests.find((q) => q.id === editingId) ?? null;
   // URL do server dựng sẵn — giao diện không tự ghép đường dẫn kho media.
-  const background = stage.background_url ?? null;
+  // Ảnh nền, cỡ nhân vật và chỗ xuất phát theo HƯỚNG ĐANG SỬA. Bản dọc không
+  // thừa kế gì của bản ngang: mọi con số bên đó thuộc một khung khác.
+  const background = (doc ? stage.portrait?.background_url : stage.background_url) ?? null;
   // Ảnh hay video — quyết định cả cách vẽ khung xem trước lẫn việc bảng âm thanh
   // có hiện lựa chọn "dùng tiếng của video" hay không.
   const backgroundKind = stage.background_kind ?? null;
 
-  const characterHeight = stage.character_height ?? stage.character_height_effective;
+  // Bản dọc chưa đặt chiều cao thì KHÔNG lùi về số của bản ngang — đó là chiều
+  // cao trong một khung khác, và một nhân vật cao 200 trên khung cao 1800 sẽ
+  // thành tí hon trên khung cao 3200. Lùi về mặc định theo tỉ lệ khung.
+  const characterHeight = doc
+    ? (stage.portrait?.character_height ??
+      Math.round((stage.character_height_effective / WORLD.height) * khung.height))
+    : (stage.character_height ?? stage.character_height_effective);
 
   // CHỖ XUẤT PHÁT đang vẽ. Trong lúc kéo thì đọc bóng chứ không đợi server —
   // một cú kéo mà hình chỉ nhảy tới nơi sau khi mạng trả lời thì không kéo được.
   const spawnLive = board.ghost?.id === CHARACTER_ID ? board.ghost : null;
-  const spawnPoint = spawnLive ?? resolveSpawn(stage.spawn_x, stage.spawn_y);
+  // Chỗ xuất phát và cỡ nhân vật theo HƯỚNG ĐANG SỬA.
+  const spawnPoint =
+    spawnLive ??
+    (doc
+      ? resolveSpawn(stage.portrait?.spawn_x, stage.portrait?.spawn_y, khung)
+      : resolveSpawn(stage.spawn_x, stage.spawn_y));
 
   // Chỗ nhân vật ĐANG ĐỨNG trên bảng: đi thử thì do bàn phím lái, còn lại thì
   // đứng ở chỗ xuất phát. Trước đây không đi thử là nó đứng giữa bản đồ, một
@@ -401,6 +545,37 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
         }
         actions={
           <>
+            {/* CÔNG TẮC NGANG / DỌC — cùng dáng với hai trình thiết kế kia.
+                Chấm nhỏ = bản dọc đã có ảnh nền, tức đã được thiết kế. */}
+            <div className="flex overflow-hidden rounded-lg border border-abyss-700 text-xs">
+              {(['landscape', 'portrait'] as const).map((huongNut) => (
+                <button
+                  key={huongNut}
+                  type="button"
+                  aria-pressed={huong === huongNut}
+                  onClick={() => {
+                    setHuong(huongNut);
+                    // Bỏ chọn: nhiệm vụ đang chọn ở bản ngang thì tay cầm của
+                    // nó vẫn hiện ở bản dọc, đúng chỗ khác hẳn.
+                    setSelectedId(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition ${
+                    huong === huongNut
+                      ? 'bg-lagoon-500/20 font-bold text-lagoon-400'
+                      : 'text-slate-400 hover:bg-abyss-800 hover:text-slate-200'
+                  }`}
+                >
+                  {t(`galaxy.designer.${huongNut}`)}
+                  {huongNut === 'portrait' && stage.portrait?.background_url && (
+                    <span
+                      aria-hidden
+                      className="size-1.5 rounded-full bg-orichalcum-400"
+                      title={t('galaxy.designer.portraitReady')}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
             <span
               role="status"
               aria-live="polite"
@@ -446,9 +621,22 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
         <div>
           <div
             ref={board.boardRef}
-            className="relative w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950 select-none"
-            // Giữ đúng tỉ lệ thế giới, nếu không thì kéo thả lệch theo trục.
-            style={{ aspectRatio: `${WORLD.width} / ${WORLD.height}` }}
+            className="relative mx-auto overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950 select-none"
+            style={{
+              // Giữ đúng tỉ lệ thế giới, nếu không thì kéo thả lệch theo trục.
+              aspectRatio: `${khung.width} / ${khung.height}`,
+              // Cỡ nền × mức phóng. Bản ngang lấy trọn bề rộng cột như cũ; bản
+              // dọc chặn theo chiều cao rồi suy ra bề rộng — xem `zoomTheoHuong`.
+              //
+              // Phóng bằng cách đổi BỀ RỘNG THẬT chứ không `transform: scale`:
+              // `useDesignBoard` quy đổi toạ độ chuột bằng
+              // `getBoundingClientRect()`, nên khung to lên là phép đổi tự đúng
+              // theo, còn `scale` thì thêm một tầng biến đổi mà mọi chỗ đo đạc
+              // đều phải nhớ trừ ra.
+              width: doc
+                ? `calc(min(100%, 51vh * ${khung.width} / ${khung.height}) * ${zoom / 100})`
+                : `${zoom}%`,
+            }}
             onPointerDown={(e) => {
               if (e.target === e.currentTarget) setSelectedId(null);
             }}
@@ -469,6 +657,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
                 dưới chúng: nó là cái thước, không phải nội dung của màn, nên
                 không được che mất thứ người dựng đang thật sự sắp đặt. */}
             <CharacterGhost
+              canvas={khung}
               action={ghost}
               height={
                 board.sizeDraft?.id === CHARACTER_ID
@@ -509,7 +698,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
                           // Neo vào TÂM ĐANG VẼ, không phải giữa bản đồ: ở chế
                           // độ đi thử nhân vật đứng chỗ khác, và tay cầm thì đo
                           // khoảng cách tới tâm.
-                          ...ghostCenter(stand, characterHeight),
+                          ...ghostCenter(stand, characterHeight, khung),
                           w: characterHeight,
                           h: characterHeight,
                           // Cùng khoảng server nhận (40..900). Kéo quá rồi ăn
@@ -526,12 +715,16 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
 
             {stage.quests.map((quest) => {
               const live = board.ghost?.id === quest.id ? board.ghost : null;
-              const x = live?.x ?? quest.scene_x ?? WORLD.width / 2;
-              const y = live?.y ?? quest.scene_y ?? WORLD.height / 2;
+              // Chỗ đứng của HƯỚNG ĐANG SỬA. Bản dọc chưa đặt thì rơi về giữa
+              // khung DỌC, không về toạ độ bản ngang — 3000 theo trục x là
+              // ngoài mép một khung chỉ rộng 1800.
+              const dat = docNhiemVu(quest);
+              const x = live?.x ?? dat?.scene_x ?? khung.width / 2;
+              const y = live?.y ?? dat?.scene_y ?? khung.height / 2;
               const iconSize =
                 board.sizeDraft?.id === quest.id
                   ? board.sizeDraft.w
-                  : (quest.icon_size ?? DEFAULT_ICON_SIZE);
+                  : (dat?.icon_size ?? DEFAULT_ICON_SIZE);
               const active = quest.id === selectedId;
 
               const draft = pulseDraft?.id === quest.id ? pulseDraft : null;
@@ -545,8 +738,8 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
                   key={quest.id}
                   className="absolute"
                   style={{
-                    left: `${(x / WORLD.width) * 100}%`,
-                    top: `${(y / WORLD.height) * 100}%`,
+                    left: `${(x / khung.width) * 100}%`,
+                    top: `${(y / khung.height) * 100}%`,
                     // Chiều rộng đặt Ở ĐÂY, trên chính thẻ `absolute`, để phần
                     // trăm quy chiếu theo KHUNG SOẠN.
                     //
@@ -555,7 +748,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
                     // trái tới mép phải khung". Hậu quả: kéo vật thể sang phải
                     // thì chỗ trống hẹp lại và ảnh tự co, sát mép phải thì kéo
                     // to cũng không được.
-                    width: `${(iconSize / WORLD.width) * 100}%`,
+                    width: `${(iconSize / khung.width) * 100}%`,
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
@@ -671,7 +864,11 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
                         điểm neo thì hai bên nở ra cùng một kiểu. */}
                     <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2">
                       <span
-                        className={`block text-[11px] font-bold whitespace-nowrap text-white ${
+                        // `whitespace-pre` chứ không `nowrap`: giữ ĐÚNG những chỗ
+                        // xuống dòng người dựng gõ (Enter), mà không tự ngắt
+                        // thêm ở đâu khác — y như nhãn trong cảnh Phaser.
+                        // `text-center` để các dòng căn giữa trên vật thể.
+                        className={`block text-center text-[11px] font-bold whitespace-pre text-white ${
                           pulse ? 'pulse-breathe origin-bottom' : ''
                         }`}
                         style={
@@ -699,14 +896,108 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
                 kiện chuột — cách rẻ nhất và chắc nhất để cú kéo vẽ hình không
                 giành nhau với cú kéo dời nhiệm vụ. Không vẽ thì nó vẫn hiện
                 đường bao, chỉ là không bắt chuột nữa. */}
+            {/* BA CỤM HUD — chỉ bản dọc.
+                Bản ngang đóng đinh chúng vào ba góc và không có gì chen nhau;
+                màn dọc rộng chừng 390px thì cụm trên-trái và trên-phải đè lên
+                nhau, nên người dựng phải tự xếp lại.
+
+                Vẽ MẪU chứ không nhúng HUD thật: HUD thật đọc đồng hồ và trạng
+                thái lượt chơi, mà ở đây chưa có lượt nào — và nó sẽ bắt mất cú
+                bấm dành cho việc kéo khối. */}
+            {doc &&
+              HUD_KEYS.map((key) => {
+                const live = board.ghost?.id === HUD_PREFIX + key ? board.ghost : null;
+                const draft =
+                  board.sizeDraft?.id === HUD_PREFIX + key ? board.sizeDraft : null;
+                const box = hudBox(key, hud[key]);
+                const x = live?.x ?? box.x;
+                const y = live?.y ?? box.y;
+                const w = draft?.w ?? box.w;
+                const h = draft?.h ?? box.h;
+                const active = selectedId === HUD_PREFIX + key;
+                const target = { id: HUD_PREFIX + key, x, y, w, h };
+                return (
+                  <div
+                    key={key}
+                    className="absolute z-20"
+                    style={{
+                      left: `${(x / khung.width) * 100}%`,
+                      top: `${(y / khung.height) * 100}%`,
+                      width: `${(w / khung.width) * 100}%`,
+                      height: `${(h / khung.height) * 100}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  >
+                    <div className="relative size-full">
+                      <button
+                        type="button"
+                        title={t(`designer.hud.${key}`)}
+                        onPointerDown={(event) => {
+                          setSelectedId(HUD_PREFIX + key);
+                          board.startDrag(event, target);
+                        }}
+                        className={`flex size-full cursor-grab items-center justify-center overflow-hidden rounded-lg border border-dashed bg-abyss-950/70 px-1 text-center text-[10px] leading-tight font-semibold text-slate-200 backdrop-blur active:cursor-grabbing ${
+                          active ? 'border-lagoon-400 ring-2 ring-lagoon-400' : 'border-white/45'
+                        }`}
+                      >
+                        {t(`designer.hud.${key}`)}
+                      </button>
+                      {active && (
+                        <ResizeHandles
+                          label={t('galaxy.designer.resizeHint')}
+                          onStart={(event, axis) => board.startResize(event, target, axis)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
             <WalkareaOverlay walk={walk} />
+
+            {/* VÙNG AN TOÀN của bản dọc — cùng con số, cùng lý do với bản đồ
+                thiên hà và phòng chờ: cảnh dọc được phóng cho PHỦ KÍN màn và
+                mép thừa bị cắt, chỗ cắt nhiều nhất đo được là khoảng 9% mỗi
+                mép. Nhiệm vụ nằm trong đường đứt thì máy nào cũng chạm tới
+                được. */}
+            {doc && (
+              <div
+                className="pointer-events-none absolute inset-[9%] z-30 rounded border border-dashed border-orichalcum-400/45"
+                aria-hidden
+              >
+                <span className="absolute -top-px left-1 -translate-y-full text-[10px] text-orichalcum-400/70">
+                  {t('galaxy.designer.safeArea')}
+                </span>
+              </div>
+            )}
           </div>
 
-          <p className="mt-2 text-xs text-slate-500">
-            {walk.editing
-              ? t('designer.walkarea.boardHint')
-              : `${t('designer.dragHint')} · ${t('designer.autoSave')}`}
-          </p>
+          {/* THANH THU PHÓNG. Chỉ đổi khung NHÌN, không đụng dữ liệu: mọi toạ
+              độ vẫn lưu theo hệ thế giới, nên phóng to để căn cho dễ rồi thu
+              lại thì không có gì xê dịch. Nhớ riêng theo từng hướng — hai bản
+              cần hai cỡ khác nhau, và chỉnh lại mỗi lần bấm qua bấm lại là một
+              thao tác thừa lặp cả buổi. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <span>{t('galaxy.designer.zoom')}</span>
+              <input
+                type="range"
+                min={50}
+                max={300}
+                step={10}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.currentTarget.value))}
+                className="w-40 accent-lagoon-400"
+              />
+              <span className="w-10 tabular-nums">{zoom}%</span>
+            </label>
+
+            <p className="text-xs text-slate-500">
+              {walk.editing
+                ? t('designer.walkarea.boardHint')
+                : `${t('designer.dragHint')} · ${t('designer.autoSave')}`}
+            </p>
+          </div>
         </div>
 
         {/* ---------------- Bảng điều khiển ----------------
@@ -752,7 +1043,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
               <div
                 // Giữ đúng tỉ lệ thế giới để khung xem trước nói đúng cái sẽ hiện
                 // trong cảnh, không phải một ô vuông cắt cúp.
-                style={{ aspectRatio: `${WORLD.width} / ${WORLD.height}` }}
+                style={{ aspectRatio: `${khung.width} / ${khung.height}` }}
                 className="relative mb-2 w-full overflow-hidden rounded-lg border border-abyss-700"
               >
                 {/* `still`: đây là ô xác nhận "đã tải đúng file chưa", không phải
@@ -786,6 +1077,7 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
               nhìn thấy khi vừa tới, theo đúng thứ tự họ nhìn thấy. */}
           <IntroVideoPanel
             stage={stage}
+            huong={huong}
             onPatch={(payload) =>
               void withError(async () => {
                 const fresh = await updateStage(stageId, payload);
@@ -933,12 +1225,15 @@ export function StageDesigner({ stageId, worldId }: { stageId: string; worldId: 
             <QuestInspector
               // `key` buộc React dựng lại ô nhập khi đổi nhiệm vụ. Không có nó
               // thì các ô dùng `defaultValue` giữ nguyên chữ của nhiệm vụ trước.
-              key={selected.id}
+              // Khoá mang cả HƯỚNG: cùng một nhiệm vụ nhưng con số khác hẳn
+              // giữa hai bố cục, mà mấy ô `defaultValue` thì không tự đọc lại.
+              key={`${huong}:${selected.id}`}
               quest={selected}
+              orientation={huong}
               locale={locale}
               onPatch={async (payload) => {
                 try {
-                  applyQuest(await tracked(() => updateQuest(selected.id, payload)));
+                  applyQuest(await tracked(() => ghiThuocTinh(selected.id, payload)));
                 } catch (error) {
                   setErrorKey(
                     error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR',
@@ -1011,19 +1306,31 @@ function QuestInspector({
   quest,
   locale,
   onPatch,
+  orientation,
   onPreviewPulse,
   onOpenQuestions,
   onDelete,
   onError,
 }: {
   quest: Quest;
+  /** Hướng đang sửa — quyết ô nào hiện và con số nào đọc ra. */
+  orientation: Orientation;
   locale: string;
-  onPatch: (payload: Parameters<typeof updateQuest>[1]) => Promise<void>;
+  /**
+   * Ghi một bản vá. Chỗ gọi TỰ TÁCH trường bố cục khỏi trường dùng chung —
+   * xem `ghiThuocTinh`. Nên kiểu ở đây rộng hơn `QuestUpdate`: cùng một bản
+   * vá có thể mang cả trường gốc lẫn trường chỉ tồn tại bên trong `portrait`.
+   */
+  onPatch: (payload: Record<string, unknown>) => Promise<void>;
   onPreviewPulse: (value: { percent: number; periodMs: number } | null) => void;
   onOpenQuestions: () => void;
   onDelete: () => void;
   onError: (key: string) => void;
 }) {
+  // Cỡ ảnh theo HƯỚNG đang sửa: bản dọc lưu trong `portrait`.
+  const coCu =
+    orientation === 'portrait' ? quest.portrait?.icon_size : quest.icon_size;
+
   const t = useTranslations();
   const [uploading, setUploading] = useState(false);
   //: 'saving' khi đang gửi, 'saved' vài giây sau khi xong.
@@ -1053,8 +1360,20 @@ function QuestInspector({
       <div className="space-y-3">
         <label className="block">
           <span className="field-label">{t('designer.questName')}</span>
-          <input
-            className="field-input"
+          {/* NHIỀU DÒNG: Enter là xuống dòng, và chỗ xuống dòng ấy hiện y
+              nguyên trên nhãn trong cảnh chơi.
+
+              Người dựng tự chọn chỗ ngắt thay vì để máy ngắt theo bề rộng:
+              "The Heart Has / Been Fighting" đọc khác hẳn "The Heart Has Been /
+              Fighting", và chỉ người viết biết cụm nào không được tách. Tuỳ
+              chọn "số dòng" (tự ngắt theo bề rộng) vẫn còn, cho ai không muốn
+              tự canh.
+
+              Chỉ cắt khoảng trắng ở HAI ĐẦU, không đụng vào dấu xuống dòng ở
+              giữa — `trim()` làm đúng việc đó. */}
+          <textarea
+            rows={2}
+            className="field-input resize-y leading-snug"
             defaultValue={current}
             placeholder={display}
             onBlur={(e) => {
@@ -1114,14 +1433,15 @@ function QuestInspector({
             min={16}
             max={2000}
             className="field-input"
-            defaultValue={quest.icon_size ?? DEFAULT_ICON_SIZE}
+            defaultValue={coCu ?? DEFAULT_ICON_SIZE}
             onBlur={(e) => {
               const next = Number(e.target.value);
-              if (next >= 16 && next !== quest.icon_size) void onPatch({ icon_size: next });
+              if (next >= 16 && next !== coCu) void onPatch({ icon_size: next });
             }}
           />
           <span className="mt-1 block text-xs text-slate-500">{t('designer.resizeHint')}</span>
         </label>
+
 
         {/* Hai thanh trượt nhịp thở dùng chung với trình thiết kế bản đồ
             thiên hà — xem `pulse-fields.tsx`. */}
@@ -1193,12 +1513,14 @@ function QuestInspector({
 function ghostCenter(
   stand: { x: number; y: number } | null,
   height: number,
+  canvas: { width: number; height: number } = WORLD,
 ): { x: number; y: number } {
-  if (!stand) return { x: WORLD.width / 2, y: WORLD.height / 2 };
+  if (!stand) return { x: canvas.width / 2, y: canvas.height / 2 };
   return { x: stand.x, y: stand.y + HERO_FOOT_Y - height / 2 };
 }
 
 function CharacterGhost({
+  canvas = WORLD,
   action,
   height,
   active,
@@ -1218,6 +1540,8 @@ function CharacterGhost({
    * chẳng có gì trên màn hình nói vì sao.
    */
   action: CharacterAction | null;
+  /** Khung vẽ của bố cục đang sửa. Bỏ trống = bản ngang. */
+  canvas?: { width: number; height: number };
   /** Chiều cao đang vẽ, hệ toạ độ thế giới. */
   height: number;
   active: boolean;
@@ -1239,16 +1563,16 @@ function CharacterGhost({
   const fw = action?.frame_width ?? 64;
   const fh = action?.frame_height ?? 64;
 
-  const { x: centerX, y: centerY } = ghostCenter(stand, height);
+  const { x: centerX, y: centerY } = ghostCenter(stand, height, canvas);
 
   return (
     <div
       className="absolute"
       style={{
-        left: `${(centerX / WORLD.width) * 100}%`,
-        top: `${(centerY / WORLD.height) * 100}%`,
+        left: `${(centerX / canvas.width) * 100}%`,
+        top: `${(centerY / canvas.height) * 100}%`,
         // Đặt theo CHIỀU CAO, bề rộng suy ra từ tỉ lệ khung — y hệt cảnh chơi.
-        height: `${(height / WORLD.height) * 100}%`,
+        height: `${(height / canvas.height) * 100}%`,
         aspectRatio: `${fw} / ${fh}`,
         transform: 'translate(-50%, -50%)',
       }}

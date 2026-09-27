@@ -77,6 +77,58 @@ export const DIALOGUE_BLOCKS = {
 
 export type DialogueBlockKey = keyof typeof DIALOGUE_BLOCKS;
 
+// ------------------------------------------------------------ bố cục DỌC
+
+/**
+ * Hệ toạ độ của màn hội thoại ở BỐ CỤC DỌC: 700×1000 — 1000×700 hoán vị.
+ *
+ * Cùng cách đặt số với mọi bố cục dọc khác: hoán vị, không phát minh hệ mới.
+ */
+export const DIALOGUE_PORTRAIT = { width: DIALOGUE.height, height: DIALOGUE.width } as const;
+
+export function dialogueCanvas(orientation: 'landscape' | 'portrait') {
+  return orientation === 'portrait' ? DIALOGUE_PORTRAIT : DIALOGUE;
+}
+
+/**
+ * Chỗ đứng mặc định của sáu khối ở bố cục DỌC.
+ *
+ * Không suy ra được từ bản ngang bằng phép toán nào: bản ngang dựng hai người
+ * đứng HAI MÉP với cuộc trò chuyện chạy ngang giữa họ, còn tấm bảng dọc chỉ
+ * rộng 700 — hai người ở hai mép thì chừa lại một khe hẹp không đủ cho một
+ * dòng chữ.
+ *
+ * Nên bản dọc xếp theo TẦNG, từ trên xuống, đúng cách mắt đi trên màn hình dọc:
+ *
+ *   1. người canh giữ và câu hỏi của họ
+ *   2. bài học sinh vừa làm, rồi lời phán
+ *   3. khung trả lời, chiếm trọn đáy — chỗ ngón tay làm việc
+ *
+ * Hai khuôn mặt nhỏ lại và đứng cạnh bong bóng của chính mình, thay vì gác hai
+ * đầu: trên một tấm bảng hẹp, ai đang nói là thứ phải đọc ra ngay.
+ *
+ * `round` và `ink` giữ nguyên của bản ngang — chúng nói về DÁNG và MÀU CHỮ của
+ * khối, không phụ thuộc hình dạng màn hình.
+ */
+export const DIALOGUE_BLOCKS_PORTRAIT: Record<
+  DialogueBlockKey,
+  { x: number; y: number; width: number; height: number }
+> = {
+  npcAvatar: { x: 130, y: 150, width: 180, height: 210 },
+  npcBubble: { x: 400, y: 150, width: 500, height: 200 },
+  playerBubble: { x: 400, y: 400, width: 480, height: 120 },
+  npcVerdict: { x: 350, y: 540, width: 540, height: 120 },
+  playerAvatar: { x: 590, y: 400, width: 160, height: 190 },
+  answerBox: { x: 350, y: 790, width: 660, height: 340 },
+};
+
+/** Khung mặc định của một khối hội thoại, theo hướng. */
+export function dialogueSpec(key: DialogueBlockKey, orientation: 'landscape' | 'portrait') {
+  const base = DIALOGUE_BLOCKS[key];
+  if (orientation !== 'portrait') return base;
+  return { ...base, ...DIALOGUE_BLOCKS_PORTRAIT[key] };
+}
+
 /**
  * Khối CÓ CHỮ, tức có khung nội dung kéo thả được.
  *
@@ -114,6 +166,9 @@ export const DIALOGUE_GAP_KEY = 'gapMs';
 /** Khoá của BỘ ÁO tấm bảng, trong cùng `dialogue_json`. */
 export const DIALOGUE_THEME_KEY = 'theme';
 
+/** Khoá của CỠ CHỮ bong bóng + đáp án, trong cùng `dialogue_json`. */
+export const DIALOGUE_TEXT_KEY = 'textPx';
+
 /** Cả bộ như nó nằm trong `stages.dialogue_json`. Thiếu khoá = dùng mặc định. */
 export type DialogueSaved = Partial<Record<DialogueBlockKey, LobbySaved>> & {
   /** Ảnh nền cả bảng. Vắng mặt = trong suốt. Xem `DIALOGUE_BACKGROUND`. */
@@ -129,6 +184,15 @@ export type DialogueSaved = Partial<Record<DialogueBlockKey, LobbySaved>> & {
    * mặc đúng bộ áo nó bắt đầu.
    */
   theme?: string | null;
+  /**
+   * CỠ CHỮ, pixel — dùng CHUNG cho chữ trong bong bóng và chữ của các phương
+   * án. Một con số cho cả hai: câu hỏi và câu trả lời đọc liền một mạch, chữ
+   * to nhỏ lệch nhau thì mắt phải chỉnh tiêu cự mỗi lần đi từ trên xuống.
+   *
+   * Vắng mặt = mặc định của hướng đó (`DIALOGUE_TEXT`). Nằm trong bố cục nên
+   * TỰ NHIÊN mỗi hướng một số — màn dọc hẹp, thường cần chữ nhỏ hơn.
+   */
+  textPx?: number | null;
 };
 
 /**
@@ -139,8 +203,12 @@ export type DialogueSaved = Partial<Record<DialogueBlockKey, LobbySaved>> & {
  * *cả cái bong bóng*, và đổi cỡ nó phải nở đều quanh chỗ đang đứng chứ không
  * trôi sang phải.
  */
-export function dialogueBox(key: DialogueBlockKey, saved: LobbySaved | undefined) {
-  const spec = DIALOGUE_BLOCKS[key];
+export function dialogueBox(
+  key: DialogueBlockKey,
+  saved: LobbySaved | undefined,
+  orientation: 'landscape' | 'portrait' = 'landscape',
+) {
+  const spec = dialogueSpec(key, orientation);
   return {
     x: saved?.x ?? spec.x,
     y: saved?.y ?? spec.y,
@@ -199,7 +267,24 @@ export function readDialogue(raw: unknown): DialogueSaved {
   // xuống tận chỗ vẽ rồi mới hỏng.
   const theme = source[DIALOGUE_THEME_KEY];
   if (typeof theme === 'string' && theme) out.theme = theme;
+
+  const textPx = source[DIALOGUE_TEXT_KEY];
+  if (typeof textPx === 'number' && Number.isFinite(textPx)) out.textPx = textPx;
   return out;
+}
+
+/**
+ * Cỡ chữ bong bóng + đáp án, pixel. `default` theo hướng: khớp đúng cỡ đang vẽ
+ * khi người dựng chưa chỉnh (0,95rem ngang, 0,875rem dọc), nên màn nào chưa ai
+ * đụng tới vẫn trông y như cũ.
+ */
+export const DIALOGUE_TEXT = { landscape: 15.2, portrait: 14, min: 11, max: 24 } as const;
+
+/** Cỡ chữ đã chặn hai đầu, hoặc `null` = để mặc định của hướng (không đặt biến). */
+export function textPx(saved: DialogueSaved): number | null {
+  const raw = saved.textPx;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return Math.min(DIALOGUE_TEXT.max, Math.max(DIALOGUE_TEXT.min, Math.round(raw)));
 }
 
 /**

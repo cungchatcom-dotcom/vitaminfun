@@ -87,6 +87,11 @@ function nextShapeId(): string {
 // ==========================================================================
 
 export interface Walkarea {
+  /**
+   * KHUNG VẼ của bố cục đang sửa. Đi kèm bản vẽ chứ không để lớp vẽ tự đoán:
+   * một đa giác và cái khung nó thuộc về là một cặp không tách được.
+   */
+  canvas: { width: number; height: number };
   editing: boolean;
   setEditing: (on: boolean) => void;
   map: CollisionMap;
@@ -155,11 +160,24 @@ const WALK_KEYS: Record<string, [number, number]> = {
 export function useWalkarea({
   value,
   onSave,
+  canvas = WORLD,
 }: {
   /** Bản đồ từ server. `null` = chưa vẽ. */
   value: CollisionMap | null;
   /** Ghi xuống server. `null` = xoá hẳn, quay về "cả bản đồ đi được". */
   onSave: (map: CollisionMap | null) => void;
+  /**
+   * KHUNG VẼ của bố cục đang sửa — 3200×1800 ở bản ngang, 1800×3200 ở bản dọc.
+   *
+   * Bỏ trống = bản ngang, đúng như trước khi có bố cục dọc: mọi chỗ gọi đang có
+   * đều vẽ trên khung ấy, và một tham số bắt buộc ở đây chỉ bắt chúng viết lại
+   * đúng thứ chúng vốn làm.
+   *
+   * Đa giác vùng đi được lưu theo TOẠ ĐỘ THẾ GIỚI của khung này. Không quy đổi
+   * được sang khung kia: nó bám theo sàn nhà trong MỘT bức ảnh, mà nền bản dọc
+   * là bức khác — phải vẽ lại.
+   */
+  canvas?: { width: number; height: number };
 }): Walkarea {
   const [editing, setEditingState] = useState(false);
   const [map, setMap] = useState<CollisionMap>(value ?? EMPTY_COLLISION);
@@ -183,6 +201,13 @@ export function useWalkarea({
   // `onSave` của lần dựng đầu tiên.
   const save = useRef(onSave);
   save.current = onSave;
+
+  // KHUNG VẼ cũng đi qua ref, CÙNG LÝ DO: mấy hàm bên dưới có mảng phụ thuộc
+  // rỗng và sẽ giữ mãi khung của lần dựng đầu. Đổi hướng mà chúng còn quy đổi
+  // theo khung cũ thì mỗi nét vẽ rơi lệch khỏi chỗ con trỏ — đúng lỗi đã gặp
+  // một lần ở `useDesignBoard`.
+  const khung = useRef(canvas);
+  khung.current = canvas;
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Bản chưa kịp ghi. `null` = không còn gì nợ server. */
@@ -260,9 +285,9 @@ export function useWalkarea({
     () =>
       nearestWalkable(
         (x, y) => canWalkAt(liveMap.current, x, y),
-        WORLD.width / 2,
-        WORLD.height / 2,
-        WORLD,
+        khung.current.width / 2,
+        khung.current.height / 2,
+        khung.current,
       ),
     [],
   );
@@ -366,6 +391,7 @@ export function useWalkarea({
   }
 
   return {
+    canvas,
     editing,
     setEditing(on) {
       setEditingState(on);
@@ -504,6 +530,11 @@ function HatchDefs() {
  * đặt một nhiệm vụ vào chỗ học sinh không bao giờ bước tới được.
  */
 export function WalkareaOverlay({ walk }: { walk: Walkarea }) {
+  // Khung vẽ qua ref: `toWorld` bên dưới có mảng phụ thuộc rỗng, nên nó giữ mãi
+  // giá trị của lần dựng đầu. Đổi hướng mà nó còn quy đổi theo khung cũ thì mỗi
+  // nét vẽ rơi lệch khỏi chỗ con trỏ.
+  const khung = useRef(walk.canvas);
+  khung.current = walk.canvas;
   const svgRef = useRef<SVGSVGElement>(null);
 
   // `walk` đi qua ref, và hai `useEffect` bên dưới chỉ phụ thuộc `editing`.
@@ -540,11 +571,11 @@ export function WalkareaOverlay({ walk }: { walk: Walkarea }) {
   const toWorld = useCallback(
     (event: { clientX: number; clientY: number; altKey: boolean }): [number, number] => {
       const box = svgRef.current!.getBoundingClientRect();
-      const x = ((event.clientX - box.left) / box.width) * WORLD.width;
-      const y = ((event.clientY - box.top) / box.height) * WORLD.height;
+      const x = ((event.clientX - box.left) / box.width) * khung.current.width;
+      const y = ((event.clientY - box.top) / box.height) * khung.current.height;
       return [
-        Math.max(0, Math.min(WORLD.width, snap(x, event.altKey))),
-        Math.max(0, Math.min(WORLD.height, snap(y, event.altKey))),
+        Math.max(0, Math.min(khung.current.width, snap(x, event.altKey))),
+        Math.max(0, Math.min(khung.current.height, snap(y, event.altKey))),
       ];
     },
     [],
@@ -715,7 +746,7 @@ export function WalkareaOverlay({ walk }: { walk: Walkarea }) {
   return (
     <svg
       ref={svgRef}
-      viewBox={`0 0 ${WORLD.width} ${WORLD.height}`}
+      viewBox={`0 0 ${walk.canvas.width} ${walk.canvas.height}`}
       className={`absolute inset-0 size-full ${
         walk.editing ? 'cursor-crosshair touch-none' : 'pointer-events-none'
       }`}
@@ -731,8 +762,8 @@ export function WalkareaOverlay({ walk }: { walk: Walkarea }) {
         <rect
           x={0}
           y={0}
-          width={WORLD.width}
-          height={WORLD.height}
+          width={walk.canvas.width}
+          height={walk.canvas.height}
           fill={PAINT.block.fill}
           pointerEvents="none"
         />

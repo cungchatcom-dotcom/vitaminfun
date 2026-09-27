@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useCurrentUser } from '@/components/auth-context';
 import { Badge } from '@/components/ui/primitives';
@@ -20,6 +20,7 @@ import {
   getRun,
   saveDraft,
   savePosition,
+  getStageIntro,
   startRun,
   submitQuest,
   type Run,
@@ -30,14 +31,29 @@ import {
 import { questLabel } from '@/lib/quest-label';
 import { localizedPath } from '@/lib/routes';
 
+import { FullscreenButton } from './fullscreen-button';
 import { MusicControls } from './music-controls';
 import { QuestPanel, type HintKind } from './quest-panel';
 import type { ChatLine } from './quest-chat';
+import { StageGuide, guideOff } from './stage-guide';
 import { StageIntro } from './stage-intro';
 
 import { readDialogue } from '@/game/dialogue';
 import { themeVars } from '@/game/dialogue-theme';
 import { EventBus, GAME_EVENTS } from '@/game/EventBus';
+import { usePortraitScreen } from '@/game/pointer';
+import {
+  boCucMan,
+  boCucNhiemVu,
+  coBanDoc,
+  hudBox,
+  sangHeDoc,
+  sangHeNgang,
+  stageCanvas,
+  type HudKey,
+} from '@/game/stage-layout';
+import { ScaleToHeight } from './scale-to-height';
+import type { Orientation } from '@/game/world';
 import type { StageSceneData } from '@/game/scenes/StageScene';
 
 /**
@@ -55,17 +71,42 @@ const POSITION_SAVE_MS = 2000;
  * bảng thì mở một câu trắc nghiệm chữ cũng làm nhạc nền tụt xuống mà không ai
  * hiểu vì sao — và bản nhạc thì cứ lên xuống suốt màn.
  *
- * Hai nguồn tiếng, và phải hỏi cả hai:
+ * Ba nguồn tiếng, và phải hỏi cả ba:
  *
+ *   - CÂU KHOÁ của người gác cổng, khi nhiệm vụ đang khoá,
  *   - câu hỏi NGHE trong nhiệm vụ (`audio_url` của từng câu),
  *   - lời chia tay của NPC, chỉ có ở nhiệm vụ `advisor` và nằm ở MÀN chứ không
  *     ở nhiệm vụ — quên vế này thì đúng cái bảng có giọng NPC đang nói lại là
  *     bảng duy nhất không được ưu tiên.
  *
+ * ## Nhiệm vụ đang KHOÁ thì chỉ hỏi vế đầu, và dừng ở đó
+ *
+ * Bảng khoá không chạy câu hỏi nào cả — nó mở ra, người gác cổng nói một câu,
+ * hết. Nên mấy câu hỏi nghe bên trong không nói lên điều gì về việc lúc này có
+ * tiếng hay không: một nhiệm vụ đầy câu nghe mà câu khoá chưa thu giọng thì hạ
+ * nhạc xuống để nghe một sự im lặng, còn một nhiệm vụ không có câu nghe nào mà
+ * người gác cổng có giọng thì nhạc nền át mất chính câu đang nói — đúng lỗi vừa
+ * gặp.
+ *
+ * `locked_audio` tra theo CHÍNH DÒNG CHỮ đang hiện, không phải theo nhiệm vụ:
+ * bản ghi gắn với văn bản, nên sửa câu khoá là bản ghi cũ không còn khớp và
+ * cũng không còn được phát. Cùng phép tra mà `QuestPanel` dùng để chọn file —
+ * hai chỗ lệch nhau thì hoặc hạ nhạc mà không có tiếng, hoặc có tiếng mà không
+ * hạ nhạc.
+ *
  * Hỏi ĐỀ BÀI ĐÃ ĐÓNG BĂNG, như mọi thứ khác của lượt chơi: giáo viên gỡ đoạn
  * ghi âm giữa chừng thì lượt đang chơi vẫn cư xử đúng như lúc nó bắt đầu.
  */
-function questHasSound(quest: SnapshotQuest, snapshot: Snapshot): boolean {
+function questHasSound(
+  quest: SnapshotQuest,
+  snapshot: Snapshot,
+  locked: boolean,
+  locale: string,
+): boolean {
+  if (locked) {
+    const loi = pickText(quest.locked_message_i18n ?? {}, locale);
+    return Boolean(loi && quest.locked_audio?.[loi]);
+  }
   if (quest.questions.some((q) => q.audio_url)) return true;
   return quest.phase === 'advisor' && Boolean(snapshot.stage.advisor_outro_audio_url);
 }
@@ -110,7 +151,10 @@ const PhaserCanvas = dynamic(
  * thoại — một thứ kính cho cả màn, không phải mỗi chỗ một kiểu.
  */
 const HUD_GLASS =
-  'bg-abyss-950/55 ring-1 ring-white/10 backdrop-blur-md shadow-lg shadow-abyss-950/40';
+  // Điện thoại dọc: nền đục hơn (80%). Ở đó kính mờ bị tắt (chữ nhoè — xem
+  // `globals.css`), và 55% không còn lớp nhoè phía sau thì chữ trắng đè lên
+  // một cảnh nhiều chi tiết khó đọc.
+  'bg-abyss-950/55 ring-1 ring-white/10 backdrop-blur-md shadow-lg shadow-abyss-950/40 [@media(orientation:portrait)_and_(pointer:coarse)]:bg-abyss-950/80';
 
 /**
  * MỜ ĐI khi không ai đụng tới, RÕ khi rê chuột vào.
@@ -124,7 +168,17 @@ const HUD_GLASS =
  * hiện rõ, nếu không thì người dùng bàn phím đang thao tác trên một thứ mờ tịt.
  */
 const HUD_FADE =
-  'opacity-55 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100';
+  // `[@media(hover:hover)]` — CHỈ mờ trên máy CÓ chuột.
+  //
+  // Cảm ứng không có trạng thái "đang rê tới": ngón tay chỉ có chạm hoặc không.
+  // Để `opacity-55 hover:opacity-100` nguyên như cũ thì trên điện thoại ba khối
+  // HUD mờ VĨNH VIỄN — không có lỗi nào hiện ra, không có gì để bấm cho nó
+  // sáng, người chơi chỉ thấy mấy cái nút mờ và không biết vì sao.
+  //
+  // Sửa bằng CSS chứ không bằng một cờ trong React: ở đây chỉ có hình thức đổi,
+  // không có hành vi nào đổi — và một `useState` cho việc này là một lần vẽ lại
+  // cho mỗi lần đổi thiết bị.
+  'opacity-100 transition-opacity duration-200 [@media(hover:hover)]:opacity-55 hover:opacity-100 focus-within:opacity-100';
 
 /**
  * Cả CỤM rõ lên là một chuyện; cái NÚT đang trỏ vào phải nổi thêm một nấc nữa.
@@ -134,11 +188,23 @@ const HUD_FADE =
  * nữa ở chính cái đang trỏ mới trả lời được câu "bấm bây giờ là bấm vào gì".
  */
 const HUD_ITEM =
-  'transition hover:bg-white/12 hover:text-white hover:ring-white/30 focus-visible:bg-white/12';
+  // `pointer:coarse` = đầu ngón tay, không phải đầu con trỏ. Ngón tay che mất
+  // chính chỗ nó đang nhắm, nên một cái nút cao 34px là một cú bấm hên xui.
+  // 44px là mức mọi hướng dẫn giao diện cảm ứng đều dừng lại ở đó.
+  //
+  // `inline-flex` + căn giữa đi KÈM với sàn 44px, không tách rời được. Nút Rời
+  // màn là một liên kết `<a>` — phần tử INLINE — và `min-height` không có tác
+  // dụng gì với phần tử inline. Thiếu dòng này thì trên điện thoại nút Chơi lại
+  // (`<button>`) cao 44px còn nút Rời màn thì không, và chữ của nó lệch khỏi
+  // tâm: hai nút đứng cạnh nhau mà hai cỡ. Chỉ áp trên cảm ứng — trên máy tính
+  // không có sàn 44px nên cũng không có gì để lệch.
+  'transition hover:bg-white/12 hover:text-white hover:ring-white/30 focus-visible:bg-white/12 [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11';
 
 export function StagePlay({
   stageId,
   introVideoUrl,
+  introVideoPortraitUrl,
+  hasPortrait,
 }: {
   stageId: string;
   /**
@@ -150,9 +216,63 @@ export function StagePlay({
    * màn này sinh ra để xoá đi.
    */
   introVideoUrl: string | null;
+  /** Video mở màn của BẢN DỌC — tệp riêng, không mượn bản ngang. */
+  introVideoPortraitUrl: string | null;
+  /** Màn đã có bố cục dọc chưa — chưa thì cầm dọc vẫn chơi bản ngang. */
+  hasPortrait: boolean;
 }) {
-  const [introDone, setIntroDone] = useState(introVideoUrl === null);
+  /**
+   * Hai video mở màn đang dùng. Ban đầu là cái trang đọc phía server; "Chơi
+   * lại" hỏi lại — trang mở lúc đang chơi dở thì server gửi `null` (chơi tiếp
+   * không chiếu lại), nhưng lượt MỚI thì phải chiếu.
+   */
+  const [intro, setIntro] = useState({ ngang: introVideoUrl, doc: introVideoPortraitUrl });
+  /**
+   * CHỌN THEO HƯỚNG — cùng luật với cả màn chơi: màn hình dọc VÀ màn đã có bản
+   * dọc thì chiếu video dọc; thiếu video dọc thì vào thẳng, không mượn video
+   * ngang (phim 16:9 trên màn dọc chỉ còn một dải hẹp giữa hai mảng đen).
+   */
+  const manDoc = usePortraitScreen();
+  const introUrl = manDoc && hasPortrait ? intro.doc : intro.ngang;
+  /**
+   * `usePortraitScreen` chỉ biết hướng thật SAU lượt vẽ đầu (lượt đầu luôn trả
+   * "ngang" để khớp HTML của server). Chưa biết thì CHƯA dựng tấm màn — dựng
+   * sớm là điện thoại dọc kịp tải và chiếu vài khung hình của video ngang.
+   */
+  const [daBietHuong, setDaBietHuong] = useState(false);
+  useEffect(() => setDaBietHuong(true), []);
+  const [introDone, setIntroDone] = useState(
+    introVideoUrl === null && introVideoPortraitUrl === null,
+  );
+  // Hướng này không có video (vd. cầm dọc mà chỉ có video ngang) → vào thẳng.
+  useEffect(() => {
+    if (daBietHuong && introUrl === null && !introDone) setIntroDone(true);
+  }, [daBietHuong, introUrl, introDone]);
   const [sceneReady, setSceneReady] = useState(false);
+
+  /**
+   * LƯỢT THỨ MẤY trên trang này. "Chơi lại" ở bảng kết quả tăng số này thay vì
+   * tải lại trang: `StageRunView` mang nó làm `key`, nên React gỡ hẳn lượt cũ
+   * (cả cảnh Phaser) rồi dựng lượt mới — y như tải lại, trừ một điều: trang vẫn
+   * là trang cũ, nên cú bấm Chơi lại vẫn còn giá trị. Tải lại thì trình duyệt
+   * quên mọi cú chạm, và video mở màn bị bắt câm (iOS) dù công tắc nhạc bật.
+   */
+  const [luot, setLuot] = useState(0);
+  const choiLai = useCallback(async () => {
+    // Hỏi TRƯỚC khi dựng lượt mới: lượt mới dựng xong là server lại thấy một
+    // lượt dở, và trả `null`. Hỏng thì dùng lại link cũ — thiếu video không
+    // được chặn đường chơi lại.
+    const next = await getStageIntro(stageId)
+      .then((moi) => ({
+        ngang: moi.intro_video_url ?? null,
+        doc: moi.intro_video_portrait_url ?? null,
+      }))
+      .catch(() => intro);
+    setIntro(next);
+    setLuot((n) => n + 1);
+    setIntroDone((manDoc && hasPortrait ? next.doc : next.ngang) === null);
+    setSceneReady(false);
+  }, [stageId, intro, manDoc, hasPortrait]);
 
   // Kéo gói Phaser về NGAY, không đợi `run`.
   //
@@ -186,11 +306,13 @@ export function StagePlay({
     // mà không ai biết. Giờ trang bọc ngoài lo chiều cao (`h-dvh` + flex), ở đây
     // chỉ việc lấp đầy.
     <div className="relative size-full">
-      <StageRunView stageId={stageId} introDone={introDone} />
+      <StageRunView key={luot} stageId={stageId} introDone={introDone} onPlayAgain={choiLai} />
 
-      {introVideoUrl !== null && !introDone && (
+      {daBietHuong && introUrl !== null && !introDone && (
         <StageIntro
-          src={introVideoUrl}
+          // Xoay máy giữa lúc chiếu là đổi sang tệp kia — dựng lại từ đầu.
+          key={`${luot}:${introUrl}`}
+          src={introUrl}
           ready={sceneReady}
           onDone={() => setIntroDone(true)}
         />
@@ -207,14 +329,107 @@ export function StagePlay({
  *   - React vẽ HUD chồng lên trên
  *   - Server giữ đáp án, chấm điểm, và đếm giờ
  */
-function StageRunView({ stageId, introDone }: { stageId: string; introDone: boolean }) {
+function StageRunView({
+  stageId,
+  introDone,
+  onPlayAgain,
+}: {
+  stageId: string;
+  introDone: boolean;
+  /** Bắt đầu một lượt mới NGAY TRÊN TRANG NÀY — xem `luot` ở `StagePlay`. */
+  onPlayAgain: () => Promise<void>;
+}) {
   const me = useCurrentUser();
   const t = useTranslations();
   const locale = useLocale();
 
   const [run, setRun] = useState<Run | null>(null);
+
+  /**
+   * BỐ CỤC DỌC hay NGANG — cùng luật với bản đồ thiên hà và phòng chờ.
+   *
+   * Hai vế: màn hình đang dọc, VÀ màn này đã được thiết kế bản dọc. Vế sau đọc
+   * từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG, không hỏi lại server: lượt đang chơi thuộc về cái
+   * cảnh nó bắt đầu, kể cả khi người dựng vừa thêm bản dọc năm phút trước.
+   */
+  const manDoc = usePortraitScreen();
+  const doc = run ? manDoc && coBanDoc(run.snapshot) : false;
+  const huong: Orientation = doc ? 'portrait' : 'landscape';
+  /** Chỗ đứng ba cụm HUD ở bản dọc. `{}` = dùng chỗ mặc định. */
+  const hud = run ? boCucMan(run.snapshot, doc).hud : {};
+
+  /**
+   * VÙNG DÀNH CHO BẢNG NHIỆM VỤ ở bản dọc — nằm gọn giữa hai cụm HUD.
+   *
+   * Trên: đáy của cụm thấp hơn trong `info` và `exits` (người dựng có thể xếp
+   * `exits` lên trên). Dưới: đỉnh cụm `tools`.
+   *
+   * Cộng thêm một khoảng thở 1,5% để bảng không dính sát vào viền kính của
+   * cụm HUD — chạm nhau thì hai thứ trông như một khối.
+   */
+  const vungBang = (() => {
+    const khung = stageCanvas(true);
+    const day = (k: HudKey) => {
+      const b = hudBox(k, hud[k]);
+      return b.y + b.h / 2;
+    };
+    const dinh = (k: HudKey) => {
+      const b = hudBox(k, hud[k]);
+      return b.y - b.h / 2;
+    };
+    const tren = Math.max(day('info'), day('exits'));
+    const duoi = dinh('tools');
+    /**
+     * `top` / `bottom`, KHÔNG phải `padding`.
+     *
+     * Bản trước dùng `paddingTop`/`paddingBottom` theo phần trăm và nó SAI:
+     * phần trăm của `padding` trong CSS quy chiếu theo BỀ RỘNG khung cha, không
+     * phải chiều cao. Trên cửa sổ rộng thì hai con số tình cờ gần nhau nên
+     * trông như chạy đúng; trên màn dọc — nơi bề rộng chỉ bằng một nửa chiều
+     * cao — nó hụt đi phân nửa, và bảng trèo lên HUD đúng vài pixel.
+     *
+     * `top`/`bottom` của một thẻ `absolute` thì quy chiếu theo CHIỀU CAO, đúng
+     * cái hệ mà `HudSlot` dùng để đặt các cụm. Hai bên nói cùng một thứ tiếng.
+     *
+     * Đệm dọc của bản ngang (`py-14`) cũng phải gỡ, nếu không nó cộng thêm vào
+     * và vùng còn lại hẹp đi 112px.
+     */
+    return {
+      top: `${(tren / khung.height) * 100 + 1.5}%`,
+      bottom: `${((khung.height - duoi) / khung.height) * 100 + 1.5}%`,
+      paddingTop: 0,
+      paddingBottom: 0,
+    };
+  })();
+  const khung = stageCanvas(doc);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [activeQuestId, setActiveQuestId] = useState<string | null>(null);
+
+  // Sổ tay đang mở thì cảnh KHÔNG nhận cú chạm: đọc sổ tay trên điện thoại là
+  // chạm vào chữ, và nhân vật không được chạy theo ngón tay đang đọc.
+  //
+  // Mở khoá TRỄ một nhịp sau khi đóng: Phaser xếp sự kiện DOM vào hàng đợi rồi
+  // xử lý ở khung hình sau, nên cú chạm vừa đóng sổ tay có thể tới cảnh SAU khi
+  // React đã mở khoá — và nhân vật chạy tới chỗ vừa chạm để đóng.
+  /**
+   * BẢNG HƯỚNG DẪN. Tự mở ở MỖI lượt mới — chơi lại, hết giờ vào lại — trừ khi
+   * người chơi đã tick "không hiện lại". Bấm ℹ️ thì mở bất kể cái tick đó.
+   *
+   * Đợi `introDone`: mở trong lúc video mở màn còn chạy là đắp một tấm bảng
+   * lên một đoạn phim, và người chơi đọc chưa xong thì phim đã hết.
+   */
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  const [bubbleOpen, setBubbleOpen] = useState(false);
+  const [bubbleGuard, setBubbleGuard] = useState(false);
+  useEffect(() => {
+    if (bubbleOpen) {
+      setBubbleGuard(true);
+      return;
+    }
+    const hen = window.setTimeout(() => setBubbleGuard(false), 250);
+    return () => window.clearTimeout(hen);
+  }, [bubbleOpen]);
   const [typing, setTyping] = useState(false);
   const [clock, setClock] = useState(0);
   const [dangKhoiDongLai, setDangKhoiDongLai] = useState(false);
@@ -253,6 +468,13 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
     setClock(data.seconds_remaining);
     setRun(data);
   }, []);
+
+  // Lượt MỚI (`run.id` đổi) và màn đã mở ra: chào bằng bảng hướng dẫn.
+  useEffect(() => {
+    if (!run?.id || !introDone) return;
+    if (guideOff()) return;
+    setGuideOpen(true);
+  }, [run?.id, introDone]);
 
   // Bắt đầu lượt chơi đúng MỘT lần. React 18 gọi effect hai lần ở chế độ dev,
   // và không có chốt này thì mỗi lần vào màn tạo hai phòng.
@@ -360,7 +582,11 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
     let sent = `${run.my_pos_x},${run.my_pos_y}`;
 
     const off = EventBus.on(GAME_EVENTS.PLAYER_MOVED, ((p: { x: number; y: number }) => {
-      latest = { x: Math.round(p.x), y: Math.round(p.y) };
+      // QUY VỀ HỆ NGANG trước khi gửi. `stage_run_players.pos_x/pos_y` là một
+      // cặp số trong hệ 3200×1800 và đã có dữ liệu thật nằm đó; gửi toạ độ hệ
+      // dọc vào cùng hai cột ấy là lưu lẫn lộn hai hệ, và không ai nhìn vào
+      // cặp số mà biết nó thuộc hệ nào. Bản ngang: phép đồng nhất.
+      latest = doc ? sangHeNgang(p.x, p.y) : { x: Math.round(p.x), y: Math.round(p.y) };
     }) as never);
 
     const timer = setInterval(() => {
@@ -381,7 +607,10 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
       off();
       clearInterval(timer);
     };
-  }, [run?.id, run?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+    // `doc` trong mảng phụ thuộc: hàm nghe ở trên đóng gói phép quy đổi theo
+    // hướng, nên xoay máy mà không gắn lại thì nó còn quy đổi theo hướng cũ —
+    // và gửi lên server những toạ độ thuộc hệ kia.
+  }, [run?.id, run?.status, doc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Nhân vật ĐI VÀO phạm vi nhiệm vụ -> mở bảng câu hỏi.
   // Bấm chuột chỉ ra lệnh đi tới; cảnh Phaser mới là thứ quyết định đã tới chưa.
@@ -523,7 +752,10 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
 
   const sceneData: StageSceneData | null = useMemo(() => {
     if (!run) return null;
+    // Phần trình bày của hướng đang vẽ — nền, sàn, chỗ xuất phát, cỡ nhân vật.
+    const bc = boCucMan(run.snapshot, doc);
     return {
+      canvas: khung,
       // Ảnh nền qua `media_assets` khi giáo viên đã tải lên; chưa có thì dùng
       // ảnh mặc định theo `scene_key`.
       // URL ảnh nền đã đóng băng trong snapshot.
@@ -531,42 +763,42 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
       // Chưa tải ảnh thì để RỖNG chứ không đoán một đường dẫn theo `scene_key`:
       // màn nào có `scene_key` khác `ship_deck_01` sẽ nhận 404, và người dùng
       // thấy "không có ảnh nền" mà không biết vì sao. Cảnh tự vẽ nền biển.
-      backgroundUrl: run.snapshot.stage.background_url ?? '',
+      backgroundUrl: bc.backgroundUrl,
       // Loại nền cũng lấy từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG, không hỏi lại server:
       // giáo viên đổi nền giữa chừng thì lượt đang chơi vẫn nạp đúng thứ
       // nó bắt đầu, bằng đúng đường nạp của thứ đó.
-      backgroundKind: run.snapshot.stage.background_kind ?? null,
+      backgroundKind: bc.backgroundKind,
       advisorLabel: run.snapshot.stage.advisor_npc_key,
-      characterHeight: run.snapshot.stage.character_height,
+      characterHeight: bc.characterHeight,
       // Vùng đi được lấy từ SNAPSHOT, không hỏi lại server: giáo viên vẽ lại
       // giữa chừng thì lượt đang chơi vẫn đi trên đúng cái sàn nó bắt đầu.
-      collision: run.snapshot.stage.collision,
+      collision: bc.collision,
       audio: run.snapshot.stage.audio,
       audioUrls: run.snapshot.stage.audio_urls,
       // Chỗ đứng lấy từ `run`, KHÔNG từ `snapshot`: snapshot là đề bài đóng
       // băng, còn đây là chỗ người chơi đang đứng và nó đổi suốt lúc chơi.
+      //
+      // Server LUÔN nói chuyện bằng hệ NGANG — xem `sangHeDoc`. Bản dọc quy đổi
+      // ở đây lúc đọc, và ở chỗ ghi vị trí lúc gửi đi.
       startPos:
         run.my_pos_x != null && run.my_pos_y != null
-          ? { x: run.my_pos_x, y: run.my_pos_y }
+          ? doc
+            ? sangHeDoc(run.my_pos_x, run.my_pos_y)
+            : { x: run.my_pos_x, y: run.my_pos_y }
           : null,
       // Chỗ XUẤT PHÁT thì ngược lại: lấy từ SNAPSHOT, vì nó là thứ người dựng
       // đặt — một phần của đề bài, như vùng đi được và cỡ nhân vật. Chỉ dùng
       // khi `startPos` trống, tức là lần đầu người này vào lượt.
-      spawnPos: {
-        x: run.snapshot.stage.spawn_x ?? null,
-        y: run.snapshot.stage.spawn_y ?? null,
-      },
+      spawnPos: { x: bc.spawnX, y: bc.spawnY },
       quests: run.snapshot.quests.map((q) => ({
         id: q.id,
         order_index: q.order_index,
         phase: q.phase,
         quest_object_key: q.quest_object_key,
         label: questLabel(q, locale, t),
-        scene_x: q.scene_x ?? null,
-        scene_y: q.scene_y ?? null,
-        trigger_radius: q.trigger_radius ?? null,
+        // Chỗ đứng, cỡ và bán kính chạm theo hướng đang vẽ.
+        ...boCucNhiemVu(q, doc),
         icon_url: q.icon_url ?? null,
-        icon_size: q.icon_size ?? null,
         pulse_percent: q.pulse_percent ?? null,
         pulse_period_ms: q.pulse_period_ms ?? null,
       })),
@@ -580,7 +812,9 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
     };
     // Chỉ dựng lại cảnh khi ĐỔI lượt chơi. Dựng lại sau mỗi lần nộp bài là nạp
     // lại toàn bộ Phaser và nhân vật nhảy về vị trí đầu.
-  }, [run?.id, locale]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Dựng lại khi ĐỔI LƯỢT, hoặc khi ĐỔI HƯỚNG màn hình: xoay máy là cả cảnh
+    // đổi khung vẽ, đổi nền, đổi sàn — không có cách nào vá một nửa.
+  }, [run?.id, locale, doc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (errorKey) {
     return (
@@ -657,19 +891,58 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
           // Lượt MỚI là một cảnh MỚI. `PhaserCanvas` cố ý không dựng lại khi dữ
           // liệu đổi — nếu không thì mỗi lần nộp bài là nạp lại cả game — nên
           // `run.id` là đúng cái khoá để nói "lần này thì dựng lại thật".
-          key={run.id}
+          //
+          // Kèm HƯỚNG: xoay máy giữa lượt chơi là một cảnh khác hẳn — khung vẽ
+          // khác, nền khác, sàn khác. Dựng lại là cách duy nhất đúng, và tiến
+          // độ thật (câu đã trả lời, năng lượng) nằm ở server nên không mất gì.
+          key={`${run.id}:${doc ? 'doc' : 'ngang'}`}
           sceneData={sceneData}
           typing={typing}
-          locked={activeQuestId !== null || !introDone}
+          // Lượt đã KẾT THÚC (hết giờ, thắng) thì cảnh thôi nhận cú chạm: bảng
+          // kết quả nằm đè lên, và chạm vào nó hay quanh nó không được làm nhân
+          // vật chạy — lượt đã chốt rồi.
+          locked={
+            activeQuestId !== null ||
+            !introDone ||
+            bubbleGuard ||
+            guideOpen ||
+            run.status !== 'playing'
+          }
           // Chỉ hạ tiếng khi bảng đang mở CÓ gì để nghe — xem `questHasSound`.
-          ducked={activeQuest !== null && questHasSound(activeQuest, run.snapshot)}
+          // `activeProgress?.locked` là đúng cái cờ `QuestPanel` dùng để quyết
+          // vẽ bảng khoá hay bảng hội thoại, nên hai bên luôn nói về cùng một
+          // tấm bảng.
+          ducked={
+            activeQuest !== null &&
+            questHasSound(
+              activeQuest,
+              run.snapshot,
+              activeProgress?.locked ?? false,
+              locale,
+            )
+          }
         />
 
         {/* CHỪA CHỖ cho ba cụm HUD: đệm dọc đủ để bảng không bao giờ trèo lên
             hàng trên và hàng dưới. Bảng nằm trên HUD theo thứ tự chồng, nên
             không chừa thì nó che mất đồng hồ đúng lúc người ta cần liếc xem còn
             bao nhiêu thời gian. */}
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center px-4 py-14 sm:items-center">
+        {/* CHỪA CHỖ cho ba cụm HUD — xem ghi chú bên dưới. Ở màn DỌC thì đệm
+            ngang thu lại: tấm bảng hội thoại chỉ có chừng 390px bề ngang, và
+            16px mỗi bên ở đó là 8% bề rộng dành cho khoảng trống. */}
+        {/* CHỪA CHỖ cho ba cụm HUD.
+            Bản ngang: đệm dọc cố định, đủ để bảng không trèo lên hàng trên và
+            hàng dưới.
+
+            Bản DỌC: chặn đúng theo CHỖ ĐỨNG THẬT của hai cụm HUD — mép trên là
+            đáy cụm thông tin/đồng hồ, mép dưới là đỉnh cụm công cụ. Người dựng
+            kéo hai cụm đó đi đâu thì vùng dành cho bảng co giãn theo, nên bảng
+            KHÔNG BAO GIỜ đè lên chúng — kể cả bố cục lạ mắt nhất. Một con số
+            đệm cố định thì chỉ đúng với đúng một cách xếp. */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-end justify-center px-4 py-14 [@media(orientation:portrait)_and_(pointer:coarse)]:items-center [@media(orientation:portrait)_and_(pointer:coarse)]:px-1.5 sm:items-center"
+          style={doc ? vungBang : undefined}
+        >
           {activeQuest && run.status === 'playing' && (
             <QuestPanel
               // Làm lại = một bảng MỚI. Xem `soLanLamLai`.
@@ -688,8 +961,10 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
               advisorOutroShowTranscript={run.snapshot.stage.advisor_outro_show_transcript}
               // Bố cục hội thoại cũng từ ĐỀ BÀI ĐÃ ĐÓNG BĂNG: giáo viên căn lại
               // giữa chừng thì lượt đang chơi vẫn giữ đúng cái nó bắt đầu.
-              dialogue={run.snapshot.stage.dialogue}
-              dialogueUrls={run.snapshot.stage.dialogue_urls ?? {}}
+              // Bố cục hội thoại (ảnh nền tấm bảng, chủ đề) theo HƯỚNG đang
+              // vẽ: tấm nền ngang kéo vào một tấm bảng dọc là cắt mất hai bên.
+              dialogue={boCucMan(run.snapshot, doc).dialogue}
+              dialogueUrls={boCucMan(run.snapshot, doc).dialogueUrls ?? {}}
               // Nhân vật đến từ `run`, KHÔNG từ snapshot: đó là lựa chọn của
               // người chơi và đổi được giữa hai lượt.
               playerName={
@@ -740,45 +1015,115 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
               // Tổng nhiệm vụ lấy từ đề bài đã đóng băng: bảng kết quả chỉ trả
               // về số nhiệm vụ ĐÃ QUA, mà "3" một mình thì không nói lên gì.
               questTotal={run.snapshot.quests.length}
-              theme={readDialogue(run.snapshot.stage.dialogue).theme}
+              theme={readDialogue(boCucMan(run.snapshot, doc).dialogue).theme}
+              onPlayAgain={onPlayAgain}
             />
           )}
         </div>
 
-        {/* ── HUD ba góc ───────────────────────────────────────────── */}
+        {/* ── HUD ba cụm ───────────────────────────────────────────────
+
+            BẢN NGANG: đóng đinh vào ba góc, y như trước — màn rộng 1780px thì
+            hai cụm trên cách nhau cả nghìn pixel, không có gì chen nhau.
+
+            BẢN DỌC: đặt theo bố cục người dựng kéo, và cả cụm co giãn theo
+            CHIỀU CAO khối (`ScaleToHeight`). Màn dọc chỉ rộng chừng 390px, nên
+            để nguyên hai góc là cụm Chơi lại / Rời màn đè thẳng vào đồng hồ. */}
         <div className="pointer-events-none absolute inset-0 z-20">
           {/* TRÊN-TRÁI: mình đang ở đâu, còn bao lâu, được mấy nhiệm vụ. */}
-          <div
-            className={`pointer-events-auto absolute top-3 left-3 flex items-center gap-3 rounded-2xl px-3.5 py-2 text-sm ${HUD_GLASS} ${HUD_FADE}`}
-          >
-            <span className="font-semibold text-orichalcum-400">
-              {pickText(run.snapshot.stage.name_i18n, locale)}
-            </span>
+          <HudSlot huong={huong} khoi="info" bo_cuc={hud}>
+            {(() => {
+              // Bốn mảnh, dựng MỘT LẦN rồi xếp theo hướng. Viết hai bản JSX thì
+              // sửa chữ ở một bản là bản kia lặng lẽ khác đi.
+              const ten = (
+                <span className="font-semibold text-orichalcum-400">
+                  {pickText(run.snapshot.stage.name_i18n, locale)}
+                </span>
+              );
+              const dongHo = (
+                <span
+                  className={`font-mono ${clock < 30 ? 'text-coral-500' : 'text-slate-300'}`}
+                >
+                  ⏱ {String(Math.floor(clock / 60)).padStart(2, '0')}:
+                  {String(clock % 60).padStart(2, '0')}
+                </span>
+              );
+              const soNhiemVu = (
+                <span className="text-slate-300">
+                  {t('game.questsDone', { done: doneCount, total: run.snapshot.quests.length })}
+                </span>
+              );
+              // Năng lượng KHÔNG ở đây — nó nằm trong cụm góc dưới, cạnh sổ
+              // tay. Hai chỗ cùng hiện một con số thì có ngày chúng lệch nhau,
+              // mà kể cả không lệch thì cũng là hai chỗ để mắt đi tìm cùng một
+              // thứ.
+              //
+              // Cố ý KHÔNG hiện điểm chiến lực trong trận — xem GAME_DOMAIN §1.6.
+              const nhanThu = run.is_trial ? (
+                <Badge tone="warning">🧪 {t('preview.banner')}</Badge>
+              ) : null;
 
-            {/* Năng lượng KHÔNG ở đây — nó nằm trong cụm góc dưới, cạnh sổ tay.
-                Hai chỗ cùng hiện một con số thì có ngày chúng lệch nhau, mà kể
-                cả không lệch thì cũng chỉ là hai chỗ để mắt phải đi tìm cùng
-                một thứ. */}
-            <span className={`font-mono ${clock < 30 ? 'text-coral-500' : 'text-slate-300'}`}>
-              ⏱ {String(Math.floor(clock / 60)).padStart(2, '0')}:
-              {String(clock % 60).padStart(2, '0')}
-            </span>
+              return (
+                <div
+                  // CỠ CHỮ BẰNG HAI NÚT BÊN CẠNH ở bản dọc.
+                  //
+                  // Mỗi cụm HUD co giãn cho vừa CHIỀU CAO hộp của nó, nên cỡ chữ
+                  // cuối cùng = cỡ gốc × (cao hộp ÷ cao tự nhiên của cụm). Khối
+                  // này hai dòng, hai nút kia một dòng; để nguyên đệm `py-2` và
+                  // khoảng cách dòng mặc định thì khối này cao tự nhiên gần gấp
+                  // rưỡi — cùng một cỡ hộp là chữ bé đi gần một nửa.
+                  //
+                  // Nên ép khối này về ĐÚNG chiều cao tự nhiên của một nút cảm
+                  // ứng (44px): đệm dọc 4px, hai dòng `leading-tight` 17,5px mỗi
+                  // dòng = 43px. Hai hộp cao bằng nhau thì chữ to bằng nhau, và
+                  // người dựng không phải tự canh tỉ lệ bằng mắt.
+                  className={`pointer-events-auto rounded-2xl px-3.5 text-sm ${
+                    doc
+                      ? 'flex flex-col items-start justify-center py-1 leading-tight'
+                      : 'absolute top-3 left-3 flex items-center gap-3 py-2'
+                  } ${HUD_GLASS} ${HUD_FADE}`}
+                >
+                  {/* BẢN DỌC XẾP HAI DÒNG: tên màn + số nhiệm vụ ở trên, đồng
+                      hồ ở dưới. Một hàng ngang bốn thứ trên màn rộng 390px thì
+                      tên màn bị bóp còn vài chữ cái — mà tên màn là thứ nói
+                      người chơi đang ở đâu. Đồng hồ đứng riêng cũng dễ liếc
+                      hơn: nó là con số người ta nhìn nhiều nhất trong trận.
 
-            <span className="text-slate-300">
-              {t('game.questsDone', { done: doneCount, total: run.snapshot.quests.length })}
-            </span>
-
-            {/* Cố ý KHÔNG hiện điểm chiến lực trong trận — xem GAME_DOMAIN §1.6. */}
-
-            {run.is_trial && <Badge tone="warning">🧪 {t('preview.banner')}</Badge>}
-          </div>
+                      BẢN NGANG giữ nguyên MỘT hàng, và giữ nguyên THỨ TỰ cũ:
+                      tên → đồng hồ → số nhiệm vụ. */}
+                  {doc ? (
+                    <>
+                      <div className="flex items-center gap-3">
+                        {ten}
+                        {soNhiemVu}
+                        {nhanThu}
+                      </div>
+                      {dongHo}
+                    </>
+                  ) : (
+                    <>
+                      {ten}
+                      {dongHo}
+                      {soNhiemVu}
+                      {nhanThu}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+          </HudSlot>
 
           {/* TRÊN-PHẢI: hai đường RA khỏi lượt đang chơi, HAI NÚT RỜI NHAU.
               Chung một viên kính thì trông như một khối, mà hai việc này khác
               hẳn nhau: một cái chốt lượt đang dở rồi chơi lại từ đầu, một cái đi
               ra khỏi màn. Tách ra thì rê chuột vào cái nào cũng rõ ngay mình sắp
               bấm vào cái gì. */}
-          <div className="pointer-events-auto absolute top-3 right-3 flex items-center gap-2">
+          <HudSlot huong={huong} khoi="exits" bo_cuc={hud} neo="end">
+          <div
+            className={`pointer-events-auto flex items-center gap-2 ${
+              doc ? '' : 'absolute top-3 right-3'
+            }`}
+          >
             {/* Hỏi lại một câu trước khi chơi lại: nó chốt lượt đang dở, và đó
                 là việc không lùi được. */}
             <button
@@ -804,6 +1149,7 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
               {t('game.leave')}
             </Link>
           </div>
+          </HudSlot>
         </div>
 
         {/* Hiện SUỐT màn chơi, kể cả khi đã hết giờ hay thua.
@@ -811,12 +1157,18 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
             chơi lúng túng nhất — vừa thua, đang muốn đọc lại luật — thì nó biến
             mất. Một trang trợ giúp mà tự ẩn đi khi có sự cố thì để làm gì. */}
         <CornerTools
+          huong={huong}
+          hud={hud}
           cluebook={cluebook}
           cluebookTitle={cluebookTitle}
           cluebookReady={advisorDone}
+          onBubbleOpen={setBubbleOpen}
+          onGuide={() => setGuideOpen(true)}
           energyRemaining={run.my_energy_remaining}
           energyGranted={run.my_energy_granted}
         />
+
+        {guideOpen && <StageGuide onClose={() => setGuideOpen(false)} />}
       </div>
 
       {/* KHÔNG có thanh tiến độ đội ở đây nữa.
@@ -857,6 +1209,9 @@ function StageRunView({ stageId, introDone }: { stageId: string; introDone: bool
  * hỏng thì học sinh vẫn phải ra khỏi màn được — một bảng kết thúc chỉ hiện ra
  * khi mạng còn sống là cách nhốt người ta lại trong một màn đã chơi xong.
  */
+/** Trần chờ số liệu của bảng kết quả, xem `daXong` trong `StageOver`. */
+const RESULT_WAIT_MS = 4000;
+
 function StageOver({
   runId,
   worldId,
@@ -864,7 +1219,9 @@ function StageOver({
   shard,
   questTotal,
   theme,
+  onPlayAgain,
 }: {
+  onPlayAgain: () => Promise<void>;
   runId: string;
   worldId: string;
   status: string;
@@ -879,19 +1236,36 @@ function StageOver({
   const won = status === 'won';
 
   const [result, setResult] = useState<RunResult | null>(null);
+  /**
+   * Đã có câu trả lời về số liệu chưa — có số, hỏng, hay chờ quá lâu.
+   *
+   * Bảng CHỜ số rồi mới hiện, một lần. Trước đây nó hiện ngay (chỉ có tiêu đề)
+   * rồi 1–2 giây sau phình ra thành bản đầy đủ, và người chơi thấy như hai cái
+   * popup nối nhau. Vẫn có trần chờ: server chậm hay hỏng thì bảng hiện không
+   * số — một bảng kết thúc dùng được vẫn hơn màn hình trống.
+   */
+  const [daXong, setDaXong] = useState(false);
 
   useEffect(() => {
-    // `catch` rỗng có chủ ý: xem ghi chú "Số đến sau" ở trên. Không có số thì
-    // bảng vẫn là một bảng kết thúc dùng được.
+    const tran = window.setTimeout(() => setDaXong(true), RESULT_WAIT_MS);
+    // `catch` có chủ ý: xem ghi chú "Số đến sau" ở trên. Không có số thì bảng
+    // vẫn là một bảng kết thúc dùng được.
     getResult(runId)
       .then(setResult)
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        window.clearTimeout(tran);
+        setDaXong(true);
+      });
+    return () => window.clearTimeout(tran);
   }, [runId]);
 
   // Dòng của CHÍNH người đang ngồi đây. Bảng kết quả trả về cả phòng; đối chiếu
   // theo `id` của người dùng chứ không lấy phần tử đầu — phòng nhiều người đến
   // ở Bước 7, và lúc đó "phần tử đầu" là một người khác.
   const mine = result?.players?.find((p) => p.user_id === me.id) ?? null;
+
+  if (!daXong) return null;
 
   return (
     <section
@@ -958,15 +1332,16 @@ function StageOver({
       )}
 
       <div className="mt-5 flex flex-wrap justify-center gap-2">
-        {/* Tải lại cả trang, không phải gọi `startRun` lần nữa.
+        {/* Dựng lại CẢ LƯỢT, không tải lại trang.
             Một lượt mới cần một cảnh Phaser mới: nhân vật về chỗ xuất phát, ổ
-            khoá đóng lại, đồng hồ đếm từ đầu. `PhaserCanvas` cố ý KHÔNG dựng
-            lại cảnh khi dữ liệu đổi (nếu không thì mỗi lần nộp bài là nạp lại
-            cả game), nên cách duy nhất trung thực để bắt đầu lại là dựng lại
-            trang. Cùng URL, nên không mất gì ngoài vài trăm mili giây. */}
+            khoá đóng lại, đồng hồ đếm từ đầu, video mở màn chiếu lại. Trước
+            đây là `location.reload()` — đúng về hình, nhưng tải lại trang là
+            trình duyệt quên cú bấm này, và video mở màn bị bắt câm. Giờ
+            `StagePlay` đổi `key` của lượt: React gỡ sạch rồi dựng mới, còn cú
+            bấm vẫn mở được tiếng. */}
         <Button
           variant="primary"
-          onClick={() => window.location.reload()}
+          onClick={() => void onPlayAgain()}
           style={{
             background: 'var(--q-cta-bg, #0ea5e9)',
             color: 'var(--q-cta-ink, #04121f)',
@@ -1033,15 +1408,26 @@ function CornerBubble({
   icon,
   label,
   disabled,
+  wide,
+  onOpenChange,
   children,
 }: {
+  /** Báo ra ngoài mỗi khi bảng mở/đóng — màn chơi khoá cảnh trong lúc mở. */
+  onOpenChange?: (open: boolean) => void;
   icon: string;
   label: string;
   disabled?: boolean;
+  /** Nút dạng viên thuốc rộng, biểu tượng to — cho thứ bấm nhiều như sổ tay. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const holder = useRef<HTMLDivElement>(null);
+  const shown = open && !disabled;
+
+  useEffect(() => {
+    onOpenChange?.(shown);
+  }, [shown, onOpenChange]);
 
   // Đang mở mà người chơi làm bất cứ việc gì khác thì tự tắt.
   //
@@ -1080,7 +1466,12 @@ function CornerBubble({
       {open && !disabled && (
         <div
           role="tooltip"
-          className="absolute right-0 bottom-11 w-72 max-w-[80vw] rounded-xl border border-abyss-700 bg-abyss-950/95 p-4 text-xs shadow-2xl backdrop-blur"
+          // Cú chạm vào nội dung dừng Ở ĐÂY: Phaser nghe `touchstart`/`mousedown`
+          // ở `window`, và cú chạm để đọc không được lọt xuống cảnh.
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="absolute right-0 bottom-full mb-2 w-72 max-w-[80vw] rounded-xl border border-abyss-700 bg-abyss-950/95 p-4 text-xs shadow-2xl backdrop-blur"
         >
           {children}
         </div>
@@ -1093,9 +1484,17 @@ function CornerBubble({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold shadow-lg backdrop-blur transition ${
+        className={`flex items-center justify-center rounded-full border font-bold ${
+          wide
+            ? // CÙNG chiều cao với mọi nút trong cụm (36px) — chỉ rộng hơn
+              // cho dễ bấm. Từng cao 44px trên cảm ứng và lồi hẳn khỏi hàng.
+              'h-9 w-14 text-lg'
+            : 'h-9 w-9 text-sm'
+        } shadow-lg backdrop-blur transition ${
           disabled
-            ? 'cursor-not-allowed border-abyss-800 bg-abyss-950/60 text-slate-700'
+            ? // Emoji không nhận màu `text-*`, nên chỉ đổi màu chữ thì 📖 vẫn
+              // sáng rực như đang bấm được. Mờ + xám cả nút mới nói "chưa có".
+              'cursor-not-allowed border-abyss-800 bg-abyss-950/60 text-slate-700 opacity-40 grayscale'
             : open
               ? 'border-lagoon-500 bg-abyss-900 text-lagoon-400'
               : // Rê vào thì ĐỔI CẢ VIỀN LẪN NỀN, và NỞ RA một nhịp.
@@ -1122,35 +1521,59 @@ function CornerBubble({
  * và cùng cỡ. Rải mỗi cái một góc thì mỗi lần cần là một lần phải đi tìm.
  */
 function CornerTools({
+  huong,
+  hud,
   cluebook,
   cluebookTitle,
   cluebookReady,
+  onBubbleOpen,
+  onGuide,
   energyRemaining,
   energyGranted,
 }: {
+  onBubbleOpen: (open: boolean) => void;
+  /** Mở bảng hướng dẫn — biểu tượng ℹ️ trong cụm công cụ. */
+  onGuide: () => void;
   cluebook: string;
   /** Ten so tay do giao vien dat. Rong = lui ve nhan dich cua giao dien. */
   cluebookTitle: string;
   cluebookReady: boolean;
   energyRemaining: number;
   energyGranted: number;
+  huong: Orientation;
+  hud: Record<string, Record<string, unknown>>;
 }) {
   const t = useTranslations();
-  const HELP = ['click', 'keys', 'walkToQuest', 'enterZone', 'boundary', 'energy'] as const;
 
   return (
     // GÓC DƯỚI-PHẢI. Bảng hội thoại rộng tối đa `3xl` và căn giữa, nên ở một
     // màn hình rộng nó không với tới góc này — cụm công cụ vẫn bấm được trong
     // lúc đang nói chuyện với người canh giữ.
-    <div className={`absolute right-3 bottom-3 z-20 flex items-end gap-2 ${HUD_FADE}`}>
+    <HudSlot huong={huong} khoi="tools" bo_cuc={hud} neo="end">
+    <div
+      // `pointer-events-auto`: vỏ `HudSlot` đặt `pointer-events-none` để cái
+      // hộp rỗng quanh cụm không chắn mất cú bấm xuống cảnh. Cụm thật thì phải
+      // bật lại — thiếu dòng này là cả dãy nút bấm không ăn, đúng lỗi vừa gặp.
+      // Hai cụm kia đã có sẵn `pointer-events-auto` nên chúng không dính.
+      className={`pointer-events-auto z-20 flex items-center gap-2 ${
+        huong === 'portrait' ? '' : 'absolute right-3 bottom-3'
+      } ${HUD_FADE}`}
+    >
       {/* Cùng cụm với sổ tay và năng lượng, và cùng một tuỳ chọn với bản đồ
           thiên hà: tắt nhạc ở ngoài kia thì vào đây vẫn tắt. */}
+      {/* Toàn màn hình đứng ĐẦU cụm: nó là thứ đổi nhiều nhất chỗ cho bức
+          tranh, và là thứ người ta bấm một lần rồi thôi. Chỉ hiện trên điện
+          thoại — xem `FullscreenButton`. */}
+      {/* `size-9!`: cùng chiều cao 36px với cả cụm (nút này mặc định 32px). */}
+      <FullscreenButton className="size-9!" />
       <MusicControls className="h-9" />
       {/* Màn không có sổ tay thì KHÔNG hiện biểu tượng. Một cái nút mà bấm vào
           chẳng bao giờ có gì thì tệ hơn là không có nút. */}
       {cluebook && (
         <CornerBubble
           icon="📖"
+          wide
+          onOpenChange={onBubbleOpen}
           label={cluebookReady ? t('game.cluebook.title') : t('game.cluebook.locked')}
           disabled={!cluebookReady}
         >
@@ -1185,19 +1608,70 @@ function CornerTools({
         </span>
       </span>
 
-      <CornerBubble icon="?" label={t('game.help.title')}>
-        <p className="mb-2 font-semibold text-slate-100">{t('game.help.title')}</p>
-        <ul className="space-y-1.5 text-slate-400">
-          {HELP.map((key) => (
-            <li key={key} className="flex gap-2">
-              <span aria-hidden className="text-lagoon-400">
-                ·
-              </span>
-              <span>{t(`game.help.${key}`)}</span>
-            </li>
-          ))}
-        </ul>
-      </CornerBubble>
+      {/* HƯỚNG DẪN CHƠI. Không phải `CornerBubble` (bảng nhỏ bung ra từ góc):
+          nội dung dài sáu mục, và ở màn dọc thì một bảng neo vào góc dưới phải
+          chỉ còn chỗ cho hai dòng. Nó mở hẳn một hộp thoại giữa màn — xem
+          `StageGuide`. */}
+      {/* Biểu tượng vẽ bằng SVG, không dùng emoji ℹ️: emoji mỗi hệ điều hành
+          vẽ một kiểu (ô vuông xanh trên iOS, chữ i trơn trên Windows) và không
+          ăn màu của cụm. Cùng khuôn viên thuốc 36px với nút sổ tay. */}
+      <button
+        type="button"
+        onClick={onGuide}
+        aria-label={t('game.guide.open')}
+        title={t('game.guide.open')}
+        className="group flex h-9 w-14 items-center justify-center rounded-full border border-abyss-700 bg-abyss-950/80 text-lagoon-400 shadow-lg backdrop-blur transition hover:scale-110 hover:border-lagoon-400 hover:bg-abyss-800 active:scale-95"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="none">
+          <circle cx="12" cy="12" r="9.5" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="12" cy="7.6" r="1.35" fill="currentColor" />
+          <path d="M12 11v6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+    </HudSlot>
+  );
+}
+
+/**
+ * CHỖ ĐỨNG của một cụm HUD.
+ *
+ * Bản NGANG: không bọc gì cả — cụm bên trong tự neo vào góc bằng `absolute`
+ * như nó vẫn làm. Không một dòng nào của bản ngang đổi.
+ *
+ * Bản DỌC: một cái hộp đặt theo phần trăm khung 1800×3200, và cụm bên trong
+ * co giãn theo CHIỀU CAO hộp (`ScaleToHeight`) — người dựng kéo hộp to ra thì
+ * cả cụm to theo, đúng như hai khối điều khiển ở phòng chờ.
+ */
+function HudSlot({
+  huong,
+  khoi,
+  bo_cuc,
+  neo = 'start',
+  children,
+}: {
+  huong: Orientation;
+  khoi: HudKey;
+  bo_cuc: Record<string, Record<string, unknown>>;
+  /** Mép neo khi cụm hẹp hơn hộp. */
+  neo?: 'start' | 'end';
+  children: ReactNode;
+}) {
+  if (huong !== 'portrait') return <>{children}</>;
+
+  const box = hudBox(khoi, bo_cuc[khoi]);
+  const khung = stageCanvas(true);
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{
+        left: `${((box.x - box.w / 2) / khung.width) * 100}%`,
+        top: `${((box.y - box.h / 2) / khung.height) * 100}%`,
+        width: `${(box.w / khung.width) * 100}%`,
+        height: `${(box.h / khung.height) * 100}%`,
+      }}
+    >
+      <ScaleToHeight align={neo === 'end' ? 'end' : 'start'}>{children}</ScaleToHeight>
     </div>
   );
 }

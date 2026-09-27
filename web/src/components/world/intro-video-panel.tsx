@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 
 import { MediaField } from '@/components/media-field';
 import { Card, SectionTitle } from '@/components/ui/primitives';
+import type { Orientation } from '@/game/world';
 import type { Stage, updateStage } from '@/lib/worlds';
 
 /**
@@ -43,9 +44,16 @@ const DAI_QUA = 15;
  */
 export function IntroVideoPanel({
   stage,
+  huong,
   onPatch,
 }: {
   stage: Stage;
+  /**
+   * Hướng đang sửa. Mỗi hướng một tệp RIÊNG: bản dọc lưu trong
+   * `portrait_json.intro_video_media_id`, không kế thừa bản ngang — phim 16:9
+   * chiếu trên màn dọc chỉ còn một dải hẹp giữa hai mảng đen.
+   */
+  huong: Orientation;
   /** Vá một mẩu vào màn chơi. Chỗ gọi lo việc lưu và báo lỗi. */
   onPatch: (payload: Parameters<typeof updateStage>[1]) => void;
 }) {
@@ -56,12 +64,20 @@ export function IntroVideoPanel({
   // không đoán một con số để lấp chỗ trống.
   const [giay, setGiay] = useState<number | null>(null);
 
-  const co = stage.intro_video_media_id != null;
+  const doc = huong === 'portrait';
+  const mediaId = doc
+    ? (stage.portrait?.intro_video_media_id ?? null)
+    : (stage.intro_video_media_id ?? null);
+  const url = doc ? (stage.portrait?.intro_video_url ?? null) : (stage.intro_video_url ?? null);
+  const co = mediaId != null;
   const daiQua = giay !== null && giay > DAI_QUA;
 
   return (
     <Card>
-      <SectionTitle>{t('designer.introVideo.title')}</SectionTitle>
+      <SectionTitle>
+        {t('designer.introVideo.title')} ·{' '}
+        {t(doc ? 'designer.introVideo.portrait' : 'designer.introVideo.landscape')}
+      </SectionTitle>
 
       <p className="mt-2 mb-3 text-[11px] leading-snug text-slate-500">
         {t('designer.introVideo.hint')}
@@ -71,15 +87,24 @@ export function IntroVideoPanel({
         kind="video"
         folder="stage-intro"
         removeLabel={t('designer.introVideo.remove')}
-        value={{
-          mediaId: stage.intro_video_media_id ?? null,
-          url: stage.intro_video_url ?? null,
-        }}
+        // `key` theo hướng: đổi hướng là một ô khác hẳn, không mang theo
+        // độ dài đã đo của tệp bên kia.
+        key={huong}
+        value={{ mediaId, url }}
         onChange={(next) => {
           // Đổi tệp thì con số cũ phải đi theo tệp cũ. Giữ lại thì bảng nói về
           // một đoạn video không còn ở đó nữa.
           setGiay(null);
-          onPatch({ intro_video_media_id: next.mediaId });
+          if (!doc) {
+            onPatch({ intro_video_media_id: next.mediaId });
+            return;
+          }
+          // Bản dọc: gỡ phải đi qua cờ riêng — `null` ở đây nghĩa là "không gửi".
+          onPatch({
+            portrait: next.mediaId
+              ? { intro_video_media_id: next.mediaId }
+              : { clear_intro_video: true },
+          });
         }}
         onDuration={setGiay}
       />
@@ -87,7 +112,7 @@ export function IntroVideoPanel({
       {/* Chưa có video: chữ XÁM, và nói rõ đây là hợp lệ. Xem ghi chú đầu file. */}
       {!co && (
         <p className="mt-2 text-[11px] leading-snug text-slate-500">
-          {t('designer.introVideo.empty')}
+          {t(doc ? 'designer.introVideo.emptyPortrait' : 'designer.introVideo.empty')}
         </p>
       )}
 

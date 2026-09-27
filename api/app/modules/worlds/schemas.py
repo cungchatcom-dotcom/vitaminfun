@@ -86,6 +86,62 @@ class AudioTrack(BaseModel):
 # ==========================================================================
 
 
+class GalaxyPortrait(BaseModel):
+    """BỐ CỤC DỌC của bản đồ thiên hà — khung vẽ 1800×3200.
+
+    Bản song song của mấy trường cùng tên ở `GalaxyUpdate`/`GalaxyOut`, nhưng
+    gom vào một object thay vì hai chục trường `portrait_*` nằm rải ra: một
+    object thì thêm hướng thứ ba chỉ là thêm một trường, còn tiền tố thì nhân
+    đôi mọi thứ mỗi lần.
+
+    CHỈ những gì phụ thuộc hình dạng màn hình. Tên, mô tả, nhạc không có ở đây —
+    xoay máy thì chúng có đổi đâu; xem docs/GAME_DOMAIN.md.
+
+    Mọi trường đều `None` được, và object rỗng nghĩa là **chưa thiết kế bản
+    dọc** — lúc đó màn hình dọc vẫn được mời xoay ngang máy.
+
+    Khoảng giá trị theo khung DỌC: bề rộng tối đa 1800 (không phải 3200), chiều
+    cao tối đa 3200. Chép nguyên khoảng của bản ngang sang đây là cho người dựng
+    kéo cái khung ra ngoài mép bản đồ mà không có gì kêu.
+    """
+
+    background_media_id: uuid.UUID | None = None
+
+    title_media_id: uuid.UUID | None = None
+    title_x: int | None = None
+    title_y: int | None = None
+    title_width: int | None = Field(default=None, ge=80, le=1800)
+    title_height: int | None = Field(default=None, ge=40, le=3200)
+    title_color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    title_font: int | None = Field(default=None, ge=40, le=250)
+
+    desc_media_id: uuid.UUID | None = None
+    desc_x: int | None = None
+    desc_y: int | None = None
+    desc_width: int | None = Field(default=None, ge=80, le=1800)
+    desc_height: int | None = Field(default=None, ge=40, le=3200)
+    desc_color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    desc_font: int | None = Field(default=None, ge=40, le=250)
+
+    #: URL dựng sẵn — CHỈ có ở chiều đi ra, giao diện không gửi lên.
+    background_url: str | None = None
+    background_kind: BackgroundKind | None = None
+    title_url: str | None = None
+    desc_url: str | None = None
+
+
+class GalaxyPortraitPatch(GalaxyPortrait):
+    """Bản gửi LÊN, kèm ba cái cờ gỡ ảnh.
+
+    `None` ở đây nghĩa là "không gửi trường này, giữ nguyên" — cùng luật với
+    `GalaxyUpdate`. Nên xoá ảnh phải có cờ riêng, vì `None` đã mang nghĩa khác.
+    """
+
+    clear_background: bool | None = None
+    clear_title: bool | None = None
+    clear_desc: bool | None = None
+
+
 class GalaxyUpdate(BaseModel):
     name_i18n: I18nText | None = None
     description_i18n: I18nText | None = None
@@ -118,6 +174,11 @@ class GalaxyUpdate(BaseModel):
     clear_background: bool | None = None
     clear_title: bool | None = None
     clear_desc: bool | None = None
+
+    #: BỐ CỤC DỌC. `None` = không đụng tới. Gửi một object thì GỘP vào bản đang
+    #: có, không thay cả cục: giao diện sửa một ô thì chỉ gửi ô đó, và cùng luật
+    #: với `audio` ngay trên.
+    portrait: GalaxyPortraitPatch | None = None
 
 
 class GalaxyOut(BaseModel):
@@ -158,6 +219,12 @@ class GalaxyOut(BaseModel):
     #: TÊN FILE GỐC của từng khối. `storage_key` là một chuỗi băm, nên không có
     #: nó thì người dựng không biết mình đã tải bản nào lên.
     audio_names: dict[str, str] = Field(default_factory=dict)
+
+    #: BỐ CỤC DỌC. Mọi trường `None` = chưa thiết kế.
+    #:
+    #: Luôn có mặt (không phải `None`) để giao diện khỏi phải kiểm tra hai lần:
+    #: "chưa thiết kế" đã đọc được từ `background_media_id is None` rồi.
+    portrait: GalaxyPortrait = Field(default_factory=GalaxyPortrait)
 
 
 # ==========================================================================
@@ -221,6 +288,47 @@ class LobbyElement(BaseModel):
     text_i18n: I18nText | None = None
     #: Khung nội dung — xem `LobbyContent`.
     content: LobbyContent | None = None
+    #: SỐ CHƯƠNG hiện cùng lúc trên hàng chương. Chỉ khối `chapters` dùng tới.
+    #: `None` = 5, đúng như trước khi có tuỳ chọn này.
+    #:
+    #: 3…5 chứ không tự do: dưới 3 thì hàng chương thành một cái ô với hai mũi
+    #: tên, trên 5 thì mỗi ô hẹp tới mức tên chương không còn đọc được — nhất là
+    #: ở bản dọc, nơi hàng chương chỉ rộng 1800 đơn vị.
+    count: int | None = Field(default=None, ge=3, le=5)
+    #: SỐ MÀN hiện cùng lúc trong MINIMAP mở ra khi bấm một chương. Cũng chỉ
+    #: khối `chapters` dùng; `None` = 5.
+    #:
+    #: Nằm trên khối hàng chương chứ không ở đâu khác: minimap là một hộp thoại
+    #: mở ra TỪ khối này, không có chỗ đứng riêng trên bố cục. Và vì mỗi hướng
+    #: có một bộ khối riêng, đặt ở đây là tự nhiên có một con số cho bản ngang
+    #: và một con số cho bản dọc — đúng thứ màn dọc cần, vì năm vòng tròn trên
+    #: một màn rộng 390px là năm cái chấm.
+    stage_count: int | None = Field(default=None, ge=3, le=5)
+    #: ẨN khối khỏi màn học sinh. Hiện chỉ ba cái nút dùng (Play, Create room,
+    #: Join room): world chưa có chế độ phòng thì hai nút phòng là nút bấm vào
+    #: không đi đâu. `None`/`False` = hiện, đúng như trước khi có tuỳ chọn.
+    #:
+    #: Mỗi hướng một cờ riêng, như `count`: màn dọc chật hơn, người dựng có thể
+    #: muốn bỏ bớt nút ở đó mà vẫn giữ ở bản ngang.
+    hidden: bool | None = None
+
+
+class LobbyElementPortrait(LobbyElement):
+    """Một khối phòng chờ ở BỐ CỤC DỌC.
+
+    Kế thừa `LobbyElement` để hình dạng không bao giờ lệch nhau — thêm một
+    trường cho khối (chẳng hạn màu chữ) là cả hai hướng cùng có.
+
+    Chỉ khai lại bốn khoảng toạ độ, vì khung vẽ xoay đi: rộng tối đa 1800, cao
+    tối đa 3200. Giữ nguyên khoảng của bản ngang là cho phép đặt một khối ở
+    `x = 3000`, tức ngoài mép một bản đồ chỉ rộng 1800, và không có gì kêu cho
+    tới khi học sinh mở ra và thấy khối biến mất.
+    """
+
+    x: int | None = Field(default=None, ge=0, le=1800)
+    y: int | None = Field(default=None, ge=0, le=3200)
+    w: int | None = Field(default=None, ge=40, le=1800)
+    h: int | None = Field(default=None, ge=40, le=3200)
 
 
 class WorldCreate(BaseModel):
@@ -240,6 +348,87 @@ class WorldCreate(BaseModel):
     scene_x: int | None = None
     scene_y: int | None = None
     icon_size: int | None = Field(default=None, ge=40, le=1200)
+
+
+class WorldPortrait(BaseModel):
+    """Chỗ đứng của một world ở BỐ CỤC DỌC — hệ toạ độ 1800×3200.
+
+    Chỉ ba con số, và đó là cố ý: ảnh world, vành tròn, nhịp thở dùng chung với
+    bản ngang vì chúng là trang trí của chính world — xoay máy thì có đổi gì
+    đâu. Tách thêm là bắt người dựng đặt hai lần cho một thứ không đổi.
+
+    Mọi trường `None` = chưa đặt; bản đồ dọc tự rải đều, y như bản ngang khi
+    `scene_x` còn NULL.
+    """
+
+    scene_x: int | None = None
+    scene_y: int | None = None
+    icon_size: int | None = Field(default=None, ge=40, le=1200)
+
+
+class WorldLobbyPortrait(BaseModel):
+    """BỐ CỤC DỌC CỦA PHÒNG CHỜ — khung vẽ 1800×3200.
+
+    Gom vào một object đúng những thứ bản ngang để ở ba nơi: ảnh nền
+    (`lobby_media_id`), hai tấm khung (`title_*`/`desc_*`), và bố cục các khối
+    (`lobby_json`). Gom lại vì chúng cùng một vòng đời: hoặc người dựng đã thiết
+    kế bản dọc, hoặc chưa.
+
+    Mọi trường rỗng = **chưa thiết kế bản dọc**; lúc đó điện thoại dựng đứng vẫn
+    được mời xoay ngang máy.
+
+    Khoảng giá trị theo khung DỌC: bề rộng tối đa 1800, chiều cao tối đa 3200.
+    Chép nguyên khoảng của bản ngang sang đây là cho phép kéo một cái khung ra
+    ngoài mép mà không có gì kêu.
+    """
+
+    background_media_id: uuid.UUID | None = None
+
+    title_media_id: uuid.UUID | None = None
+    title_x: int | None = None
+    title_y: int | None = None
+    title_width: int | None = Field(default=None, ge=80, le=1800)
+    title_height: int | None = Field(default=None, ge=40, le=3200)
+    title_color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    title_font: int | None = Field(default=None, ge=40, le=250)
+
+    desc_media_id: uuid.UUID | None = None
+    desc_x: int | None = None
+    desc_y: int | None = None
+    desc_width: int | None = Field(default=None, ge=80, le=1800)
+    desc_height: int | None = Field(default=None, ge=40, le=3200)
+    desc_color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    desc_font: int | None = Field(default=None, ge=40, le=250)
+
+    #: HIỆN hai khung chữ hay không. `None`/`False` = ẨN — và đó là MẶC ĐỊNH.
+    #:
+    #: Chỉ bản dọc có cờ này. Màn dọc hẹp, và tên world với cốt truyện thường
+    #: đã nằm sẵn trong tranh nền hoặc trong khối nhân vật; thêm hai tấm khung
+    #: nữa là chen chúc. Nên mặc định tắt, ai cần thì bật. Tắt nghĩa là không
+    #: vẽ ở CẢ màn học sinh lẫn khung soạn — một thứ học sinh không thấy thì
+    #: người dựng cũng không cần kéo nó.
+    title_visible: bool | None = None
+    desc_visible: bool | None = None
+
+    #: Mười ba khối kéo thả, cùng hình dạng với `lobby_json` của bản ngang —
+    #: chỉ khác hệ toạ độ. Xem `LobbyElementPortrait`.
+    blocks: dict[str, LobbyElementPortrait] = Field(default_factory=dict)
+
+    #: URL dựng sẵn — CHỈ có ở chiều đi ra, giao diện không gửi lên.
+    background_url: str | None = None
+    background_kind: BackgroundKind | None = None
+    title_url: str | None = None
+    desc_url: str | None = None
+    #: Ảnh nền của từng khối, tra sẵn theo `media_id` bên trong `blocks`.
+    block_urls: dict[str, str] = Field(default_factory=dict)
+
+
+class WorldLobbyPortraitPatch(WorldLobbyPortrait):
+    """Bản gửi LÊN, kèm ba cờ gỡ ảnh. Cùng luật với `GalaxyPortraitPatch`."""
+
+    clear_background: bool | None = None
+    clear_title: bool | None = None
+    clear_desc: bool | None = None
 
 
 class WorldUpdate(BaseModel):
@@ -268,6 +457,13 @@ class WorldUpdate(BaseModel):
     show_ring: bool | None = None
     #: Gỡ ảnh world. `None` trong PATCH nghĩa là "không gửi", không phải "xoá".
     clear_cover: bool | None = None
+
+    #: Chỗ đứng ở bố cục DỌC. `None` = không đụng tới; gửi object thì GỘP.
+    portrait: WorldPortrait | None = None
+
+    #: BỐ CỤC DỌC CỦA PHÒNG CHỜ. `None` = không đụng tới. Gộp ở mức trường, và
+    #: `blocks` gộp ở mức KHỐI — cùng luật với `lobby_json` của bản ngang.
+    lobby_portrait: WorldLobbyPortraitPatch | None = None
 
     #: Phòng chờ của world. NULL = thừa của thiên hà — xem model.
     lobby_media_id: uuid.UUID | None = None
@@ -340,6 +536,9 @@ class WorldOut(BaseModel):
     show_ring: bool
     status: Literal["draft", "published"]
 
+    #: Chỗ đứng ở bố cục DỌC. Luôn có mặt; mọi trường `None` = chưa đặt.
+    portrait: WorldPortrait = Field(default_factory=WorldPortrait)
+
     world_code: str | None = None
     lobby_media_id: uuid.UUID | None
     lobby_url: str | None = None
@@ -367,6 +566,9 @@ class WorldOut(BaseModel):
 
     #: Bộ câu phán của world. `{}` = chưa đặt, màn chơi dùng bộ trong `messages/`.
     verdict_json: dict[str, list[str]] = Field(default_factory=dict)
+
+    #: BỐ CỤC DỌC của phòng chờ. Luôn có mặt; rỗng = chưa thiết kế.
+    lobby_portrait: WorldLobbyPortrait = Field(default_factory=WorldLobbyPortrait)
 
     lobby_json: dict[str, Any] = Field(default_factory=dict)
     #: URL ảnh của từng khối, dựng sẵn theo `media_id` bên trong `lobby_json`.
@@ -539,6 +741,87 @@ class StageCreate(BaseModel):
     cluebook_i18n: I18nText = Field(default_factory=dict)
 
 
+class StageHudBlock(BaseModel):
+    """Một cụm HUD trong màn chơi, đặt theo hệ toạ độ của bố cục dọc.
+
+    Chỉ bốn con số: HUD tự vẽ lấy nội dung (đồng hồ, nút, đèn năng lượng), thứ
+    người dựng quyết là nó NẰM ĐÂU và TO BAO NHIÊU.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    x: int | None = Field(default=None, ge=0, le=3200)
+    y: int | None = Field(default=None, ge=0, le=3200)
+    w: int | None = Field(default=None, ge=40, le=3200)
+    h: int | None = Field(default=None, ge=20, le=3200)
+
+
+class StagePortrait(BaseModel):
+    """BỐ CỤC DỌC của một màn chơi — khung vẽ 1800×3200.
+
+    Gom vào một object những thứ bản ngang để ở năm chỗ. Gom vì chúng cùng một
+    vòng đời: hoặc màn này đã có bản dọc, hoặc chưa. Mọi trường rỗng = chưa
+    thiết kế, và điện thoại dựng đứng vẫn được mời xoay ngang máy.
+
+    Câu hỏi, lời thoại, người canh giữ, nhạc, thời gian, năng lượng, điểm KHÔNG
+    có ở đây: xoay máy thì chúng có đổi đâu.
+    """
+
+    background_media_id: uuid.UUID | None = None
+    #: Vùng đi được, vẽ RIÊNG cho khung dọc. Không nhân tỉ lệ từ bản ngang: đa
+    #: giác bám theo sàn nhà trong một bức ảnh, mà nền bản dọc là bức khác.
+    collision: CollisionMap | None = None
+    spawn_x: int | None = None
+    spawn_y: int | None = None
+    character_height: int | None = Field(default=None, ge=40, le=3200)
+    #: Bố cục bảng hội thoại. `None` = dùng bố cục mặc định của bản dọc.
+    dialogue: dict[str, Any] | None = None
+    #: VIDEO MỞ MÀN của bản dọc — tệp RIÊNG, quay khổ 9:16. Không kế thừa video
+    #: bản ngang: một đoạn phim 16:9 chiếu trên màn dọc là một dải hẹp giữa hai
+    #: mảng đen to. Trống = học sinh cầm dọc vào thẳng, không có phim.
+    intro_video_media_id: uuid.UUID | None = None
+
+    #: BA CỤM HUD — `info` (tên màn, đồng hồ, số nhiệm vụ), `exits` (Chơi lại,
+    #: Rời màn), `tools` (toàn màn hình, loa, sổ tay, năng lượng, trợ giúp).
+    #:
+    #: Chỉ bản dọc có: ở bản ngang chúng đóng đinh vào ba góc và không có gì
+    #: chen nhau. Màn dọc chỉ rộng chừng 390px, nên cụm trên-trái và cụm
+    #: trên-phải đè lên nhau — người dựng phải tự xếp lại.
+    #:
+    #: Khoá thiếu = dùng chỗ mặc định của bản dọc, xem `HUD_BLOCKS_PORTRAIT`.
+    hud: dict[str, StageHudBlock] = Field(default_factory=dict)
+
+    #: URL dựng sẵn — CHỈ ở chiều đi ra.
+    background_url: str | None = None
+    background_kind: BackgroundKind | None = None
+    #: Ảnh của từng khối hội thoại, tra sẵn theo `media_id` bên trong `dialogue`.
+    dialogue_urls: dict[str, str] = Field(default_factory=dict)
+    intro_video_url: str | None = None
+
+
+class StagePortraitPatch(StagePortrait):
+    """Bản gửi LÊN. `None` = không gửi; muốn GỠ thì dùng cờ riêng."""
+
+    clear_background: bool | None = None
+    clear_collision: bool | None = None
+    clear_intro_video: bool | None = None
+
+
+class QuestPortrait(BaseModel):
+    """Chỗ đứng của một nhiệm vụ ở bố cục DỌC — hệ toạ độ 1800×3200.
+
+    `trigger_radius` nằm đây chứ không dùng chung: nó là khoảng cách tính bằng
+    đơn vị thế giới, mà hai khung có hai kích thước — bán kính 200 trên khung
+    rộng 3200 và trên khung rộng 1800 là hai vòng tròn khác hẳn nhau so với
+    cảnh quanh nó.
+    """
+
+    scene_x: int | None = None
+    scene_y: int | None = None
+    icon_size: int | None = Field(default=None, ge=16, le=2000)
+    trigger_radius: int | None = Field(default=None, ge=20, le=1200)
+
+
 class StageUpdate(BaseModel):
     #: Mã màn chơi trong file nội dung, ví dụ `W1-S1`. Câu hỏi nhập khẩu
     #: mang cùng mã sẽ tự hiện ra khi mở màn này.
@@ -598,6 +881,8 @@ class StageUpdate(BaseModel):
     #: Xoá vùng đi được về "cả bản đồ đi được". Cần cờ riêng vì `null` trong
     #: PATCH nghĩa là "không gửi trường này". Cùng nếp với `clear_character_height`.
     clear_collision: bool | None = None
+    #: BỐ CỤC DỌC. `None` = không đụng tới; gửi object thì GỘP theo trường.
+    portrait: StagePortraitPatch | None = None
     #: Bố cục màn hội thoại — GHI ĐÈ CẢ CỤC, cùng luật với `collision`: trình
     #: thiết kế luôn cầm bản đầy đủ đang trên màn hình họ.
     dialogue_json: dict[str, Any] | None = None
@@ -684,6 +969,8 @@ class StageOut(StageBrief):
     dialogue_urls: dict[str, str] = Field(default_factory=dict)
     #: Vùng đi được. `None` = chưa vẽ, tức CẢ BẢN ĐỒ đi được.
     collision: CollisionMap | None = None
+    #: BỐ CỤC DỌC. Luôn có mặt; mọi trường rỗng = chưa thiết kế.
+    portrait: StagePortrait = Field(default_factory=StagePortrait)
     #: Âm thanh. Object rỗng = màn không có tiếng nào.
     audio: dict[str, AudioTrack] = Field(default_factory=dict)
     #: URL từng khối tiếng, dựng sẵn theo `media_id` bên trong `audio` — giao
@@ -757,6 +1044,8 @@ class QuestUpdate(BaseModel):
     scene_x: int | None = None
     scene_y: int | None = None
     trigger_radius: int | None = Field(default=None, ge=20, le=1200)
+    #: Chỗ đứng ở bố cục DỌC. `None` = không đụng tới; gửi object thì GỘP.
+    portrait: QuestPortrait | None = None
     icon_media_id: uuid.UUID | None = None
     #: NGƯỜI CANH GIỮ nhiệm vụ — một `character` với `kind = 'npc'`, không phải
     #: một tấm ảnh. `null` trong PATCH = GỠ khỏi nhiệm vụ.
@@ -832,6 +1121,8 @@ class QuestOut(BaseModel):
     scene_x: int | None
     scene_y: int | None
     trigger_radius: int | None
+    #: Chỗ đứng ở bố cục DỌC. Luôn có mặt; mọi trường `None` = chưa đặt.
+    portrait: QuestPortrait = Field(default_factory=QuestPortrait)
     icon_media_id: uuid.UUID | None
     npc_character_id: uuid.UUID | None = None
     locked_message_i18n: I18nText = Field(default_factory=dict)

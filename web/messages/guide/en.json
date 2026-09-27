@@ -1,0 +1,29 @@
+{
+  "title": "How to play this stage",
+  "subtitle": "One minute now saves the whole run",
+  "intro": "You are inside a stage of Atlantis. Your job: explore it, meet the guardian, and answer the questions right to open the way and win the map shard.",
+  "move": {
+    "title": "Move your character",
+    "body": "Click or tap anywhere on the stage and your character walks there. On a computer you can also use W A D X or the four arrow keys."
+  },
+  "npc": {
+    "title": "Meet the guide NPC FIRST",
+    "body": "Walk to the guide (NPC) and finish their quest first. The other quests stay locked until you get past this one."
+  },
+  "energy": {
+    "title": "Energy points",
+    "body": "Clearing the NPC quest earns you energy ⚡. Spend it on hints while answering: show the transcript of a listening clip, or show the translation — hard questions get much easier."
+  },
+  "cluebook": {
+    "title": "The cluebook",
+    "body": "The NPC also hands you the cluebook 📖 — the key knowledge of this stage in one place. Tap the 📖 icon in the corner to read it again any time."
+  },
+  "quests": {
+    "title": "Clear the other quests",
+    "body": "Every named object on the map is a quest. Walk your character into its frame and the question panel opens. Answer correctly to clear it; if you miss, you still have tries left."
+  },
+  "time": {
+    "title": "The clock and the way out",
+    "body": "Each run has its own time, shown at the top. When it runs out, the run ends. You can hit Play again to start over, or Leave stage to go back to the world."
+  }
+}

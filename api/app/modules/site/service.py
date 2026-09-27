@@ -40,14 +40,25 @@ async def _hang(db: AsyncSession) -> SiteConfig:
 
 async def _ra(db: AsyncSession, row: SiteConfig) -> SiteConfigOut:
     url = None
+    rong = cao = None
     if row.favicon_media_id:
-        url = await db.scalar(
-            select(MediaAsset.url).where(MediaAsset.id == row.favicon_media_id)
-        )
+        # Lấy cả cỡ trong CÙNG một lượt hỏi: manifest cần `sizes`, và hỏi thêm
+        # một vòng nữa cho hai con số nằm ngay cạnh cái URL thì phí.
+        anh = (
+            await db.execute(
+                select(MediaAsset.url, MediaAsset.width, MediaAsset.height).where(
+                    MediaAsset.id == row.favicon_media_id
+                )
+            )
+        ).first()
+        if anh is not None:
+            url, rong, cao = anh
     return SiteConfigOut(
         title_i18n=row.title_i18n or {},
         favicon_media_id=row.favicon_media_id,
         favicon_url=url,
+        favicon_width=rong,
+        favicon_height=cao,
         locked_stage_opacity=row.locked_stage_opacity,
     )
 

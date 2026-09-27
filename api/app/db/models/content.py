@@ -157,6 +157,20 @@ class Galaxy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     desc_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     desc_font: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    #: BỐ CỤC DỌC — bản song song của mọi thứ ở trên, cho màn hình 9:16.
+    #:
+    #: `{}` = chưa thiết kế bản dọc, và đó là trạng thái bình thường: màn hình
+    #: dọc sẽ vẫn được mời xoay ngang máy, y như trước khi có cột này.
+    #:
+    #: Một cột JSON chứ không phải hai chục cột song song (`portrait_title_x`,
+    #: `portrait_title_y`…): số cột nhân đôi theo mỗi hướng ai đó thêm vào, mà
+    #: bản ngang thì đang chạy tốt — không có lý do gì phải mở nó ra.
+    #:
+    #: Chỉ chứa thứ phụ thuộc HÌNH DẠNG màn hình: ảnh nền, hai tấm ảnh khung, và
+    #: chỗ đứng của chúng. Tên, mô tả, nhạc dùng chung — xoay máy thì chúng có
+    #: đổi đâu. Hình dạng đầy đủ nằm ở `GalaxyPortrait` trong `schemas.py`.
+    portrait_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+
 
 class World(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Hành tinh — đơn vị BÁN, và đơn vị tính Điểm chiến lực."""
@@ -242,6 +256,34 @@ class World(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: `quests.pulse_*`. NULL = mặc định, 0 = tắt.
     pulse_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pulse_period_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    #: CHỖ ĐỨNG Ở BỐ CỤC DỌC: `{scene_x, scene_y, icon_size}` trong hệ 1800×3200.
+    #:
+    #: `{}` = chưa đặt, bản đồ dọc sẽ tự rải đều — y như bản ngang khi
+    #: `scene_x` còn NULL.
+    #:
+    #: CHỈ ba con số ấy. Ảnh world, vành tròn, nhịp thở đều dùng chung với bản
+    #: ngang: chúng là trang trí của chính world, xoay máy thì có đổi gì đâu.
+    #: Tách thêm nữa là bắt người dựng đặt hai lần cho một thứ không đổi, và hai
+    #: bản sẽ lệch nhau ngay lần đầu có người sửa một bên.
+    portrait_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+
+    #: BỐ CỤC DỌC CỦA PHÒNG CHỜ — bản song song của `lobby_json` + `lobby_media_id`
+    #: + `title_*`/`desc_*`, gom vào một chỗ. `{}` = chưa thiết kế.
+    #:
+    #: Cột RIÊNG, không dùng chung `portrait_json` ngay trên: cột kia là chỗ
+    #: world ĐỨNG TRÊN BẢN ĐỒ THIÊN HÀ, còn cái này là cách PHÒNG CHỜ của nó
+    #: được bày ra. Hai màn hình khác nhau, hai bố cục khác nhau; gộp vào một
+    #: cột là phải thêm một tầng khoá theo màn — đúng cái sai của hai chục cột
+    #: song song, chỉ viết bằng cách khác.
+    #:
+    #: KHÔNG thừa kế chéo giữa hai hướng. Bản ngang để trống một khung thì thừa
+    #: của thiên hà — luật cũ, giữ nguyên. Nhưng bản dọc để trống thì không lấy
+    #: của bản ngang: toạ độ bản ngang nằm trong hệ 3200×1800, đặt vào khung
+    #: 1800×3200 là ra ngoài mép. Hình dạng đầy đủ: `WorldLobbyPortrait`.
+    lobby_portrait_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, nullable=False
+    )
 
     #: Học sinh chưa vào được world này. Cột RIÊNG, không suy ra từ số màn đã
     #: xuất bản: giáo viên phải khoá được một world đã có nội dung (đang sửa
@@ -608,6 +650,23 @@ class Stage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: `volume` và `rate` tính bằng PHẦN TRĂM — xem `resolveAudio()`.
     audio_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
+    #: BỐ CỤC DỌC của cả màn chơi — bản song song cho khung 1800×3200.
+    #:
+    #: `{}` = chưa thiết kế, và điện thoại dựng đứng vẫn được mời xoay ngang máy.
+    #:
+    #: Gom vào một cột những thứ bản ngang để ở năm chỗ: ảnh nền
+    #: (`background_media_id`), vùng đi được (`collision`), chỗ xuất phát
+    #: (`spawn_x/y`), chiều cao nhân vật, và bố cục bảng hội thoại (`dialogue`).
+    #: Gom vì chúng cùng một vòng đời — hoặc màn này đã có bản dọc, hoặc chưa.
+    #:
+    #: Câu hỏi, lời thoại, người canh giữ, nhạc, thời gian, năng lượng, điểm thì
+    #: DÙNG CHUNG: xoay máy có đổi được câu hỏi đâu.
+    #:
+    #: VÙNG ĐI ĐƯỢC phải vẽ lại, không nhân tỉ lệ được: nó là một đa giác bám
+    #: theo sàn nhà trong MỘT bức ảnh, mà ảnh nền bản dọc là bức KHÁC — không
+    #: phải bức cũ xoay đi.
+    portrait_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+
     status: Mapped[str] = mapped_column(String(16), default=PublishStatus.DRAFT, nullable=False)
 
     #: KHOÁ TAY: màn đã dựng xong, đã phát hành, nhưng người dựng chủ động giữ
@@ -753,6 +812,17 @@ class Quest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     #: KHÔNG có cột cho tiếng đọc: bản thu nằm ở `voice_lines`, khoá theo
     #: `(giọng, băm nội dung)`. Thêm một cột ở đây là thêm một chỗ thứ hai giữ
     #: cùng một sự thật.
+    #: CHỖ ĐỨNG Ở BỐ CỤC DỌC: `{scene_x, scene_y, icon_size, trigger_radius}`
+    #: trong hệ 1800×3200. `{}` = chưa đặt.
+    #:
+    #: `trigger_radius` cũng nằm đây chứ không dùng chung: nó là một khoảng cách
+    #: TÍNH BẰNG ĐƠN VỊ THẾ GIỚI, mà hai khung có hai kích thước khác nhau —
+    #: bán kính 200 trên khung rộng 3200 và trên khung rộng 1800 là hai vòng
+    #: tròn to nhỏ khác hẳn nhau so với cảnh quanh nó.
+    #:
+    #: Ảnh vật thể, câu hỏi, người canh giữ, nhịp thở thì dùng chung.
+    portrait_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+
     locked_message_i18n: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )

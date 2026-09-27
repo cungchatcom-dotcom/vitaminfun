@@ -13,7 +13,8 @@
     "play": "Play",
     "characters": "Characters",
     "reports": "Reports",
-    "config": "Config"
+    "config": "Config",
+    "account": "Account"
   },
   "role": {
     "admin": "Administrator",
@@ -144,11 +145,11 @@
     "siteTitlePlaceholder": "e.g. Vitaverse — Play to Learn",
     "perLocale": "Editing the \"{locale}\" version. Switch language in the top bar to edit the other one.",
     "favicon": "Favicon",
-    "faviconHint": "The little icon on the browser tab. Leave empty to use the default file.",
+    "faviconHint": "The little icon on the browser tab — and, on a phone, the icon on the home screen once someone adds the site there. Leave empty to use the default file.",
     "faviconUpload": "Upload image",
     "faviconReplace": "Replace image",
     "faviconRemove": "Remove",
-    "faviconSize": "A square PNG or SVG works best — 32×32 up to 512×512. It is shown at 16 pixels wide, so keep it simple.",
+    "faviconSize": "A square PNG works best. Use 512×512: the tab shrinks it to 16 pixels, but Android only offers \"add to home screen\" when the icon is at least 192 pixels wide. Keep the drawing simple — it has to read at both sizes.",
     "lockedOpacity": "Locked stage opacity",
     "lockedOpacityHint": "How visible a locked stage stays on the student map. Lower = fainter. It never disappears — the class should see that something is coming.",
     "lockedOpacityPreview": "Stage 1"
@@ -158,7 +159,15 @@
     "noWorlds": "No worlds have been published yet.",
     "noWorldsHint": "Check back later, or ask your teacher.",
     "locked": "Locked",
-    "gateReady": "You have every map shard — the Gate of Time is ready!"
+    "gateReady": "You have every map shard — the Gate of Time is ready!",
+    "rotate": {
+      "title": "Turn your phone sideways",
+      "body": "Atlantis is drawn wide. Rotate your phone to landscape and the adventure fills the screen.",
+      "auto": "Rotate for me",
+      "hint": "Nothing happens when you turn it? Your phone has rotation lock on — switch it off in the control centre.",
+      "fullscreen": "Play fullscreen",
+      "exitFullscreen": "Leave fullscreen"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -685,6 +694,12 @@
       "boundary": "Click past the edge of the map and your character walks that way until they reach the edge, then stops.",
       "energy": "Energy is yours alone, granted once you clear the NPC quest. Spend it on hints."
     },
+    "guide": {
+      "dontShow": "Don't show this again",
+      "close": "Close",
+      "open": "How to play",
+      "langLabel": "Guide language"
+    },
     "advisorLocked": "Locked. Go and clear “{npc}” first — the NPC hands out the clue you need here.",
     "energyMine": "Your energy — personal, not shared with the team",
     "next": "Next →",
@@ -723,6 +738,9 @@
     "introVideo": {
       "title": "Intro video",
       "hint": "Plays while the stage loads in the background, then goes straight in. Leave it empty and students enter immediately, exactly as before.",
+      "landscape": "Landscape",
+      "portrait": "Portrait",
+      "emptyPortrait": "No portrait video yet — players holding the phone upright go straight in. The landscape video is not reused: a 16:9 clip on a portrait screen is just a thin strip. Use a 9:16 clip.",
       "empty": "No video — students go straight in, exactly as today. This is a valid choice.",
       "remove": "Remove video",
       "duration": "{seconds} seconds long",
@@ -887,7 +905,12 @@
     "lockedMessagePlaceholder": "e.g. Not this door. Speak to the guardian first.",
     "lockedVoice": "Record this line",
     "lockedNoVoice": "This quest has no guardian with a voice yet",
-    "lockedListen": "Preview"
+    "lockedListen": "Preview",
+    "hud": {
+      "info": "Stage info (name, timer, quests)",
+      "exits": "Restart / Leave",
+      "tools": "Corner tools (sound, notebook, energy)"
+    }
   },
   "galaxy": {
     "designer": {
@@ -919,7 +942,13 @@
       "titleFrame": "Title frame image",
       "descFrame": "Description frame image",
       "textColor": "Text colour",
-      "textSize": "Text size"
+      "textSize": "Text size",
+      "landscape": "Landscape",
+      "portrait": "Portrait",
+      "portraitReady": "A portrait layout has been designed",
+      "portraitEmpty": "No portrait layout yet. Upload a background here and phones held upright will get this layout instead of being asked to turn sideways.",
+      "safeArea": "Safe area — every phone shows this",
+      "zoom": "Preview size"
     }
   },
   "lobby": {
@@ -935,6 +964,7 @@
       "contentBox": "Content frame",
       "contentHint": "Where text is drawn inside the background image. Drag the dashed frame on the preview, or type the numbers — percentages of the block, so it stays put when you resize the block.",
       "contentDrag": "Drag to move the content frame",
+      "buttonShown": "Show this button to students",
       "buttonText": "Button text",
       "buttonTextEmpty": "Empty — image only",
       "blockImage": "Block image",
@@ -954,7 +984,13 @@
       "worldLevelHint": "Free text shown in the lobby — “Easy”, “C2”, “3”. Empty falls back to the difficulty.",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
-      "zoomReset": "Fit to width"
+      "zoomReset": "Fit to width",
+      "portraitEmpty": "No portrait layout yet. Upload a background here and phones held upright will get this layout instead of being asked to turn sideways.",
+      "portraitNoInherit": "The portrait layout inherits nothing from the galaxy: those coordinates belong to a 16:9 frame and would land off the edge here.",
+      "showTitle": "Show the title frame",
+      "showDesc": "Show the description frame",
+      "count": "Chapters shown at once",
+      "stage_count": "Stages shown at once in the chapter map"
     },
     "element": {
       "stats": "Player stats",
@@ -969,7 +1005,9 @@
       "statShards": "Map shards",
       "statStars": "Stars",
       "statLevel": "World level",
-      "statProgress": "World progress"
+      "statProgress": "World progress",
+      "back": "\"Back to galaxy\" button",
+      "controls": "Corner buttons (sound, account)"
     },
     "sample": {
       "player1": "Mia",
@@ -1119,6 +1157,8 @@
       "panelImageHint": "Leave it empty and the panel stays transparent so the scene shows through — that is the usual choice. Set an image when the conversation should happen in a place of its own.",
       "bubbleImages": "Bubble images",
       "bubbleImagesHint": "Without one, bubbles use the default glass look. The image stretches to fit, so use a plain frame — bubbles still grow with the text.",
+      "textSize": "Dialogue text size",
+      "textSizeHint": "Text size of the guardian's bubbles, the player's bubbles and the answer options — all three share one size. Set separately per screen orientation. Leave empty for the default {mac}px.",
       "pace": "Pacing",
       "gap": "Pause between turns",
       "gapHint": "How long the guardian waits after finishing a line before the next bubble appears. Counted from the end of the spoken audio, or from the end of the reading time when a line has none. Default 1.0s.",

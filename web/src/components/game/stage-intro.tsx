@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { borrowIntroVideo, releaseIntroVideo } from '@/game/intro-video';
+import { readMusicPrefs, writeMusicPrefs } from '@/game/music-prefs';
+
+import { useMusicPrefs } from './music-controls';
+
 /**
  * Video không bắt đầu chạy trong ngần này mili giây thì coi như đã xong.
  *
@@ -52,6 +57,16 @@ const TONG_TOI_DA = 25000;
  *
  * Không bao giờ có một đoạn phim câm không giải thích được. Cùng luật với
  * `CompactAudio`: cú `play()` bị từ chối luôn phải để lại một cái nút bấm được.
+ *
+ * ## Tiếng đi theo CÔNG TẮC NHẠC CHUNG
+ *
+ * Cùng một công tắc với bản đồ thiên hà, phòng chờ và màn chơi (`music-prefs`):
+ * tắt ở đó thì video câm, bật thì có tiếng, âm lượng theo `master`. Nút 🔊 ở
+ * đây cũng LÀ công tắc đó — bấm là bật nhạc chung, không chỉ bật riêng video.
+ *
+ * Công tắc bật mà trình duyệt vẫn chặn (hay gặp khi bấm Chơi lại: cú bấm đã
+ * qua một vòng gọi server, iOS không còn tính nó là cú chạm nữa) thì cú chạm
+ * ĐẦU TIÊN vào đâu cũng mở tiếng — không bắt người chơi đi tìm cái nút.
  */
 export function StageIntro({
   src,
@@ -65,10 +80,17 @@ export function StageIntro({
   onDone: () => void;
 }) {
   const t = useTranslations('game.intro');
-  const video = useRef<HTMLVideoElement>(null);
+  /**
+   * Thẻ video là thẻ DÙNG CHUNG đã được mở khoá sẵn — xem `game/intro-video`.
+   * Một thẻ `<video>` mới dựng ở đây sẽ bị iOS bắt câm khi tới từ nút Chơi lại.
+   */
+  const video = useRef<HTMLVideoElement | null>(null);
+  const holder = useRef<HTMLDivElement>(null);
 
   const [xong, setXong] = useState(false);
-  const [tatTieng, setTatTieng] = useState(false);
+  /** Công tắc chung BẬT nhưng trình duyệt chặn tiếng — đang chờ một cú chạm. */
+  const [biChan, setBiChan] = useState(false);
+  const [music] = useMusicPrefs();
 
   // Cửa mở khi CẢ HAI xong. `onDone` giữ trong ref để effect này chỉ phụ thuộc
   // vào hai cái cờ — chỗ gọi truyền một hàm mới mỗi lần vẽ là chuyện thường, và
@@ -80,17 +102,91 @@ export function StageIntro({
     if (xong && ready) thoat.current();
   }, [xong, ready]);
 
-  // Thử phát CÓ TIẾNG trước. Xem ghi chú đầu file.
+  // Mượn thẻ, gắn vào khung, nạp tệp. Khai TRƯỚC effect phát bên dưới: effect
+  // chạy theo thứ tự khai báo, và effect đó cần thẻ đã có `src`.
+  useEffect(() => {
+    const box = holder.current;
+    if (!box) return;
+    const el = borrowIntroVideo();
+    el.className = 'size-full object-contain';
+    el.setAttribute('aria-label', t('label'));
+    el.src = src;
+    const onEnded = () => setXong(true);
+    // Hỏng thì đi tiếp NGAY, không đợi `ready`: tấm màn đã không còn che
+    // được gì nữa, giữ nó lại chỉ là một màn hình đen thừa.
+    const onError = () => thoat.current();
+    el.addEventListener('ended', onEnded);
+    el.addEventListener('error', onError);
+    box.appendChild(el);
+    video.current = el;
+    return () => {
+      el.removeEventListener('ended', onEnded);
+      el.removeEventListener('error', onError);
+      video.current = null;
+      releaseIntroVideo(el);
+    };
+  }, [src, t]);
+
+  // Công tắc chung TẮT thì phát câm; BẬT thì thử có tiếng trước. Đọc thẳng
+  // `localStorage` chứ không đọc `music`: lượt vẽ đầu của `useMusicPrefs` còn
+  // là giá trị mặc định, chưa kịp đọc tuỳ chọn thật của người chơi.
   useEffect(() => {
     const el = video.current;
     if (!el) return;
-    void el.play().catch(() => {
+    const prefs = readMusicPrefs();
+    el.volume = Math.min(1, Math.max(0, prefs.master));
+    const phatCam = () => {
       el.muted = true;
-      setTatTieng(true);
       // Câm rồi mà vẫn bị từ chối thì không còn gì để thử. Đi tiếp.
       void el.play().catch(() => setXong(true));
+    };
+    if (!prefs.on) {
+      phatCam();
+      return;
+    }
+    el.muted = false;
+    void el.play().catch(() => {
+      setBiChan(true);
+      phatCam();
     });
   }, [src]);
+
+  // Người chơi bật/tắt nhạc chung (hoặc kéo âm lượng) — video theo ngay.
+  useEffect(() => {
+    const el = video.current;
+    if (!el) return;
+    // Đọc lại từ kho chứ không dùng `music`: ở lượt vẽ đầu nó còn là mặc định
+    // (BẬT), và tin nó là bỏ câm một video người chơi đã tắt tiếng.
+    const prefs = readMusicPrefs();
+    el.volume = Math.min(1, Math.max(0, prefs.master));
+    if (!prefs.on) el.muted = true;
+    else if (!biChan) el.muted = false;
+  }, [music.on, music.master, biChan]);
+
+  // Bị chặn: cú chạm đầu tiên vào ĐÂU CŨNG mở tiếng. Chạy ngay trong trình xử
+  // lý sự kiện — Safari chỉ tính `play()` gọi đồng bộ bên trong cử chỉ.
+  useEffect(() => {
+    if (!biChan) return;
+    const moTieng = () => {
+      const el = video.current;
+      if (!el || !readMusicPrefs().on) return;
+      el.muted = false;
+      void el.play().then(
+        () => setBiChan(false),
+        () => {
+          el.muted = true;
+          void el.play().catch(() => undefined);
+        },
+      );
+    };
+    const events = ['pointerdown', 'touchend', 'keydown'] as const;
+    for (const type of events) window.addEventListener(type, moTieng, true);
+    return () => {
+      for (const type of events) window.removeEventListener(type, moTieng, true);
+    };
+  }, [biChan]);
+
+  const cam = !music.on || biChan;
 
   // Hai cái hẹn giờ — lối thoát cho trường hợp tệp không bao giờ trả lời.
   useEffect(() => {
@@ -112,33 +208,25 @@ export function StageIntro({
 
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-black">
-      <video
-        ref={video}
-        src={src}
-        // `object-contain`: KHÔNG cắt cúp cái người dựng vừa tải lên. Tỉ lệ
-        // khung hình của họ có thể là bất cứ gì, và một đoạn mở màn bị cắt mất
-        // nửa dòng chữ thì thà để hai dải đen hai bên.
-        className="size-full object-contain"
-        playsInline
-        preload="auto"
-        aria-label={t('label')}
-        onEnded={() => setXong(true)}
-        // Hỏng thì đi tiếp NGAY, không đợi `ready`: tấm màn đã không còn che
-        // được gì nữa, giữ nó lại chỉ là một màn hình đen thừa.
-        onError={() => thoat.current()}
-      />
+      {/* `object-contain`: KHÔNG cắt cúp cái người dựng vừa tải lên. Thẻ video
+          được gắn vào đây bằng tay — xem `game/intro-video`. */}
+      <div ref={holder} className="size-full" />
 
       {/* Hàng nút dưới cùng bên phải — xa tầm mắt lúc đang xem, nhưng luôn ở
           đúng chỗ tay tìm tới khi muốn thoát. */}
       <div className="absolute right-4 bottom-4 flex items-center gap-2">
-        {tatTieng && (
+        {cam && (
           <button
             type="button"
             onClick={() => {
               const el = video.current;
               if (!el) return;
+              // Nút này LÀ công tắc nhạc chung: bật ở đây là bật cả thiên hà,
+              // phòng chờ và màn chơi.
+              const prefs = readMusicPrefs();
+              if (!prefs.on) writeMusicPrefs({ ...prefs, on: true });
               el.muted = false;
-              setTatTieng(false);
+              setBiChan(false);
               void el.play().catch(() => undefined);
             }}
             className="rounded-full border border-white/25 bg-black/50 px-3 py-1.5 text-xs text-white/85 backdrop-blur transition hover:bg-black/70 hover:text-white"

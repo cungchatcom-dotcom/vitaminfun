@@ -2,6 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 
 import { AuthProvider } from '@/components/auth-context';
 import { PreviewBanner } from '@/components/preview-banner';
+import { RotateGate } from '@/components/game/rotate-gate';
 import { StagePlay } from '@/components/game/stage-play';
 import { apiFetch } from '@/lib/api-client';
 import { requireUser } from '@/lib/auth';
@@ -57,9 +58,19 @@ export default async function StagePlayPage({
           </div>
         )}
         <main className="min-h-0 flex-1">
-          <StagePlay stageId={id} introVideoUrl={intro.intro_video_url ?? null} />
+          <StagePlay
+            stageId={id}
+            introVideoUrl={intro.intro_video_url ?? null}
+            introVideoPortraitUrl={intro.intro_video_portrait_url ?? null}
+            hasPortrait={intro.has_portrait}
+          />
         </main>
       </div>
+
+      {/* Mời xoay ngang CHỈ KHI màn này chưa có bố cục dọc — cùng luật với bản
+          đồ thiên hà và phòng chờ. Server quyết, và quyết TRƯỚC khi lượt chơi
+          tồn tại: lúc này chưa có `snapshot` nào để hỏi. */}
+      {!intro.has_portrait && <RotateGate />}
     </AuthProvider>
   );
 }

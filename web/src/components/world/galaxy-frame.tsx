@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 
-import { FRAME, FRAME_FONT, GALAXY } from '@/game/world';
+import { FRAME_FONT, frameSpec, galaxyCanvas, type Orientation } from '@/game/world';
 
 /**
  * Khung tiêu đề / khung mô tả trên bản đồ thiên hà.
@@ -41,9 +41,13 @@ export function GalaxyFrame({
   fontScale,
   children,
   wrapper,
+  orientation = 'landscape',
 }: {
   imageUrl: string | null | undefined;
-  /** Tâm khung, hệ toạ độ 3200×1800. `null` = dùng chỗ mặc định. */
+  /**
+   * Tâm khung, theo hệ toạ độ CỦA HƯỚNG ĐANG VẼ — 3200×1800 hay 1800×3200.
+   * `null` = dùng chỗ mặc định của hướng đó.
+   */
   x: number | null | undefined;
   y: number | null | undefined;
   /** Bề rộng, cùng hệ toạ độ. */
@@ -58,15 +62,24 @@ export function GalaxyFrame({
   children: ReactNode;
   /** Thẻ bọc ngoài, để trình thiết kế gắn thêm kéo thả và tay cầm. */
   wrapper?: (box: { style: CSSProperties }, content: ReactNode) => ReactNode;
+  /**
+   * Bố cục NGANG hay DỌC. Quyết định cả khung quy đổi phần trăm lẫn chỗ đứng
+   * mặc định — xem `frameSpec`.
+   *
+   * Mặc định `'landscape'`: mọi chỗ gọi đang có đều là bản ngang, và một giá
+   * trị bắt buộc ở đây chỉ bắt chúng viết lại đúng cái chúng vốn đã làm.
+   */
+  orientation?: Orientation;
 }) {
-  const spec = FRAME[kind];
+  const spec = frameSpec(kind, orientation);
+  const canvas = galaxyCanvas(orientation);
   const box: CSSProperties = {
-    left: `${((x ?? spec.x) / GALAXY.width) * 100}%`,
-    top: `${((y ?? spec.y) / GALAXY.height) * 100}%`,
-    width: `${((width ?? spec.width) / GALAXY.width) * 100}%`,
+    left: `${((x ?? spec.x) / canvas.width) * 100}%`,
+    top: `${((y ?? spec.y) / canvas.height) * 100}%`,
+    width: `${((width ?? spec.width) / canvas.width) * 100}%`,
     // Chưa ai kéo cạnh dưới thì không đặt chiều cao — để ảnh giữ tỉ lệ gốc,
     // đúng như nếp cũ. Đặt rồi thì ảnh căng theo đúng cái khung đó.
-    ...(height ? { height: `${(height / GALAXY.height) * 100}%` } : {}),
+    ...(height ? { height: `${(height / canvas.height) * 100}%` } : {}),
     transform: 'translate(-50%, -50%)',
     // Tiêu đề nằm TRÊN khung mô tả — xem ghi chú ở `FRAME`. Nói rõ thứ tự chứ
     // không dựa vào thứ tự viết JSX: đảo hai dòng lúc sửa là đảo luôn cái nào

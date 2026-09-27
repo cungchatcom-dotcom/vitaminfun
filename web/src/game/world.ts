@@ -40,7 +40,19 @@ export const DEFAULT_SPAWN = {
 export function resolveSpawn(
   x: number | null | undefined,
   y: number | null | undefined,
+  canvas?: { width: number; height: number },
 ): { x: number; y: number } {
+  // Khung KHÁC bản ngang (bố cục dọc) thì chỗ mặc định phải tính lại theo
+  // chính khung đó: `DEFAULT_SPAWN` là một cặp số trong hệ 3200×1800, và đặt
+  // nguyên nó vào khung 1800×3200 là nhân vật đứng lệch hẳn sang phải.
+  //
+  // Giữ đúng TỈ LỆ so với giữa khung, y như cách `DEFAULT_SPAWN` được đặt.
+  if (canvas && (canvas.width !== WORLD.width || canvas.height !== WORLD.height)) {
+    return {
+      x: x ?? Math.round((DEFAULT_SPAWN.x / WORLD.width) * canvas.width),
+      y: y ?? Math.round((DEFAULT_SPAWN.y / WORLD.height) * canvas.height),
+    };
+  }
   return { x: x ?? DEFAULT_SPAWN.x, y: y ?? DEFAULT_SPAWN.y };
 }
 
@@ -109,6 +121,57 @@ export type FrameKind = keyof typeof FRAME;
 /** Khoảng bề rộng chỉnh được cho khung — khớp `CHECK` trong DB và Pydantic. */
 export const FRAME_WIDTH = { min: 80, max: 3200 } as const;
 
+// ------------------------------------------------------------ bố cục DỌC
+
+/**
+ * Hai HƯỚNG màn hình, và mỗi hướng là một bố cục người dựng tự thiết kế.
+ *
+ * Không phải "màn hình to / màn hình nhỏ": cái khác nhau là HÌNH DẠNG. Một tấm
+ * tranh 16:9 nhét vào khung 9:16 thì chỉ co lại được chứ không xếp lại được,
+ * nên câu trả lời là hai bố cục chứ không phải một bố cục biết co giãn.
+ */
+export type Orientation = 'landscape' | 'portrait';
+
+/**
+ * Khung bản đồ thiên hà ở bố cục DỌC — 3200×1800 **hoán vị**.
+ *
+ * Cùng mấy con số, xoay đi. Một hệ mới (1080×1920 chẳng hạn) chỉ thêm một bảng
+ * quy đổi trong đầu người dựng mà không đổi được gì: họ đã quen "bản đồ rộng
+ * 3200" rồi.
+ */
+export const GALAXY_PORTRAIT = { width: GALAXY.height, height: GALAXY.width } as const;
+
+/** Khung vẽ của một hướng. Mọi phép quy đổi phần trăm đi qua đây. */
+export function galaxyCanvas(orientation: Orientation): { width: number; height: number } {
+  return orientation === 'portrait' ? GALAXY_PORTRAIT : GALAXY;
+}
+
+/**
+ * Chỗ đứng mặc định của hai cái khung ở bố cục DỌC.
+ *
+ * Tiêu đề lên ĐỈNH, mô tả xuống ĐÁY — khác hẳn bản ngang, nơi cả hai dồn xuống
+ * nửa dưới. Màn dọc cao gấp ba lần bề ngang, nên dồn hai cái khung cạnh nhau là
+ * bỏ trống hai phần ba màn hình ở trên; tách chúng ra hai đầu thì phần giữa còn
+ * lại đúng là chỗ cho các world.
+ *
+ * `ratio`, `font`, `padding`, `z` giữ nguyên của bản ngang: chúng nói về dáng
+ * BÊN TRONG cái khung, mà cái khung thì vẫn là cái khung dù màn hình xoay kiểu
+ * gì. Chỉ chỗ đứng và bề rộng là đổi.
+ */
+export const FRAME_PORTRAIT = {
+  title: { ...FRAME.title, x: 900, y: 430, width: 1450 },
+  desc: { ...FRAME.desc, x: 900, y: 2700, width: 1550 },
+} as const;
+
+export function frameSpec(kind: FrameKind, orientation: Orientation) {
+  return orientation === 'portrait' ? FRAME_PORTRAIT[kind] : FRAME[kind];
+}
+
+/** Khoảng bề rộng khung, theo hướng — khớp `Field()` bên Pydantic. */
+export function frameWidthRange(orientation: Orientation): { min: number; max: number } {
+  return { min: FRAME_WIDTH.min, max: galaxyCanvas(orientation).width };
+}
+
 /**
  * SỔ ĐĂNG KÝ các khối kéo thả được của PHÒNG CHỜ world.
  *
@@ -166,9 +229,88 @@ export const LOBBY_ELEMENTS = {
   statStars: { x: 330, y: 1160, width: 400, height: 100, font: 10 },
   statLevel: { x: 330, y: 1310, width: 400, height: 100, font: 10 },
   statProgress: { x: 330, y: 1460, width: 400, height: 100, font: 10 },
+
+  // Hai khối ĐIỀU KHIỂN — nút "← Bản đồ thiên hà" và cụm nút góc (toàn màn
+  // hình, loa, tài khoản). Trước đây chúng đóng đinh ở hai góc trên bằng
+  // `top-3 left-3` / `top-3 right-3`: đúng khi bố cục do lập trình viên quyết,
+  // sai khi người dựng tự vẽ cả tấm tranh — góc trên phải có khi đúng là chỗ
+  // họ vẽ cái vòm cổng. Giờ chúng là khối như mọi khối khác: kéo được, đổi cỡ
+  // được. Xem `LOBBY_CONTROL_KEYS`.
+  //
+  // Chỗ mặc định nằm sát đúng hai góc cũ, nên world chưa ai kéo vẫn trông như
+  // trước. `font` không dùng tới: cả cụm co giãn theo CHIỀU CAO khối
+  // (`ScaleToHeight`), không theo cỡ chữ.
+  back: { x: 205, y: 90, width: 330, height: 90, font: 0 },
+  controls: { x: 2965, y: 95, width: 410, height: 100, font: 0 },
 } as const;
 
 export type LobbyElementKey = keyof typeof LOBBY_ELEMENTS;
+
+/**
+ * CHỖ ĐỨNG MẶC ĐỊNH CỦA MƯỜI BA KHỐI Ở BỐ CỤC DỌC — hệ toạ độ 1800×3200.
+ *
+ * Không suy ra được từ bản ngang bằng phép toán nào cả. Xoay một bố cục 16:9
+ * thành 9:16 không phải là đổi chỗ hai con số: ở bản ngang, ba cái nút xếp
+ * thành CỘT bên phải và hàng chương chạy ngang giữa màn; ở bản dọc thì màn hẹp
+ * gấp ba, nên nhân vật và ba cái nút phải đứng CẠNH NHAU thành hai cột, còn
+ * thành tích với xếp hạng thì tụt xuống đáy.
+ *
+ * Xếp theo tầng, từ trên xuống — đúng cách mắt đi trên một màn hình dọc:
+ *
+ *   1. tiêu đề (khung chữ, xem `FRAME_PORTRAIT`)
+ *   2. nhân vật bên trái · ba cái nút bên phải
+ *   3. hàng chương, chạy ngang hết bề rộng
+ *   4. thành tích bên trái · xếp hạng bên phải
+ *
+ * `font` giữ nguyên của bản ngang: nó là phần trăm bề rộng CHÍNH KHỐI, nên khối
+ * hẹp lại là chữ tự nhỏ theo. Chép một con số khác vào đây là phá đúng cái cơ
+ * chế đang giữ cho chữ luôn vừa khung.
+ *
+ * Đây chỉ là chỗ BẮT ĐẦU. Người dựng kéo lại hết, và nhiệm vụ của mấy con số
+ * này là làm cho lần mở đầu tiên không phải một đống khối chồng lên nhau.
+ */
+export const LOBBY_ELEMENTS_PORTRAIT: Record<
+  LobbyElementKey,
+  { x: number; y: number; width: number; height: number }
+> = {
+  // Tầng 2 — nhân vật bên trái.
+  character: { x: 470, y: 1180, width: 620, height: 700 },
+  characterInfo: { x: 470, y: 1650, width: 620, height: 260 },
+
+  // Tầng 2 — ba cái nút bên phải, xếp dọc.
+  play: { x: 1290, y: 1080, width: 620, height: 155 },
+  createRoom: { x: 1290, y: 1320, width: 580, height: 135 },
+  joinRoom: { x: 1290, y: 1540, width: 580, height: 135 },
+
+  // Tầng 3 — hàng chương, chạy gần hết bề rộng.
+  chapters: { x: 900, y: 2200, width: 1680, height: 560 },
+
+  // Tầng 4 — thành tích trái, xếp hạng phải.
+  stats: { x: 470, y: 2830, width: 760, height: 620 },
+  ranking: { x: 1300, y: 2830, width: 900, height: 620 },
+
+  // Năm con số, xếp thành cột bên trong khung `stats` (2520…3140).
+  statPower: { x: 470, y: 2610, width: 660, height: 100 },
+  statShards: { x: 470, y: 2720, width: 660, height: 100 },
+  statStars: { x: 470, y: 2830, width: 660, height: 100 },
+  statLevel: { x: 470, y: 2940, width: 660, height: 100 },
+  statProgress: { x: 470, y: 3050, width: 660, height: 100 },
+
+  // Hai khối điều khiển, NẰM TRONG VÙNG AN TOÀN (9% mỗi mép = 162 ngang, 288
+  // dọc). Bản ngang đặt chúng sát góc được, vì bản ngang không bị cắt mép; bản
+  // dọc phóng phủ màn và mất mép, nên đặt sát góc là nút đăng xuất rơi ra
+  // ngoài màn hình trên đúng những máy cao nhất.
+  back: { x: 360, y: 360, width: 380, height: 110 },
+  controls: { x: 1420, y: 360, width: 420, height: 110 },
+};
+
+/** Khung mặc định của một khối, theo hướng. */
+export function lobbySpec(key: LobbyElementKey, orientation: Orientation) {
+  const base = LOBBY_ELEMENTS[key];
+  if (orientation !== 'portrait') return base;
+  // `font` lấy của bản ngang: phần trăm bề rộng khối, không phụ thuộc hướng.
+  return { ...base, ...LOBBY_ELEMENTS_PORTRAIT[key] };
+}
 
 /**
  * Những khối là NÚT BẤM — thứ duy nhất có chữ đặt được.
@@ -225,7 +367,25 @@ export function isLobbyStat(key: LobbyElementKey): boolean {
 export const LOBBY_PLAIN_KEYS = [
   'characterInfo',
   ...LOBBY_STAT_KEYS,
+  'back',
+  'controls',
 ] as const;
+
+/**
+ * Hai khối ĐIỀU KHIỂN — thứ học sinh BẤM, không phải thứ để nhìn.
+ *
+ * Khác mọi khối kia ở ba chỗ, và cả ba đều là để không làm hỏng một cái nút:
+ *
+ *   - không có ảnh nền, chữ hay khung nội dung để đặt — chúng tự vẽ lấy;
+ *   - KHÔNG CẮT phần tràn: bảng thả xuống của nút tài khoản mọc ra ngoài khối;
+ *   - không phóng khi rê chuột, và luôn nằm TRÊN các khối khác — một cái nút
+ *     bị tấm khung trang trí đè lên là một cái nút không bấm được.
+ */
+export const LOBBY_CONTROL_KEYS = ['back', 'controls'] as const;
+
+export function isLobbyControl(key: LobbyElementKey): boolean {
+  return (LOBBY_CONTROL_KEYS as readonly string[]).includes(key);
+}
 
 export function hasContentFrame(key: LobbyElementKey): boolean {
   return !(LOBBY_PLAIN_KEYS as readonly string[]).includes(key);
@@ -292,13 +452,17 @@ export const LOBBY_LINE_HEIGHT = 1.375;
  * BỀ RỘNG khung, chiều cao khung thì đã biết, nên số dòng là một con số cố
  * định, giống nhau ở mọi cỡ màn hình.
  */
-export function lobbyTextLines(key: LobbyElementKey, saved: LobbySaved | undefined): number {
-  const box = lobbyBox(key, saved);
+export function lobbyTextLines(
+  key: LobbyElementKey,
+  saved: LobbySaved | undefined,
+  orientation: Orientation = 'landscape',
+): number {
+  const box = lobbyBox(key, saved, orientation);
   const content = lobbyContentBox(saved?.content);
   const framed = hasContentFrame(key);
   const width = framed ? (box.width * content.w) / 100 : box.width;
   const height = framed ? (box.height * content.h) / 100 : box.height;
-  const fontSize = ((LOBBY_ELEMENTS[key].font * content.font) / 10_000) * width;
+  const fontSize = ((lobbySpec(key, orientation).font * content.font) / 10_000) * width;
   return Math.max(1, Math.floor(height / (fontSize * LOBBY_LINE_HEIGHT)));
 }
 
@@ -362,11 +526,46 @@ export function lobbyContentBox(saved: LobbyContentSaved | null | undefined) {
 }
 
 /** Một khối như nó được lưu trong `worlds.lobby_json`. Thiếu khoá = dùng mặc định. */
+/**
+ * Số CHƯƠNG hiện cùng lúc trên hàng chương, và số MÀN hiện cùng lúc trong
+ * minimap. Khớp `Field(ge=3, le=5)` bên Pydantic.
+ *
+ * 5 là mặc định — đúng số đã có từ trước khi có tuỳ chọn này. Dưới 3 thì hàng
+ * thành một cái ô kẹp giữa hai mũi tên; trên 5 thì ô hẹp tới mức tên chương
+ * không đọc được, nhất là ở bản dọc.
+ */
+export const LOBBY_PAGE_SIZE = { min: 3, max: 5, base: 5 } as const;
+
+/**
+ * Kiểu của hai nút lật trang ‹ › trên HÀNG CHƯƠNG — dùng chung cho nút thật ở
+ * màn học sinh và nút mẫu ở khung soạn. Hai bản chép thì khung soạn sẽ lại cho
+ * người dựng căn cỡ khối theo một cái ô rộng hơn ô thật.
+ *
+ * CAO BẰNG CẢ HÀNG (`self-stretch`), rộng theo PHẦN TRĂM hàng: nút to lên nhỏ đi
+ * cùng cái khối người dựng kéo. Bản trước là `px-1 text-sm` — chừng 14×22 điểm
+ * ảnh, trên điện thoại là một vạch mảnh không bấm trúng nổi.
+ *
+ * Trên cảm ứng thêm SÀN 44px bề rộng (cỡ đầu ngón tay theo hướng dẫn của cả
+ * Apple lẫn Google): hàng chương ở bản dọc chỉ rộng chừng 390px, và 7% của nó
+ * mới được 27px.
+ *
+ * Chuỗi viết LIỀN một mạch ở đây chứ không ghép: Tailwind dò tên lớp trong mã
+ * nguồn, nên một tên ghép lúc chạy sẽ không bao giờ được sinh CSS.
+ */
+export const CHAPTER_ARROW_CLASS =
+  'flex w-[7%] shrink-0 items-center justify-center self-stretch rounded-lg border border-white/40 bg-abyss-950/50 text-2xl leading-none text-white [@media(pointer:coarse)]:min-w-11';
+
 export interface LobbySaved {
   x?: number | null;
   y?: number | null;
   w?: number | null;
   h?: number | null;
+  /** Khối `chapters`: số chương mỗi trang. `null` = `LOBBY_PAGE_SIZE.base`. */
+  count?: number | null;
+  /** Khối `chapters`: số màn mỗi trang của minimap. `null` = `LOBBY_PAGE_SIZE.base`. */
+  stage_count?: number | null;
+  /** Ẩn khối khỏi màn học sinh (hiện chỉ ba cái nút dùng). Mỗi hướng một cờ. */
+  hidden?: boolean | null;
   media_id?: string | null;
   /**
    * Chữ in đè lên khối. Chỉ ba cái nút dùng tới, và MẶC ĐỊNH RỖNG — ảnh nút
@@ -378,8 +577,12 @@ export interface LobbySaved {
 }
 
 /** Khung đang có hiệu lực của một khối: giá trị đã đặt, không thì mặc định. */
-export function lobbyBox(key: LobbyElementKey, saved: LobbySaved | undefined) {
-  const spec = LOBBY_ELEMENTS[key];
+export function lobbyBox(
+  key: LobbyElementKey,
+  saved: LobbySaved | undefined,
+  orientation: Orientation = 'landscape',
+) {
+  const spec = lobbySpec(key, orientation);
   return {
     x: saved?.x ?? spec.x,
     y: saved?.y ?? spec.y,
@@ -397,8 +600,19 @@ export function lobbyBox(key: LobbyElementKey, saved: LobbySaved | undefined) {
  * nếu không thì giáo viên kéo một world ở chỗ này rồi học sinh thấy nó ở chỗ
  * khác — trước cả khi ai đặt toạ độ nào.
  */
-export function defaultWorldSpot(index: number, total: number): { x: number; y: number } {
-  return { x: ((index + 1) / (total + 1)) * GALAXY.width, y: GALAXY.height / 2 };
+export function defaultWorldSpot(
+  index: number,
+  total: number,
+  orientation: Orientation = 'landscape',
+): { x: number; y: number } {
+  const canvas = galaxyCanvas(orientation);
+  // Màn DỌC thì rải thành một CỘT, không phải một hàng: bản đồ cao gấp ba lần
+  // bề ngang, nên xếp ngang là năm world chen nhau trong một dải hẹp trong khi
+  // phần lớn màn hình bỏ trống. Xoay khung thì xoay luôn cả cách rải.
+  if (orientation === 'portrait') {
+    return { x: canvas.width / 2, y: ((index + 1) / (total + 1)) * canvas.height };
+  }
+  return { x: ((index + 1) / (total + 1)) * canvas.width, y: canvas.height / 2 };
 }
 
 // ---------------------------------------------------------------- nhịp thở

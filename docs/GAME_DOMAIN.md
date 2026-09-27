@@ -875,6 +875,12 @@ Vậy nên: video **ngắn**. 5–10 giây trên trần 300 giây là 2–3%. Ng
 
 ### ĐANG CHƠI DỞ thì không chiếu
 
+**Tiếng của video mở màn đi theo công tắc nhạc CHUNG** (`music-prefs`, cùng công tắc với thiên hà, phòng chờ, màn chơi): tắt thì video câm, bật thì có tiếng theo âm lượng `master`. Nút 🔊 trên tấm màn cũng chính là công tắc đó — bấm là bật nhạc chung. Công tắc bật mà trình duyệt chặn tự phát (hay gặp ở "Chơi lại": cú bấm đã qua một vòng gọi server nên iOS không còn tính) thì video chạy câm và **cú chạm đầu tiên vào bất cứ đâu** mở tiếng.
+
+Hai thứ giữ cho tiếng không bị chặn ngay từ đầu:
+- **"Chơi lại" ở bảng kết quả KHÔNG tải lại trang** — nó đổi `key` của lượt (`StagePlay.luot`), React gỡ sạch rồi dựng lượt mới, video chiếu lại. Tải lại trang là trình duyệt quên cú bấm, và video luôn bị bắt câm.
+- **Một thẻ `<video>` dùng chung, mở khoá sẵn** (`game/intro-video.ts`): iOS chỉ cho một thẻ phát có tiếng nếu chính thẻ đó từng `play()` trong một cú chạm, mà video mở màn luôn sinh ra sau một vòng gọi server. Mỗi cú chạm (khi thẻ rảnh) phát thử một đoạn im lặng trên thẻ này; `StageIntro` mượn đúng thẻ ấy để chiếu.
+
 Vào lại một màn còn dở là **chơi tiếp**: bài đang làm còn nguyên, đồng hồ vẫn chạy từ `started_at` cũ. Chiếu lại đoạn mở màn ở đó là kể lại phần mở đầu cho người đã đi được nửa đường — và tệ hơn, nó ăn thêm giây của chính cái đồng hồ đang chạy, lần này chẳng đổi lấy gì cả (cảnh đã nạp một lần rồi, và các tệp còn trong bộ nhớ đệm).
 
 Quyết ở **server**, trong chính `GET /play/stages/{id}/intro`: trả `null` khi người này có lượt còn dở. Nhờ vậy trình duyệt không tải một đoạn video rồi mới phát hiện ra mình không cần nó, và không có khung hình nào loé lên.
@@ -981,6 +987,350 @@ qua ba mươi giọng họ không bao giờ dùng.
 
 `preview_url` trỏ THẲNG sang nhà cung cấp, không qua kho media: nó là tài sản
 của họ, đổi khi họ đổi, và tải về là giữ một bản sao sẽ cũ đi.
+
+## Hai BỐ CỤC cho một màn hình: ngang và dọc
+
+Màn hình điện thoại nằm ngang có tỉ lệ ~2.2–2.6, còn tranh của game là 16:9 =
+1.78. Xoay ngang xong vẫn còn hai dải trống hai bên và mọi thứ bé lại. Co giãn
+không cứu được, vì cái sai là **bố cục**, không phải kích thước.
+
+Nên mỗi màn hình có thể mang HAI bố cục, người dựng thiết kế riêng từng cái:
+
+| | Khung vẽ | Dùng khi |
+|---|---|---|
+| ngang (landscape) | 3200×1800 (16:9) | mặc định, và luôn là bản có sẵn |
+| dọc (portrait) | 1800×3200 (9:16) | màn hình đang dọc VÀ người dựng đã thiết kế bản dọc |
+
+Số của bản dọc là số của bản ngang **hoán vị** — cùng một hệ toạ độ, xoay đi.
+Một mớ số mới (1080×1920 chẳng hạn) chỉ thêm một bảng quy đổi trong đầu người
+dựng mà không đổi được gì.
+
+### Cái gì tách đôi, cái gì dùng chung
+
+Luật: **chỉ tách thứ phụ thuộc vào hình dạng màn hình.**
+
+| | Ngang và dọc |
+|---|---|
+| tên, mô tả, trạng thái, thứ tự | **chung** — một chỗ đặt |
+| nhạc, tiếng | **chung** — nó không liên quan gì tới hình dạng màn |
+| ảnh nền | **riêng** — một tấm 16:9 kéo vào khung 9:16 là cắt mất hai phần ba |
+| ảnh khung tiêu đề / mô tả | **riêng** — cùng lý do |
+| chỗ đứng và cỡ của từng world | **riêng** — đây chính là "bố cục" |
+| vành tròn, nhịp thở, ảnh world | **chung** — trang trí của chính world, dọc hay ngang thì nó vẫn thế |
+
+Tách nhiều hơn mức cần thì người dựng phải đặt hai lần cho một thứ không đổi, và
+hai bản sẽ lệch nhau ngay lần đầu có người sửa một bên.
+
+### Lưu ở đâu
+
+`galaxies.portrait_json` và `worlds.portrait_json` — JSONB, `{}` = **chưa thiết
+kế bản dọc**.
+
+Cột JSON chứ không phải hai chục cột song song (`portrait_title_x`,
+`portrait_title_y`, …): số cột nhân đôi cho mỗi hướng thêm vào, và bản ngang
+đang chạy tốt thì không có lý do gì phải động vào. Cũng không tách bảng riêng,
+vì làm thế là phải chuyển cả bản ngang sang bảng mới — đổi một thứ đang chạy để
+lấy sự đối xứng trên giấy.
+
+`{}` là trạng thái bình thường, không phải lỗi: mọi thiên hà đang có đều bắt đầu
+từ đó, và không ai phải làm gì cho tới khi họ muốn có bản dọc.
+
+### Video mở màn: mỗi hướng một tệp
+
+Bản ngang: `stages.intro_video_media_id` (như cũ). Bản dọc: `stages.portrait_json.
+intro_video_media_id` — tệp RIÊNG quay 9:16, gỡ bằng `clear_intro_video`. **Không kế
+thừa** video ngang: phim 16:9 chiếu trên màn dọc chỉ còn một dải hẹp giữa hai mảng
+đen. `GET /play/stages/{id}/intro` trả cả `intro_video_url` lẫn
+`intro_video_portrait_url` (cái sau chỉ khi màn đã có bản dọc); trang chọn theo hướng
+— màn hình dọc VÀ màn có bản dọc thì chiếu video dọc, không có thì vào thẳng. Xoay
+máy giữa lúc chiếu là chuyển sang tệp kia (hoặc vào thẳng). Trình thiết kế màn:
+bảng "Video mở màn" đi theo công tắc hướng như mọi khối khác.
+
+### Không kính mờ trên điện thoại dọc
+
+Trình duyệt di động vẽ một khối có `backdrop-filter` thành lớp riêng, có khi ở
+độ phân giải thấp hơn màn DPR 2–3 — chữ bên trong nhoè (đã gặp: bảng hướng dẫn,
+bảng kết quả hết giờ). Nên ở điện thoại dọc (cùng điều kiện `PORTRAIT_SCREEN`)
+`globals.css` tắt MỌI `backdrop-filter` bằng một luật chung, thay vì gỡ ba chục
+chỗ dùng. Khối nào từng dựa vào kính mờ để chữ nổi thì đục nền hơn ở đó (cụm HUD:
+55% → 80%). Máy bàn và bản ngang không đổi.
+
+### Bảng HƯỚNG DẪN CHƠI của màn
+
+Màn chơi không cư xử như một trang web — nhân vật đi theo cú chạm, nhiệm vụ mở khi
+đứng đúng chỗ, năng lượng mua gợi ý, sổ tay nhận từ NPC — nên lần đầu vào là nói
+thẳng ra: `StageGuide` tự mở ở **mỗi lượt mới** (chơi lại, hết giờ vào lại), ngay
+sau khi video mở màn đóng lại. Người chơi tick "Không hiện lại nữa" thì thôi hẳn;
+muốn đọc lại thì bấm ℹ️ ở cụm công cụ, và nút đó mở bất kể cái tick.
+
+Cái tick ghi vào `localStorage` (`vitaminfun.guide.off`) chứ không vào server: đây
+là thói quen của máy đang ngồi, không phải dữ liệu học tập. Mọi lần đọc/ghi đều
+bọc `try` — trình duyệt ẩn danh ném lỗi thì coi như "chưa tắt", tức vẫn hiện.
+
+Nội dung nằm ở `messages/guide/<vi|en>.json` (sáu mục: di chuyển → NPC dẫn
+chuyện → năng lượng → sổ tay → các nhiệm vụ → đồng hồ), không viết cứng trong mã.
+Tách khỏi `messages/<mã>.json` vì bảng có hai nút **Vi / En** đổi ngôn ngữ CHỈ của
+phần hướng dẫn (mặc định theo ngôn ngữ trang), mà `next-intl` chỉ nạp một bộ chữ.
+Khung bảng (ô tick, nhãn nút) vẫn ở `game.guide.*`. Không có nút "Bắt đầu chơi":
+đóng bằng ✕ hoặc bấm ra ngoài bảng. Biểu tượng ℹ️ là SVG (emoji mỗi hệ điều hành
+vẽ một kiểu), cùng khuôn viên thuốc 36px với nút sổ tay — mọi nút trong cụm công
+cụ cao bằng nhau.
+Một bố cục cho cả hai hướng: trần `85dvh` rồi cuộn, tiêu đề và hàng nút dính hai
+đầu, các mục một cột ở màn hẹp và hai cột từ `sm` trở lên. Cảnh Phaser bị khoá
+input trong lúc bảng mở.
+
+### Bảng hội thoại nhiệm vụ ở điện thoại dọc
+
+Vùng đọc (đoạn chat NPC–người chơi) là thứ đáng đọc nhất, nên mọi thứ khác nhường
+chỗ cho nó: khung trả lời trần 46% chiều cao bảng (dài hơn thì cuộn, nút Trả lời
+dính đáy), hàng nút chỉ cao vừa cái nút, thanh tiêu đề thấp (mặt 30px), bong bóng
+rộng 84% và chữ 16px, phương án một cột nhưng thấp và sát nhau. Theme Atlantis
+mỏng viền lại (nẹp 5px, viền vàng 3px) qua `globals.css` — `.q-board[data-q-theme]`
++ `!important`, vì biến theme đặt inline. Bản ngang giữ nguyên.
+
+**Cỡ chữ hội thoại** — `textPx` trong bố cục hội thoại (`dialogue_json` / 
+`portrait_json.dialogue`), nên mỗi hướng một số. MỘT cỡ cho chữ trong bong bóng
+(NPC lẫn học sinh) và chữ của các phương án: đọc câu hỏi rồi đọc đáp án là một
+mạch, lệch cỡ thì mắt phải chỉnh lại. Đi xuống bằng biến CSS `--q-text` đặt ở gốc
+tấm bảng; không đặt = mặc định của hướng (15px ngang, 14px dọc), tức màn chưa ai
+chỉnh trông y như cũ. Trần 11…24px. Như mọi thứ trong bố cục, nó đóng băng vào đề
+bài: đổi cỡ chữ chỉ có hiệu lực từ lượt chơi MỚI.
+
+### Chạm world KHOÁ trên bản đồ thiên hà dọc
+
+Điện thoại không có "rê chuột": chạm là vào rồi rời ngay khi nhấc tay, nên hai
+khung tên/mô tả chỉ loé lên. World mở thì chạm là vào luôn; world khoá thì
+**chạm là ghim** tên và mô tả của nó vào hai khung, tới khi chạm world khác hoặc
+chạm ra chỗ trống (quay về tên thiên hà). Chỉ bản dọc — bản ngang giữ nguyên.
+
+### Chưa thiết kế bản dọc thì sao
+
+Màn hình dọc + chưa có bản dọc = **vẫn mời xoay ngang máy** (`RotateGate`). Vẽ
+bản ngang vào khung dọc thì được một tấm tranh cao 220px giữa hai khoảng trống —
+tệ hơn hẳn một lời mời rõ ràng.
+
+Nên `RotateGate` KHÔNG còn nằm ở layout chung của `/play` nữa, mà từng màn tự
+quyết: màn nào có bố cục dọc thì không mời xoay, màn nào chưa có thì mời. Màn
+chơi (Phaser) hiện chưa có bố cục dọc nên luôn mời.
+
+### Màn chơi: cùng luật, nhưng cảnh do PHASER vẽ
+
+`stages.portrait_json` và `quests.portrait_json`.
+
+| Khoá | Bản ngang nằm ở |
+|---|---|
+| `background_media_id` | `stages.background_media_id` |
+| `collision` | `stages.collision_json` — vùng đi được |
+| `spawn_x` / `spawn_y` | `stages.spawn_x/y` — chỗ xuất phát |
+| `character_height` | `stages.character_height` |
+| `dialogue` | `stages.dialogue_json` — bố cục bảng hội thoại |
+| `scene_x` / `scene_y` / `icon_size` / `trigger_radius` | các cột cùng tên ở `quests` |
+
+Chung như cũ: câu hỏi, lời thoại, người canh giữ, nhạc, thời gian, năng lượng,
+điểm. Riêng: mọi thứ có toạ độ hoặc là một tấm ảnh.
+
+**Vùng đi được phải vẽ lại, không co giãn được.** Nó là một đa giác trong hệ
+3200×1800; nhân tỉ lệ sang 1800×3200 thì sàn nhà lệch khỏi tấm nền mới — mà tấm
+nền mới là một bức ảnh KHÁC, không phải bức cũ xoay đi.
+
+### Canvas Phaser trên điện thoại
+
+**Canvas vẽ theo mật độ điểm ảnh (DPR, tối đa 3).** Chế độ `RESIZE` của Phaser
+tạo canvas đúng cỡ CSS; trên màn DPR 3 trình duyệt phóng nó lên gấp ba và tên
+nhiệm vụ nhòe hẳn (chữ HTML bên cạnh thì nét). Khi DPR > 1, `phaser-canvas.tsx`
+dùng chế độ `NONE`: game rộng CSS×dpr, `zoom = 1/dpr`, tự đo lại bằng
+`ResizeObserver`. Nhãn tính cỡ "px màn hình" qua `1 / scale.zoom`. DPR 1 (máy
+bàn) đi đường cũ y nguyên.
+
+**Tiếng của màn trên iOS.** Phòng chờ phát bằng thẻ `<audio>`, màn chơi bằng Web
+Audio của Phaser — và iOS đối xử hai thứ khác nhau: công tắc im lặng tắt Web
+Audio chứ không tắt `<audio>`, và Phaser mở khoá ở `touchstart` (iOS chưa cho),
+hỏng một lần là gỡ luôn trình nghe. Nên: `navigator.audioSession.type =
+'playback'` (Safari 16.4+), và mỗi cú chạm (`touchend`/`pointerup`/`click`/
+`keydown`) thử `resume()` lại tới khi ngữ cảnh chạy, rồi báo Phaser đã mở khoá.
+
+**Một `AudioContext` dùng chung cho mọi lượt** (`game/shared-audio.ts`, truyền vào
+Phaser qua `audio.context`). Mỗi lần Chơi lại là một game Phaser mới; để Phaser
+tự tạo ngữ cảnh thì iOS bắt ngữ cảnh mới câm tới cú chạm đầu tiên — nhạc nền
+vắng đúng lúc lượt mới bắt đầu. Ngữ cảnh chung được mở khoá bằng cú chạm bất kỳ
+(kể cả ở phòng chờ) và game sau `resume()` lại được ngay.
+
+**Lượt đã kết thúc thì cảnh khoá input** — chạm vào bảng kết quả hay quanh nó
+không làm nhân vật chạy.
+
+### Ba cụm HUD của màn chơi cũng là KHỐI, ở bản dọc
+
+`stages.portrait_json.hud` — `info` (tên màn, đồng hồ, số nhiệm vụ), `exits`
+(Chơi lại, Rời màn), `tools` (toàn màn hình, loa, sổ tay, năng lượng). Nút "?" trợ giúp
+**tạm gỡ** (2026-09-21) ở cả hai bản; sổ tay là nút viên thuốc rộng, biểu tượng
+to (≥44px trên màn cảm ứng) vì đó là thứ bấm nhiều nhất trong cụm.
+Chưa nhận sổ tay thì nút mờ + xám và không bấm được. Sổ tay đang mở thì cảnh
+**không nhận cú chạm** (khoá như lúc mở bảng nhiệm vụ, mở lại trễ 250ms sau khi
+đóng) — chạm vào chữ để đọc không được làm nhân vật chạy theo.
+
+
+Chỉ bản dọc có. Bản ngang đóng đinh chúng vào ba góc và không có gì chen nhau:
+màn rộng 1780px thì hai cụm trên cách nhau cả nghìn pixel. Màn dọc chỉ rộng
+chừng 390px, và hai cụm ấy **đè lên nhau** — nên chỗ mặc định của bản dọc xếp
+chúng thành TẦNG (info trên, exits ngay dưới, tools ở đáy), tất cả nằm trong
+vùng an toàn 9%.
+
+Cả cụm co giãn theo CHIỀU CAO khối (`ScaleToHeight`), cùng cơ chế với nút về và
+cụm nút góc ở phòng chờ.
+
+### Tên nhiệm vụ xuống dòng BẰNG TAY
+
+Ô tên nhiệm vụ trong trình thiết kế màn là ô NHIỀU DÒNG: Enter là xuống dòng, và
+chỗ xuống dòng ấy hiện y nguyên trên nhãn trong cảnh (Phaser tự tách dòng, các
+dòng căn giữa) và trên khung soạn (`whitespace-pre`).
+
+Người dựng tự chọn chỗ ngắt thay vì để máy ngắt theo bề rộng: "The Heart Has /
+Been Fighting" đọc khác hẳn "The Heart Has Been / Fighting", và chỉ người viết
+biết cụm nào không được tách.
+
+Từng có tuỳ chọn "số dòng" (máy tự ngắt theo bề rộng) — đã BỎ theo yêu cầu, chỉ
+giữ ngắt tay. Một cách làm thì không có chuyện hai cách ngắt chồng lên nhau.
+
+### Toạ độ nhân vật: client luôn nói chuyện với server bằng HỆ NGANG
+
+`stage_run_players.pos_x/pos_y` là một cặp số trong hệ 3200×1800 và đã có dữ
+liệu thật nằm đó. Thêm hệ thứ hai vào cùng hai cột ấy thì một lượt chơi lưu lẫn
+lộn hai hệ, và không ai nhìn vào cặp số mà biết nó thuộc hệ nào.
+
+Nên bản dọc quy đổi ở HAI ĐẦU (`sangHeDoc` / `sangHeNgang`): đọc vị trí về thì
+đổi sang hệ dọc, gửi đi thì đổi ngược lại. Bản ngang là phép đồng nhất — không
+một dòng nào của nó đổi.
+
+Quy đổi theo tỉ lệ nên GẦN ĐÚNG: hai bố cục là hai bức tranh khác nhau. Chấp
+nhận được vì đây chỉ là chỗ ĐỨNG — tiến độ thật (câu đã trả lời, nhiệm vụ đã
+xong, năng lượng) nằm ở server và không dính gì tới toạ độ, nên **tiến độ luôn
+đồng nhất giữa hai bản**. Rơi vào chỗ không đi được thì cảnh tự cứu về ô đi được
+gần nhất.
+
+Xoay máy giữa lượt chơi thì cảnh Phaser được DỰNG LẠI (khoá `run.id:hướng`):
+khung vẽ khác, nền khác, sàn khác — không có cách nào vá một nửa.
+
+### Bảng hội thoại: chỉ ảnh nền và chủ đề là riêng
+
+Bảng hội thoại lúc chạy (`QuestChat`) là bố cục DÒNG CHẢY, không phải các khối
+đặt theo toạ độ — nên nó tự thích nghi với màn hẹp. Thứ cần riêng cho bản dọc
+chỉ là ảnh nền tấm bảng và chủ đề: một tấm nền vẽ cho khung 1000×700 kéo vào
+khung 700×1000 là cắt mất hai bên.
+
+Lưu trong `stages.portrait_json.dialogue`, và **không thừa kế** — không của màn
+đầu world, cũng không của bản ngang.
+
+### Ảnh chụp đề bài mang CẢ HAI bố cục
+
+`stage_runs.snapshot_json` đóng băng đề bài lúc vào màn. Nó nay mang thêm
+`stage.portrait` và `quests[].portrait` — cả hai bố cục, không phải bố cục đã
+chọn.
+
+Vì hướng màn hình đổi được GIỮA LƯỢT CHƠI: học sinh xoay máy là cảnh phải vẽ lại
+theo bố cục kia, mà đề bài thì đã đóng băng và không hỏi lại server nữa. Đóng
+băng một bố cục thôi thì xoay máy giữa chừng là mất cảnh.
+
+Ảnh chụp CŨ không có khoá `portrait` — đọc ra `None`, nghĩa là "màn này chưa có
+bản dọc", đúng như mọi màn hôm nay. Không cần vá dữ liệu cũ.
+
+### Phòng chờ world: cùng luật, thêm phần KHỐI
+
+`worlds.lobby_portrait_json`. Cột RIÊNG, không dùng chung `worlds.portrait_json`
+— cột kia là chỗ đứng của world **trên bản đồ thiên hà**, hai màn hình khác
+nhau, hai bố cục khác nhau.
+
+Bên trong mang đúng những gì bản ngang có, nhưng gom lại một chỗ:
+
+| Khoá | Bản ngang nằm ở đâu |
+|---|---|
+| `background_media_id` | `worlds.lobby_media_id` |
+| `title_*`, `desc_*` | `worlds.title_*`, `worlds.desc_*` |
+| `blocks` | `worlds.lobby_json` |
+
+Chung như cũ: tên, cốt truyện, nhạc, nhân vật, chương và màn. Riêng: ảnh nền,
+hai tấm ảnh khung, và chỗ đứng của mười ba khối.
+
+**Không thừa kế chéo giữa hai hướng.** Bản ngang để trống một khung thì thừa của
+thiên hà — luật cũ, giữ nguyên. Nhưng bản dọc để trống thì KHÔNG lấy của bản
+ngang: toạ độ bản ngang nằm trong hệ 3200×1800, đặt vào khung 1800×3200 là ra
+ngoài mép. Bản dọc trống thì dùng chỗ mặc định CỦA BẢN DỌC.
+
+**Hai khung chữ ở bản dọc có công tắc, mặc định TẮT** (`title_visible`,
+`desc_visible`). Màn dọc hẹp, và tên world với cốt truyện thường đã nằm sẵn
+trong tranh nền hoặc khối nhân vật — thêm hai tấm khung nữa là chen chúc. Tắt
+nghĩa là không vẽ ở CẢ màn học sinh lẫn khung soạn: thứ học sinh không thấy thì
+người dựng cũng không cần kéo. Tắt chỉ là ẩn, không xoá — bật lại thì mọi thứ
+đã đặt còn nguyên. Bản ngang không có công tắc này và luôn hiện.
+
+**Nút về bản đồ và cụm nút góc là KHỐI** (`back`, `controls` — xem
+`LOBBY_CONTROL_KEYS`), ở cả hai hướng. Trước đây chúng đóng đinh ở hai góc trên
+(`top-3 left-3` / `top-3 right-3`): đúng khi bố cục do lập trình viên quyết, sai
+khi người dựng tự vẽ cả tấm tranh — và ở bản dọc thì góc trên phải còn nằm
+ngoài vùng an toàn, tức nút đăng xuất rơi khỏi màn hình trên máy cao. Giờ kéo
+được, đổi cỡ được; cả cụm co giãn theo CHIỀU CAO khối (`ScaleToHeight`), neo về
+mép trái (nút về) hay mép phải (cụm góc). Khác các khối kia ba chỗ: không có ảnh
+nền / chữ / khung nội dung, không cắt phần tràn (bảng thả xuống của nút tài
+khoản mọc ra ngoài khối), và luôn nằm trên các khối khác.
+
+**Hàng chương: số ô mỗi trang, và số màn mỗi trang của minimap** — `count` và
+`stage_count` trên khối `chapters`, 3…5, mặc định 5. Cả hai nằm trên khối hàng
+chương vì minimap là hộp thoại mở ra từ khối đó, không có chỗ đứng riêng; và vì
+mỗi hướng có bộ khối riêng, đây tự nhiên là một cặp số cho bản ngang và một cặp
+cho bản dọc.
+
+**Bật/tắt ba cái nút** (Play, Create room, Join room) — `hidden` trên khối, mỗi
+hướng một cờ, bỏ trống = hiện. Tắt thì học sinh không thấy gì của nút, kể cả ảnh
+nền; ở khung soạn nút vẫn nằm đó nhưng mờ đi, để còn chỗ bấm vào mà bật lại.
+
+**Minimap và bộ chọn nhân vật ở màn dọc** vẽ khác bản ngang (bản ngang giữ
+nguyên). Minimap: con đường zích-zắc từ trên xuống, mỗi vòng tròn rộng 40% hộp,
+nối nét đứt, nút lật trang dời xuống đáy — một hàng ngang năm vòng tròn trên màn
+390px là năm cái chấm. Bộ chọn nhân vật: lưới hai cột, khung cao vừa ba hàng,
+nhiều hơn thì cuộn dọc (không lật trang).
+
+**Tô sáng "chỗ đang ở"**: màn đang chơi dở (`resume_stage_id`, còn giờ) VÀ màn
+mở cuối cùng — cả hai cùng sáng, và chương chứa chúng cũng sáng. Luật nằm ở
+`game/progress.ts`, CÙNG chỗ với đích của nút Chơi (`playTarget`): hai bản chép
+thì sớm muộn học sinh bấm Chơi và bị đưa vào một màn khác với màn đang sáng.
+Hàng chương và minimap mở ra đúng trang có ô đang sáng.
+
+Phía học sinh, bố cục dọc đi xuống dưới dạng **cùng một hình dạng** với bản
+ngang (`PlayLobbyOut`), chỉ là một object thứ hai. Nhờ vậy màn phòng chờ chỉ
+chọn một trong hai rồi vẽ y hệt nhau — không có nhánh "nếu dọc thì..." rải khắp
+phần vẽ.
+
+### Gửi CẢ HAI bố cục xuống trình duyệt
+
+`/play/galaxy` trả cả bản ngang lẫn bản dọc trong một lượt, client chọn bằng
+media query. Không hỏi server "tôi đang dọc hay ngang": xoay máy là đổi bố cục
+NGAY trong khung hình đó, không chờ một lượt mạng, và không có cảnh máy chủ đoán
+sai hình dạng màn hình của một cái máy nó chưa từng thấy.
+
+### Nhạc nền HẠ XUỐNG khi bảng nhiệm vụ có tiếng
+
+Mở một tấm bảng có tiếng thì nhạc của màn tụt xuống `DUCK_VOLUME`, lên lại khi
+đóng bảng. Không hạ thì nhạc nền át mất chính câu đang nói.
+
+Hạ với MỌI bảng cũng sai: mở một câu trắc nghiệm toàn chữ mà nhạc tụt xuống thì
+không ai hiểu vì sao, và bản nhạc lên xuống suốt màn. Nên chỉ hạ khi tấm bảng
+đang mở THẬT SỰ có gì để nghe — `questHasSound` trong `stage-play.tsx`, ba nguồn:
+
+| Bảng | Nguồn tiếng |
+|---|---|
+| nhiệm vụ đang KHOÁ | câu khoá của người gác cổng (`locked_audio`) |
+| nhiệm vụ mở | câu hỏi nghe (`audio_url` của từng câu) |
+| nhiệm vụ `advisor` | thêm lời chia tay của NPC, nằm ở MÀN chứ không ở nhiệm vụ |
+
+Bảng khoá chỉ hỏi vế đầu rồi **dừng ở đó**: nó không chạy câu hỏi nào cả, nên
+mấy câu hỏi nghe bên trong không nói lên điều gì về việc lúc này có tiếng hay
+không. Thiếu vế này là lỗi đã gặp: nhiệm vụ khoá phát câu của người gác cổng mà
+nhạc nền vẫn to nguyên.
+
+`locked_audio` tra theo CHÍNH DÒNG CHỮ đang hiện, cùng phép tra mà `QuestPanel`
+dùng để chọn file — bản ghi gắn với văn bản (xem `voice_lines`), nên hai chỗ
+lệch nhau thì hoặc hạ nhạc mà không có tiếng, hoặc có tiếng mà không hạ nhạc.
+
+Hỏi ĐỀ BÀI ĐÃ ĐÓNG BĂNG như mọi thứ khác của lượt chơi.
 
 ### `question_audios` — tiếng đọc, khoá theo GIỌNG
 

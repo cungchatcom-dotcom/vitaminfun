@@ -85,7 +85,13 @@ class Settings(BaseSettings):
     # ---------- Lưu trữ media (dùng từ Bước 2) ----------
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_path: str = "./storage"
-    storage_public_url: str = "http://localhost:8000/media"
+    #: Tiền tố công khai của file media. ĐỌC ĐÚNG MỘT LẦN — lúc tải file lên —
+    #: rồi ghi vào `media_assets.url`. Đổi biến này KHÔNG sửa các dòng đã ghi;
+    #: muốn nắn dữ liệu cũ thì chạy `scripts/fix_media_urls.py`.
+    #:
+    #: Mặc định TƯƠNG ĐỐI: mỗi tên miền tự phục vụ file của mình, và dữ liệu
+    #: không đóng đinh một tên miền nào. Xem DEPLOY.md §7b.
+    storage_public_url: str = "/media"
 
     # ---------- API ----------
     api_host: str = "0.0.0.0"

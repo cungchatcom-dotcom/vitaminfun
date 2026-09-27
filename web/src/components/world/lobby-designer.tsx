@@ -8,19 +8,24 @@ import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Card, PageHeader, SectionTitle, Skeleton } from '@/components/ui/primitives';
 import {
-  FRAME,
   FRAME_WIDTH,
-  GALAXY,
+  frameSpec,
+  frameWidthRange,
+  galaxyCanvas,
+  lobbySpec,
   hasContentFrame,
   isLobbyAction,
+  isLobbyControl,
   LOBBY_ELEMENTS,
   LOBBY_ELEMENT_KEYS,
   LOBBY_GROUPS,
+  LOBBY_PAGE_SIZE,
   lobbyBox,
   lobbyGroupOf,
   lobbyContentBox,
   lobbyTextLines,
   type FrameKind,
+  type Orientation,
   type LobbyContentSaved,
   type LobbyElementKey,
   type LobbySaved,
@@ -132,8 +137,14 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
    */
   const [tint, setTint] = useState<{ id: string; color: string } | null>(null);
   /** Mức phóng của khung xem trước. Chỉ số trong `ZOOMS`; 1 = vừa bề rộng cột. */
-  const [zoomAt, setZoomAt] = useState(ZOOMS.indexOf(1));
-  const zoom = ZOOMS[zoomAt] ?? 1;
+  //
+  // Nhớ RIÊNG theo từng hướng, và bản dọc mặc định 2× — cùng lý do với bên
+  // bản đồ thiên hà: ở mức 1× khung dọc chỉ rộng chừng 29vh, và kéo thả trong
+  // một dải hẹp như vậy thì mỗi pixel là sáu đơn vị toạ độ.
+  const [zoomTheoHuong, setZoomTheoHuong] = useState<Record<Orientation, number>>({
+    landscape: ZOOMS.indexOf(1),
+    portrait: ZOOMS.indexOf(2),
+  });
   const [uploading, setUploading] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -185,20 +196,73 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
     }
   }
 
+  // ------------------------------------------------------- ngang hay dọc
+
+  /**
+   * Bố cục đang sửa. Đổi cái này là đổi CẢ khung vẽ, CẢ chỗ đọc, CẢ chỗ ghi —
+   * ba thứ phải đi cùng nhau, nếu không thì kéo ở bản dọc mà ghi vào bản ngang.
+   */
+  const [huong, setHuong] = useState<Orientation>('landscape');
+  const doc = huong === 'portrait';
+  const canvas = galaxyCanvas(huong);
+  const rongKhung = frameWidthRange(huong);
+
+  const zoomAt = zoomTheoHuong[huong];
+  const zoom = ZOOMS[zoomAt] ?? 1;
+  const setZoomAt = (next: number | ((i: number) => number)) =>
+    setZoomTheoHuong((prev) => ({
+      ...prev,
+      [huong]: typeof next === 'function' ? next(prev[huong]) : next,
+    }));
+
+  /*
+   * KHÔNG GHIM khung xem trước — ở mọi mức phóng, mọi hướng.
+   *
+   * Từng có `sticky`, để khung đứng yên trong lúc bảng sửa bên dưới trôi lên.
+   * Nhưng `sticky` với một thứ nằm BÊN DƯỚI nó thì chỉ có một kết cục: thứ đó
+   * trôi lên và chui xuống dưới khung đang ghim. Bảng sửa khối bị che đúng lúc
+   * người ta cuộn xuống để sửa nó — ở 100% cũng vậy, chỉ là che ít hơn.
+   *
+   * Cột phải thì vẫn ghim được, vì nó nằm CẠNH khung chứ không nằm dưới.
+   */
+
+  /**
+   * Bảng BỐ CỤC KHỐI của hướng đang sửa.
+   *
+   * Bản ngang nằm ở `lobby_json`, bản dọc nằm trong `lobby_portrait.blocks`.
+   * Một hàm đọc chung thì phần vẽ bên dưới không cần biết điều đó.
+   */
+  function khoi(key: LobbyElementKey): LobbySaved | undefined {
+    const bang = doc ? world?.lobby_portrait?.blocks : world?.lobby_json;
+    return (bang as Record<string, LobbySaved> | undefined)?.[key];
+  }
+
+  /** ĐỌC một trường khung chữ / ảnh nền theo hướng đang sửa. */
+  function docW<K extends keyof NonNullable<World['lobby_portrait']>>(key: K) {
+    return (doc ? world?.lobby_portrait?.[key] : (world as never)?.[key]) as never;
+  }
+
+  /** GHI một bản vá bố cục (ảnh nền, hai khung) vào đúng hướng đang sửa. */
+  function ghiW(payload: Record<string, unknown>) {
+    return patch(doc ? { lobby_portrait: payload } : payload);
+  }
+
   const board = useDesignBoard({
-    canvas: GALAXY,
+    canvas,
     minSize: FRAME_WIDTH.min,
-    maxSize: FRAME_WIDTH.max,
+    // Bề rộng không vượt quá bề rộng khung CỦA HƯỚNG ĐANG SỬA — khớp `Field()`
+    // bên Pydantic, nên cận ở đây và cận ở server nói cùng một con số.
+    maxSize: rongKhung.max,
     onMove: (id, x, y) => {
       const kind = frameKindOf(id);
-      if (kind) return void patch({ [`${kind}_x`]: x, [`${kind}_y`]: y });
+      if (kind) return void ghiW({ [`${kind}_x`]: x, [`${kind}_y`]: y });
 
       // Khung nội dung lưu theo PHẦN TRĂM CỦA KHỐI, mà bảng kéo thả thì làm
       // việc bằng hệ toạ độ thế giới — nên đổi hệ ngay ở đây, chỗ duy nhất
       // biết cả hai. Xem `LobbyContentSaved` về việc vì sao lưu phần trăm.
       const inner = contentKeyOf(id);
       if (inner) {
-        const block = lobbyBox(inner, world?.lobby_json?.[inner] as LobbySaved | undefined);
+        const block = lobbyBox(inner, khoi(inner), huong);
         return void patchContent(inner, {
           x: roundPercent(((x - block.x) / block.width) * 100 + 50, 0),
           y: roundPercent(((y - block.y) / block.height) * 100 + 50, 0),
@@ -215,7 +279,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
       // căn lại năm cái một lần nữa — mà họ vừa căn xong.
       const members = LOBBY_GROUPS[key];
       if (members) {
-        const before = lobbyBox(key, world?.lobby_json?.[key] as LobbySaved | undefined);
+        const before = lobbyBox(key, khoi(key), huong);
         return void moveGroup(members, x - before.x, y - before.y);
       }
 
@@ -227,7 +291,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
       const change = axis === 'x' ? { w: size.w } : axis === 'y' ? { h: size.h } : size;
       const kind = frameKindOf(id);
       if (kind) {
-        return void patch({
+        return void ghiW({
           ...(change.w !== undefined && { [`${kind}_width`]: change.w }),
           ...(change.h !== undefined && { [`${kind}_height`]: change.h }),
         });
@@ -235,7 +299,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
 
       const inner = contentKeyOf(id);
       if (inner) {
-        const block = lobbyBox(inner, world?.lobby_json?.[inner] as LobbySaved | undefined);
+        const block = lobbyBox(inner, khoi(inner), huong);
         return void patchContent(inner, {
           ...(change.w !== undefined && {
             w: roundPercent((change.w / block.width) * 100, CONTENT_MIN_PERCENT),
@@ -270,16 +334,20 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
   ) {
     const next: Record<string, LobbySaved> = {};
     for (const member of members) {
-      const current = (world?.lobby_json?.[member] ?? {}) as LobbySaved;
-      const box = lobbyBox(member, current);
+      // `khoi()`, không phải `world.lobby_json`: bản trước đọc và GHI thẳng
+      // vào bố cục NGANG ở đây, bất kể đang sửa hướng nào. Kéo khung thành
+      // tích ở bản dọc thì bản dọc đứng im, còn cả nhóm sáu khối của bản
+      // NGANG bị dời đi một đoạn — lặng lẽ, ở một màn người dựng không nhìn.
+      const current = khoi(member) ?? ({} as LobbySaved);
+      const box = lobbyBox(member, current, huong);
       next[member] = {
         ...current,
-        x: Math.round(Math.min(GALAXY.width, Math.max(0, box.x + dx))),
-        y: Math.round(Math.min(GALAXY.height, Math.max(0, box.y + dy))),
+        x: Math.round(Math.min(canvas.width, Math.max(0, box.x + dx))),
+        y: Math.round(Math.min(canvas.height, Math.max(0, box.y + dy))),
       };
     }
     if (also) next[also.key] = { ...next[also.key], ...also.change };
-    await patch({ lobby_json: next });
+    await patch(doc ? { lobby_portrait: { blocks: next } } : { lobby_json: next });
   }
 
   /**
@@ -298,7 +366,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
     const moved = change.x !== undefined || change.y !== undefined;
     if (!members || !moved) return void patchBlock(key, change);
 
-    const before = lobbyBox(key, world?.lobby_json?.[key] as LobbySaved | undefined);
+    const before = lobbyBox(key, khoi(key), huong);
     const { x, y, ...rest } = change;
     await moveGroup(
       members,
@@ -316,8 +384,11 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
    * không ai đoán được `media_id: null` nghĩa là "gỡ ảnh" hay "không gửi".
    */
   async function patchBlock(key: LobbyElementKey, change: Partial<LobbySaved>) {
-    const current = (world?.lobby_json?.[key] ?? {}) as LobbySaved;
-    await patch({ lobby_json: { [key]: { ...current, ...change } } });
+    const current = khoi(key) ?? ({} as LobbySaved);
+    const block = { ...current, ...change };
+    // Bản dọc nằm một tầng sâu hơn (`lobby_portrait.blocks`), nhưng luật gộp
+    // thì y hệt: server gộp ở mức KHỐI ở cả hai đường.
+    await patch(doc ? { lobby_portrait: { blocks: { [key]: block } } } : { lobby_json: { [key]: block } });
   }
 
   /**
@@ -328,7 +399,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
    * sẽ làm mất màu chữ và cỡ chữ đang có.
    */
   async function patchContent(key: LobbyElementKey, change: Partial<LobbyContentSaved>) {
-    const current = (world?.lobby_json?.[key] ?? {}) as LobbySaved;
+    const current = khoi(key) ?? ({} as LobbySaved);
     await patchBlock(key, { content: { ...(current.content ?? {}), ...change } });
   }
 
@@ -370,7 +441,11 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
     setUploading(kind);
     try {
       const asset = await uploadMedia(file, 'world-lobby');
-      await patch({ [`${kind}_media_id`]: asset.id });
+      // Bản dọc gọi ảnh nền là `background_media_id`, bản ngang gọi là
+      // `lobby_media_id`: bên trong object bố cục thì "nền" đã đủ nghĩa, không
+      // cần nhắc lại mình thuộc phòng chờ nào.
+      const cot = doc && kind === 'lobby' ? 'background_media_id' : `${kind}_media_id`;
+      await ghiW({ [cot]: asset.id });
     } catch (error) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
     } finally {
@@ -395,16 +470,31 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
     );
   }
 
-  /** Giá trị đang có hiệu lực: của world nếu đã đặt, không thì của thiên hà. */
+  /**
+   * Giá trị đang có hiệu lực của một trường khung chữ.
+   *
+   * Bản NGANG: của world nếu đã đặt, không thì thừa của thiên hà — luật cũ.
+   *
+   * Bản DỌC: KHÔNG thừa kế gì cả. Thiên hà cũng là một tấm 16:9, và toạ độ của
+   * nó nằm trong hệ 3200×1800; rót vào khung 1800×3200 là cái khung rơi ra
+   * ngoài mép. Trống thì để trống, và chỗ gọi rơi về mặc định CỦA BẢN DỌC.
+   */
   function effective<K extends keyof World & keyof Galaxy>(key: K) {
+    if (doc) return (world?.lobby_portrait?.[key as never] ?? null) as never;
     return world![key] ?? galaxy?.[key] ?? null;
   }
 
-  const background = world.lobby_url ?? galaxy?.background_url ?? null;
+  const background = doc
+    ? (world.lobby_portrait?.background_url ?? null)
+    : (world.lobby_url ?? galaxy?.background_url ?? null);
   // Loại nền phải đi theo ĐÚNG cái nguồn vừa chọn ở trên. Tính riêng hai vế là
   // mở cửa cho việc phòng chờ thừa một video của thiên hà mà vẫn bị vẽ bằng
   // `<img>` — nền trắng, không lỗi nào, không ai hiểu vì sao.
-  const backgroundKind = world.lobby_url ? world.lobby_kind : (galaxy?.background_kind ?? null);
+  const backgroundKind = doc
+    ? (world.lobby_portrait?.background_kind ?? null)
+    : world.lobby_url
+      ? world.lobby_kind
+      : (galaxy?.background_kind ?? null);
   const selectedBlock = selectedId ? blockKeyOf(selectedId) : null;
 
   // Hàng chương trong khung xem trước vẽ bằng chương THẬT của world, không phải
@@ -436,13 +526,56 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
         title={t('lobby.designer.title')}
         description={t('lobby.designer.subtitle')}
         actions={
-          saveState !== 'idle' && (
-            <span className="text-xs text-slate-400">
-              {saveState === 'saving' ? t('common.loading') : `✓ ${t('designer.saved')}`}
-            </span>
-          )
+          <div className="flex items-center gap-3">
+            {saveState !== 'idle' && (
+              <span className="text-xs text-slate-400">
+                {saveState === 'saving' ? t('common.loading') : `✓ ${t('designer.saved')}`}
+              </span>
+            )}
+
+            {/* CÔNG TẮC NGANG / DỌC — cùng dáng với bên bản đồ thiên hà. Chấm
+                nhỏ = bản dọc đã có ảnh nền, tức đã được thiết kế. */}
+            <div className="flex overflow-hidden rounded-lg border border-abyss-700 text-xs">
+              {(['landscape', 'portrait'] as const).map((huongNut) => (
+                <button
+                  key={huongNut}
+                  type="button"
+                  aria-pressed={huong === huongNut}
+                  onClick={() => {
+                    setHuong(huongNut);
+                    // Bỏ chọn: khối đang chọn ở bản ngang thì tay cầm của nó
+                    // vẫn hiện ở bản dọc, đúng chỗ khác hẳn.
+                    setSelectedId(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition ${
+                    huong === huongNut
+                      ? 'bg-lagoon-500/20 font-bold text-lagoon-400'
+                      : 'text-slate-400 hover:bg-abyss-800 hover:text-slate-200'
+                  }`}
+                >
+                  {t(`galaxy.designer.${huongNut}`)}
+                  {huongNut === 'portrait' && world?.lobby_portrait?.background_url && (
+                    <span
+                      aria-hidden
+                      className="size-1.5 rounded-full bg-orichalcum-400"
+                      title={t('galaxy.designer.portraitReady')}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         }
       />
+
+      {/* Bản dọc chưa có ảnh nền = chưa thiết kế, học sinh cầm máy dọc vẫn được
+          mời xoay ngang. Nói thẳng, vì khung soạn trống trông y hệt khung soạn
+          đã xong mà quên tải ảnh. */}
+      {doc && !world?.lobby_portrait?.background_url && (
+        <p className="mb-4 rounded-lg bg-orichalcum-500/10 px-4 py-2 text-sm text-orichalcum-400">
+          {t('lobby.designer.portraitEmpty')}
+        </p>
+      )}
 
       {errorKey && (
         <p role="alert" className="mb-4 rounded-lg bg-coral-500/15 px-4 py-2 text-sm text-coral-500">
@@ -458,13 +591,16 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               phép đổi tự đúng theo — còn `scale` thì thêm một tầng biến đổi
               nữa mà mọi chỗ đo đạc đều phải nhớ trừ ra. Thẻ bọc cuộn ngang
               để phóng quá bề rộng cột thì cuộn, chứ không bóp khung lại. */}
-          <div className="sticky top-3 z-10 overflow-auto">
+          <div className="relative overflow-auto">
             <div
               ref={board.boardRef}
               className="relative mx-auto overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950 select-none"
               style={{
-                aspectRatio: `${GALAXY.width} / ${GALAXY.height}`,
-                width: `calc(min(100%, 51vh * 16 / 9) * ${zoom})`,
+                aspectRatio: `${canvas.width} / ${canvas.height}`,
+                // Cỡ nền suy từ trần CHIỀU CAO 51vh, theo tỉ lệ của hướng đang
+                // sửa: bản dọc cao gấp ba lần bề ngang nên cùng một trần chiều
+                // cao cho ra một khung hẹp — đúng như màn hình học sinh.
+                width: `calc(min(100%, 51vh * ${canvas.width} / ${canvas.height}) * ${zoom})`,
               }}
               onPointerDown={(e) => {
                 if (e.target === e.currentTarget) setSelectedId(null);
@@ -487,8 +623,8 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                   `LOBBY_ELEMENTS` cộng một khoá chữ. */}
               {LOBBY_ELEMENT_KEYS.map((key) => {
                 const id = BLOCK_PREFIX + key;
-                const saved = world.lobby_json?.[key] as LobbySaved | undefined;
-                const base = lobbyBox(key, saved);
+                const saved = khoi(key);
+                const base = lobbyBox(key, saved, huong);
                 const live = board.ghost?.id === id ? board.ghost : null;
 
                 // Cha đang bị kéo thì con chạy theo NGAY, không đợi thả tay.
@@ -501,7 +637,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                     ? board.ghost
                     : null;
                 const parentBase = parentGhost
-                  ? lobbyBox(parentKey, world.lobby_json?.[parentKey] as LobbySaved | undefined)
+                  ? lobbyBox(parentKey, khoi(parentKey), huong)
                   : null;
 
                 const x = live?.x ?? base.x + (parentGhost && parentBase ? parentGhost.x - parentBase.x : 0);
@@ -546,13 +682,19 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                 return (
                   <div
                     key={key}
-                    className="absolute"
+                    // Khối đã tắt vẫn nằm trên khung soạn, chỉ mờ đi: giấu hẳn
+                    // là không còn chỗ nào để bấm vào mà bật lại.
+                    className={`absolute ${saved?.hidden ? 'opacity-30' : ''}`}
                     style={{
-                      left: `${(x / GALAXY.width) * 100}%`,
-                      top: `${(y / GALAXY.height) * 100}%`,
-                      width: `${(width / GALAXY.width) * 100}%`,
-                      height: `${(height / GALAXY.height) * 100}%`,
+                      left: `${(x / canvas.width) * 100}%`,
+                      top: `${(y / canvas.height) * 100}%`,
+                      width: `${(width / canvas.width) * 100}%`,
+                      height: `${(height / canvas.height) * 100}%`,
                       transform: 'translate(-50%, -50%)',
+                      // Khối điều khiển nằm TRÊN, như ở màn học sinh — khung
+                      // soạn phải cho thấy đúng cái gì đè lên cái gì. Và nó cũng
+                      // phải bấm-kéo được khi nằm gọn trên một tấm khung lớn.
+                      ...(isLobbyControl(key) && { zIndex: 25 }),
                     }}
                   >
                     <div className="relative size-full">
@@ -569,15 +711,18 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                       >
                         <LobbyBlock
                           elementKey={key}
-                          imageUrl={world.lobby_urls?.[key]}
+                          imageUrl={
+                            doc ? world.lobby_portrait?.block_urls?.[key] : world.lobby_urls?.[key]
+                          }
                           label={t(`lobby.element.${key}`)}
                           text={pickText(
-                            ((world.lobby_json?.[key] ?? {}) as LobbySaved).text_i18n ?? undefined,
+                            (khoi(key) ?? ({} as LobbySaved)).text_i18n ?? undefined,
                             locale,
                           )}
-                          lines={lobbyTextLines(key, saved)}
+                          lines={lobbyTextLines(key, saved, huong)}
                           content={inner}
                           chapters={chapterCells}
+                          count={saved?.count}
                         />
                       </button>
                       {active && (
@@ -624,13 +769,35 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                 );
               })}
 
-              {(['title', 'desc'] as const).map((kind) => {
+              {/* VÙNG AN TOÀN của bản dọc — cùng con số, cùng lý do với bên
+                  bản đồ thiên hà: phòng chờ dọc được phóng cho PHỦ KÍN màn,
+                  mép thừa bị cắt, và chỗ bị cắt nhiều nhất đo được là khoảng
+                  9% mỗi mép. Khối nào nằm trong đường đứt thì máy nào cũng
+                  thấy trọn. */}
+              {doc && (
+                <div
+                  className="pointer-events-none absolute inset-[9%] z-30 rounded border border-dashed border-orichalcum-400/45"
+                  aria-hidden
+                >
+                  <span className="absolute -top-px left-1 -translate-y-full text-[10px] text-orichalcum-400/70">
+                    {t('galaxy.designer.safeArea')}
+                  </span>
+                </div>
+              )}
+
+              {/* Bản dọc: khung nào đang TẮT thì không vẽ, cả ở đây lẫn màn học
+                  sinh. Thứ học sinh không thấy thì người dựng cũng không cần
+                  kéo nó — để nó nằm trên khung soạn chỉ là một vật cản vô hình
+                  với học sinh mà lại chắn tay người dựng. */}
+              {(['title', 'desc'] as const)
+                .filter((kind) => !doc || Boolean(world.lobby_portrait?.[`${kind}_visible`]))
+                .map((kind) => {
                 const live = board.ghost?.id === FRAME_ID[kind] ? board.ghost : null;
-                const x = live?.x ?? effective(`${kind}_x` as never) ?? FRAME[kind].x;
-                const y = live?.y ?? effective(`${kind}_y` as never) ?? FRAME[kind].y;
+                const x = live?.x ?? effective(`${kind}_x` as never) ?? frameSpec(kind, huong).x;
+                const y = live?.y ?? effective(`${kind}_y` as never) ?? frameSpec(kind, huong).y;
                 const fDraft = board.sizeDraft?.id === FRAME_ID[kind] ? board.sizeDraft : null;
                 const width =
-                  fDraft?.w ?? effective(`${kind}_width` as never) ?? FRAME[kind].width;
+                  fDraft?.w ?? effective(`${kind}_width` as never) ?? frameSpec(kind, huong).width;
                 const height = fDraft?.h ?? effective(`${kind}_height` as never) ?? null;
                 const active = selectedId === FRAME_ID[kind];
                 // Chưa kéo cạnh dưới bao giờ thì chưa có chiều cao lưu; lấy chiều
@@ -639,8 +806,9 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
 
                 return (
                   <GalaxyFrame
-                    key={kind}
+                    key={`${huong}:${kind}`}
                     kind={kind}
+                    orientation={huong}
                     imageUrl={effective(`${kind}_url` as never)}
                     x={x}
                     y={y}
@@ -704,7 +872,7 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               <button
                 type="button"
                 title={t('lobby.designer.zoomReset')}
-                onClick={() => setZoomAt(ZOOMS.indexOf(1))}
+                onClick={() => setZoomAt(ZOOMS.indexOf(doc ? 2 : 1))}
                 className="w-12 rounded-lg py-1 text-center font-mono text-xs text-slate-400 transition hover:text-lagoon-400"
               >
                 {Math.round(zoom * 100)}%
@@ -729,10 +897,17 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
               // bảng xong thì bảng điều khiển vẫn hiện con số cũ, và ai gõ đè
               // lên đó là vô tình kéo cái khối về chỗ trước cú kéo. Đổi khoá
               // là gắn lại, và ô số đọc lại giá trị thật.
-              key={`${selectedBlock}:${JSON.stringify(world.lobby_json?.[selectedBlock] ?? {})}`}
+              // Khoá mang cả HƯỚNG: đổi qua bản dọc là cùng một khối nhưng
+              // con số khác hẳn, mà mấy ô `defaultValue` thì không tự đọc lại.
+              key={`${huong}:${selectedBlock}:${JSON.stringify(khoi(selectedBlock) ?? {})}`}
               elementKey={selectedBlock}
-              saved={(world.lobby_json?.[selectedBlock] ?? {}) as LobbySaved}
-              imageUrl={world.lobby_urls?.[selectedBlock]}
+              orientation={huong}
+              saved={khoi(selectedBlock) ?? ({} as LobbySaved)}
+              imageUrl={
+                doc
+                  ? world.lobby_portrait?.block_urls?.[selectedBlock]
+                  : world.lobby_urls?.[selectedBlock]
+              }
               busy={uploading === selectedBlock}
               onUpload={(file) => void uploadBlock(selectedBlock, file)}
               onClear={() => void patchBlock(selectedBlock, { media_id: null })}
@@ -749,16 +924,24 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
         <div className="space-y-4 lg:sticky lg:top-3 lg:max-h-[calc(100vh-1.5rem)] lg:overflow-y-auto lg:pr-1">
           <Card>
             <SectionTitle>{t('lobby.designer.scene')}</SectionTitle>
-            <p className="mb-3 text-xs text-slate-500">{t('lobby.designer.inheritHint')}</p>
+            {/* Lời nhắc "để trống thì thừa của thiên hà" CHỈ đúng ở bản ngang.
+                Bản dọc không thừa kế gì — xem `effective`. */}
+            <p className="mb-3 text-xs text-slate-500">
+              {t(doc ? 'lobby.designer.portraitNoInherit' : 'lobby.designer.inheritHint')}
+            </p>
 
             <MediaPicker
               label={t('galaxy.designer.background')}
               accept={BACKGROUND_ACCEPT}
               busy={uploading === 'lobby'}
-              hasValue={Boolean(world.lobby_media_id)}
+              hasValue={Boolean(
+                doc ? world.lobby_portrait?.background_media_id : world.lobby_media_id,
+              )}
               onPick={(file) => void uploadFor('lobby', file)}
-              onClear={() => void patch({ clear_lobby: true })}
-              clearLabel={t('lobby.designer.useGalaxy')}
+              onClear={() =>
+                void (doc ? ghiW({ clear_background: true }) : patch({ clear_lobby: true }))
+              }
+              clearLabel={doc ? undefined : t('lobby.designer.useGalaxy')}
               preview={
                 background ? (
                   <BackgroundLayer
@@ -833,22 +1016,49 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
 
           <Card>
             <SectionTitle>{t('galaxy.designer.frames')}</SectionTitle>
-            <p className="mb-3 text-xs text-slate-500">{t('lobby.designer.inheritHint')}</p>
+            <p className="mb-3 text-xs text-slate-500">
+              {t(doc ? 'lobby.designer.portraitNoInherit' : 'lobby.designer.inheritHint')}
+            </p>
 
-            {(['title', 'desc'] as const).map((kind) => (
+            {(['title', 'desc'] as const).map((kind) => {
+              // Bản ngang: luôn hiện, không có công tắc — nó chưa bao giờ có.
+              // Bản dọc: theo cờ, MẶC ĐỊNH TẮT (xem `WorldLobbyPortrait`).
+              const bat = !doc || Boolean(world.lobby_portrait?.[`${kind}_visible`]);
+              return (
               <div key={kind} className="mb-4 last:mb-0">
+                {doc && (
+                  <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={bat}
+                      onChange={(e) => void ghiW({ [`${kind}_visible`]: e.currentTarget.checked })}
+                      className="accent-lagoon-400"
+                    />
+                    {t(kind === 'title' ? 'lobby.designer.showTitle' : 'lobby.designer.showDesc')}
+                  </label>
+                )}
+
+                {/* Tắt thì giấu luôn phần cấu hình: chỉnh màu chữ cho một cái
+                    khung không ai nhìn thấy là việc không để làm gì. Bật lại là
+                    mọi thứ đã đặt còn nguyên — tắt chỉ là ẩn, không phải xoá. */}
+                {bat && (
+                <>
                 <MediaPicker
                   label={t(
                     kind === 'title' ? 'galaxy.designer.titleFrame' : 'galaxy.designer.descFrame',
                   )}
                   accept={IMAGE_ACCEPT}
                   busy={uploading === kind}
-                  hasValue={Boolean(world[`${kind}_media_id`])}
+                  hasValue={Boolean(
+                    doc
+                      ? world.lobby_portrait?.[`${kind}_media_id`]
+                      : world[`${kind}_media_id`],
+                  )}
                   onPick={(file) => void uploadFor(kind, file)}
                   onClear={() =>
-                    void patch(kind === 'title' ? { clear_title: true } : { clear_desc: true })
+                    void ghiW(kind === 'title' ? { clear_title: true } : { clear_desc: true })
                   }
-                  clearLabel={t('lobby.designer.useGalaxy')}
+                  clearLabel={doc ? undefined : t('lobby.designer.useGalaxy')}
                   preview={
                     effective(`${kind}_url` as never) ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -862,16 +1072,23 @@ export function LobbyDesigner({ worldId }: { worldId: string }) {
                 />
 
                 <FrameTextFields
-                  color={effective(`${kind}_color` as never) ?? FRAME[kind].color}
+                  // `key` buộc dựng lại khi đổi hướng: hai ô này dùng
+                  // `defaultValue`, không có nó thì sang bản dọc vẫn thấy con
+                  // số của bản ngang.
+                  key={huong}
+                  color={effective(`${kind}_color` as never) ?? frameSpec(kind, huong).color}
                   fontScale={effective(`${kind}_font` as never) ?? 100}
                   onPreview={(color) => setTint(color ? { id: FRAME_ID[kind], color } : null)}
                   onColor={(value) =>
-                    void patch({ [`${kind}_color`]: value }).then(() => setTint(null))
+                    void ghiW({ [`${kind}_color`]: value }).then(() => setTint(null))
                   }
-                  onFontScale={(value) => void patch({ [`${kind}_font`]: value })}
+                  onFontScale={(value) => void ghiW({ [`${kind}_font`]: value })}
                 />
+                </>
+                )}
               </div>
-            ))}
+              );
+            })}
           </Card>
 
           <WorldCharacters worldId={world.id} />
@@ -1012,6 +1229,7 @@ function BlockInspector({
   onContentChange,
   onTextPreview,
   onTextColor,
+  orientation,
 }: {
   elementKey: LobbyElementKey;
   saved: LobbySaved;
@@ -1026,10 +1244,14 @@ function BlockInspector({
   /** Chốt màu chữ. Tách khỏi `onContentChange` vì nó còn phải dọn màu xem
       trước sau khi ghi xong. */
   onTextColor: (color: string) => void;
+  /** Hướng đang sửa — quyết cỡ mặc định của khối và trần của bốn ô số. */
+  orientation: Orientation;
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const box = lobbyBox(elementKey, saved);
+  const canvas = galaxyCanvas(orientation);
+  const box = lobbyBox(elementKey, saved, orientation);
+  const dieuKhien = isLobbyControl(elementKey);
   const inner = lobbyContentBox(saved.content);
   const ownButtonText = ownText(saved.text_i18n ?? undefined, locale);
 
@@ -1041,10 +1263,10 @@ function BlockInspector({
   ];
 
   const numbers = [
-    { field: 'x' as const, value: box.x, max: GALAXY.width },
-    { field: 'y' as const, value: box.y, max: GALAXY.height },
-    { field: 'w' as const, value: box.width, max: GALAXY.width },
-    { field: 'h' as const, value: box.height, max: GALAXY.height },
+    { field: 'x' as const, value: box.x, max: canvas.width },
+    { field: 'y' as const, value: box.y, max: canvas.height },
+    { field: 'w' as const, value: box.width, max: canvas.width },
+    { field: 'h' as const, value: box.height, max: canvas.height },
   ];
 
   return (
@@ -1058,6 +1280,10 @@ function BlockInspector({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {/* Khối điều khiển không có ảnh nền: nó là một cái nút tự vẽ lấy, và
+              một tấm ảnh lót dưới nút tài khoản chỉ làm người ta tưởng tấm
+              ảnh đó bấm được. Chỉ còn chỗ đứng và kích thước. */}
+          {!dieuKhien && (
           <div className="sm:col-span-2">
             <MediaPicker
               label={t('lobby.designer.blockImage')}
@@ -1078,11 +1304,23 @@ function BlockInspector({
               }
             />
           </div>
+          )}
 
           {/* Chữ trên nút — CHỈ nút mới có. Khối khác đã có nội dung riêng (dãy
               chỉ số, bảng xếp hạng, hàng chương), một dòng chữ đè lên trên
               chúng không để làm gì. Bỏ trống = học sinh chỉ thấy tấm ảnh, và
               đó là mặc định: ảnh nút thường đã vẽ sẵn chữ trong tranh. */}
+          {/* Bật/tắt nút. Mỗi hướng một cờ, như số chương mỗi trang. */}
+          {isLobbyAction(elementKey) && (
+            <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-300 sm:col-span-2 xl:col-span-3">
+              <input
+                type="checkbox"
+                checked={!saved.hidden}
+                onChange={(e) => onChange({ hidden: !e.currentTarget.checked })}
+              />
+              {t('lobby.designer.buttonShown')}
+            </label>
+          )}
           {isLobbyAction(elementKey) && (
             <label className="block sm:col-span-2 xl:col-span-3">
               <span className="field-label">{t('lobby.designer.buttonText')}</span>
@@ -1099,6 +1337,31 @@ function BlockInspector({
               />
             </label>
           )}
+
+          {/* HÀNG CHƯƠNG: số ô mỗi trang, và số màn mỗi trang của minimap mở
+              ra từ nó. Hai con số nằm trên CÙNG khối vì minimap không có chỗ
+              đứng riêng — và vì mỗi hướng có bộ khối riêng, đây tự nhiên là một
+              cặp số cho bản ngang và một cặp cho bản dọc. */}
+          {elementKey === 'chapters' &&
+            (['count', 'stage_count'] as const).map((truong) => (
+              <label key={truong} className="block sm:col-span-2 xl:col-span-2">
+                <span className="field-label">{t(`lobby.designer.${truong}`)}</span>
+                <select
+                  className="field-input"
+                  value={saved[truong] ?? LOBBY_PAGE_SIZE.base}
+                  onChange={(e) => onChange({ [truong]: Number(e.target.value) })}
+                >
+                  {Array.from(
+                    { length: LOBBY_PAGE_SIZE.max - LOBBY_PAGE_SIZE.min + 1 },
+                    (_, i) => LOBBY_PAGE_SIZE.max - i,
+                  ).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
 
           {numbers.map((n) => (
             <label key={n.field} className="block">
@@ -1126,6 +1389,10 @@ function BlockInspector({
           Khối không có khung nội dung riêng thì chỉ còn màu chữ và cỡ chữ: bốn
           con số kia sẽ nói về một cái hộp trùng khít với chính cái khối, tức
           bốn ô nhập không đổi được gì. */}
+      {/* Khối điều khiển: không có chữ nào để tô màu hay đổi cỡ — cả cụm co
+          giãn theo chiều cao khối. Giấu hẳn mục này thay vì để lại hai ô không
+          đổi được gì. */}
+      {!dieuKhien && (
       <div className="border-t border-abyss-800 p-4">
         {hasContentFrame(elementKey) ? (
           <>
@@ -1171,6 +1438,7 @@ function BlockInspector({
           onFontScale={(value) => onContentChange({ font: value })}
         />
       </div>
+      )}
     </Card>
   );
 }

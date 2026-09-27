@@ -9,13 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Card, PageHeader, SectionTitle, Skeleton } from '@/components/ui/primitives';
 import {
   DEFAULT_WORLD_SIZE,
-  FRAME,
   FRAME_FONT,
   FRAME_WIDTH,
   GALAXY,
   WORLD_SIZE,
   defaultWorldSpot,
+  frameSpec,
+  frameWidthRange,
+  galaxyCanvas,
   type FrameKind,
+  type Orientation,
 } from '@/game/world';
 import { ApiError } from '@/lib/api-error';
 import { ownText, pickText } from '@/lib/i18n-text';
@@ -46,6 +49,15 @@ import { WorldOrb } from './world-orb';
  * `useDesignBoard()`. Id world là UUID nên hai chuỗi này không bao giờ đụng.
  */
 const FRAME_ID: Record<FrameKind, string> = { title: 'frame:title', desc: 'frame:desc' };
+
+/**
+ * Những trường bố cục có mặt Ở CẢ HAI hướng.
+ *
+ * Giao của `Galaxy` và `GalaxyPortrait`. Nhờ nó mà `doc_G('title_x')` gõ sai
+ * tên trường là hỏng lúc biên dịch, chứ không phải lúc giáo viên kéo cái khung
+ * và không thấy gì xảy ra.
+ */
+type GalaxyPortraitFields = NonNullable<Galaxy['portrait']>;
 
 function frameKindOf(id: string): FrameKind | null {
   if (id === FRAME_ID.title) return 'title';
@@ -143,26 +155,88 @@ export function GalaxyDesigner() {
     }
   }
 
+  // ------------------------------------------------------- ngang hay dọc
+
+  /**
+   * Bố cục đang sửa. Đổi cái này là đổi CẢ khung vẽ, CẢ chỗ đọc, CẢ chỗ ghi —
+   * ba thứ phải đi cùng nhau, nếu không thì kéo ở bản dọc mà ghi vào bản ngang.
+   *
+   * `landscape` là mặc định và là bản luôn có: mọi thiên hà đang chạy đều đã
+   * được thiết kế ở đó.
+   */
+  const [huong, setHuong] = useState<Orientation>('landscape');
+  const doc = huong === 'portrait';
+  const canvas = galaxyCanvas(huong);
+  // Bề rộng khung chữ không vượt quá bề rộng bản đồ CỦA HƯỚNG ĐANG SỬA — khớp
+  // `Field(le=...)` bên Pydantic, nên cận ở đây và cận ở server nói cùng một
+  // con số.
+  const rongKhung = frameWidthRange(huong);
+
+  /**
+   * CỠ KHUNG XEM TRƯỚC, tính bằng phần trăm của cỡ nền (51vh chiều cao).
+   *
+   * Riêng cho từng hướng, không dùng chung một con số: bản ngang ở 51vh đã
+   * chiếm quá nửa bề rộng cột, còn bản dọc ở đúng 51vh thì chỉ rộng chừng 29vh
+   * — một dải hẹp mà kéo thả trong đó thì mỗi pixel trên màn là sáu đơn vị toạ
+   * độ, tức là căn không nổi. Nên bản dọc mặc định GẤP ĐÔI.
+   *
+   * Nhớ theo hướng nên đổi qua đổi lại không mất chỗ vừa chỉnh.
+   */
+  const [zoom, setZoom] = useState<Record<Orientation, number>>({
+    landscape: 100,
+    portrait: 200,
+  });
+  const zoomHienTai = zoom[huong];
+  const caoKhung = (51 * zoomHienTai) / 100;
+  // KHÔNG ghim khung xem trước, ở mọi mức phóng — xem ghi chú dài trong
+  // `LobbyDesigner`: `sticky` với bảng sửa world nằm ngay bên dưới là bảng sửa
+  // trôi lên chui xuống dưới khung, bị che đúng lúc cuộn xuống để sửa.
+
+  /**
+   * ĐỌC một trường bố cục của thiên hà theo hướng đang sửa.
+   *
+   * Bản ngang nằm ở cột riêng (`galaxy.title_x`), bản dọc nằm trong một object
+   * (`galaxy.portrait.title_x`) — xem docs/GAME_DOMAIN.md. Một hàm đọc chung
+   * thì phần vẽ bên dưới không cần biết điều đó, và thêm hướng thứ ba sau này
+   * chỉ phải sửa ở đây.
+   */
+  function doc_G<K extends keyof GalaxyPortraitFields>(key: K): Galaxy[K] {
+    return (doc ? galaxy?.portrait?.[key] : galaxy?.[key]) as Galaxy[K];
+  }
+
+  /** GHI một bản vá bố cục vào đúng hướng đang sửa. */
+  function ghiG(payload: Record<string, unknown>) {
+    return patchGalaxy(doc ? { portrait: payload } : payload);
+  }
+
+  /** GHI chỗ đứng / cỡ của một world vào đúng hướng đang sửa. */
+  function ghiW(id: string, payload: Record<string, unknown>) {
+    return patchWorld(id, doc ? { portrait: payload } : payload);
+  }
+
   // ---------------------------------------------------------------- kéo thả
 
   // Một bộ kéo thả cho CẢ world lẫn hai cái khung. Rẽ nhánh theo id ở đây chứ
   // không dựng hai bộ: hai bộ nghe chuột trên cùng một `window` thì cả hai cùng
   // phản ứng với một cú kéo.
   const board = useDesignBoard({
-    canvas: GALAXY,
+    canvas,
     minSize: Math.min(WORLD_SIZE.min, FRAME_WIDTH.min),
-    maxSize: Math.max(WORLD_SIZE.max, FRAME_WIDTH.max),
+    // Bề rộng khung không vượt quá bề rộng bản đồ CỦA HƯỚNG ĐANG SỬA: ở bản
+    // dọc bản đồ chỉ rộng 1800, và giữ trần 3200 là cho phép kéo một cái khung
+    // rộng gấp đôi màn hình mà không có gì chặn lại.
+    maxSize: Math.max(WORLD_SIZE.max, canvas.width),
     onMove: (id, x, y) => {
       const kind = frameKindOf(id);
-      if (kind) void patchGalaxy({ [`${kind}_x`]: x, [`${kind}_y`]: y });
-      else void patchWorld(id, { scene_x: x, scene_y: y });
+      if (kind) void ghiG({ [`${kind}_x`]: x, [`${kind}_y`]: y });
+      else void ghiW(id, { scene_x: x, scene_y: y });
     },
     // World là một bức tranh và khung cũng là một bức tranh: chiều cao suy ra
     // từ tỉ lệ gốc, nên chỉ bề rộng lưu được. Màn này giữ đúng một tay cầm góc.
     onResize: (id, size) => {
       const kind = frameKindOf(id);
-      if (kind) void patchGalaxy({ [`${kind}_width`]: size.w });
-      else void patchWorld(id, { icon_size: size.w });
+      if (kind) void ghiG({ [`${kind}_width`]: size.w });
+      else void ghiW(id, { icon_size: size.w });
     },
   });
 
@@ -174,7 +248,10 @@ export function GalaxyDesigner() {
       const asset = await uploadMedia(file, 'galaxy');
       // Tên cột đúng bằng `${kind}_media_id` cho cả bốn — không cần một cây
       // `if` bốn nhánh nói lại đúng cái mà cái tên đã nói.
-      await patchGalaxy({ [`${kind}_media_id`]: asset.id });
+      //
+      // Ghi vào hướng ĐANG SỬA: ảnh của bản dọc và bản ngang là hai tấm khác
+      // nhau, vì một tấm 16:9 kéo vào khung 9:16 là cắt mất hai phần ba.
+      await ghiG({ [`${kind}_media_id`]: asset.id });
     } catch (error) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
     } finally {
@@ -255,13 +332,65 @@ export function GalaxyDesigner() {
         title={t('galaxy.designer.title')}
         description={t('galaxy.designer.subtitle')}
         actions={
-          saveState !== 'idle' && (
-            <span className="text-xs text-slate-400">
-              {saveState === 'saving' ? t('common.loading') : `✓ ${t('designer.saved')}`}
-            </span>
-          )
+          <div className="flex items-center gap-3">
+            {saveState !== 'idle' && (
+              <span className="text-xs text-slate-400">
+                {saveState === 'saving' ? t('common.loading') : `✓ ${t('designer.saved')}`}
+              </span>
+            )}
+
+            {/* CÔNG TẮC NGANG / DỌC.
+                Hai nút cạnh nhau chứ không phải một ô đánh dấu: đây không phải
+                bật/tắt một tính năng mà là chọn đang đứng ở bản nào, và hai cái
+                tên nằm cạnh nhau thì người dựng luôn thấy cả hai bản tồn tại —
+                kể cả trước khi họ chạm vào bản dọc lần đầu.
+
+                Chấm nhỏ trên nút "dọc" = bản dọc ĐÃ có ảnh nền, tức đã được
+                thiết kế. Không có dấu ấy thì người dựng phải bấm sang mới biết
+                bên đó rỗng hay không, mà đó lại đúng là câu hỏi họ hỏi mỗi lần
+                mở màn này. */}
+            <div className="flex overflow-hidden rounded-lg border border-abyss-700 text-xs">
+              {(['landscape', 'portrait'] as const).map((huongNut) => (
+                <button
+                  key={huongNut}
+                  type="button"
+                  aria-pressed={huong === huongNut}
+                  onClick={() => {
+                    setHuong(huongNut);
+                    // Bỏ chọn: một world đang chọn ở bản ngang thì tay cầm của
+                    // nó vẫn hiện ở bản dọc, đúng chỗ khác hẳn — trông như một
+                    // cái tay cầm mồ côi.
+                    setSelectedId(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition ${
+                    huong === huongNut
+                      ? 'bg-lagoon-500/20 font-bold text-lagoon-400'
+                      : 'text-slate-400 hover:bg-abyss-800 hover:text-slate-200'
+                  }`}
+                >
+                  {t(`galaxy.designer.${huongNut}`)}
+                  {huongNut === 'portrait' && galaxy.portrait?.background_url && (
+                    <span
+                      aria-hidden
+                      className="size-1.5 rounded-full bg-orichalcum-400"
+                      title={t('galaxy.designer.portraitReady')}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         }
       />
+
+      {/* Bản dọc CHƯA có ảnh nền = chưa thiết kế, và học sinh cầm điện thoại
+          dọc sẽ vẫn được mời xoay ngang máy. Nói thẳng ra ở đây, vì một khung
+          soạn trống thì trông y hệt một khung soạn đã xong mà quên tải ảnh. */}
+      {doc && !galaxy.portrait?.background_url && (
+        <p className="mb-4 rounded-lg bg-orichalcum-500/10 px-4 py-2 text-sm text-orichalcum-400">
+          {t('galaxy.designer.portraitEmpty')}
+        </p>
+      )}
 
       {errorKey && (
         <p role="alert" className="mb-4 rounded-lg bg-coral-500/15 px-4 py-2 text-sm text-coral-500">
@@ -278,39 +407,48 @@ export function GalaxyDesigner() {
               `aspect-ratio` nhường chỗ cho `max-height`: đặt trần chiều cao thì
               khung giữ nguyên bề rộng và bị bẹt lại, tức giáo viên căn bố cục
               trên một tỉ lệ mà học sinh không bao giờ nhìn thấy. Chặn bề rộng
-              thì chiều cao tự co theo và tỉ lệ 16:9 còn nguyên.
+              thì chiều cao tự co theo và tỉ lệ của bố cục còn nguyên.
 
               Trần này tồn tại để khung xem trước VÀ bảng sửa cùng nằm trong một
               màn hình — cuộn xuống sửa mà không thấy thứ mình đang sửa thì việc
               sắp đặt bằng mắt mất hết ý nghĩa.
 
-              Kèm `sticky`: cửa sổ thấp quá thì bảng sửa vẫn phải cuộn, và khi
-              đó khung xem trước ghim lại ở đỉnh thay vì trôi mất. Trần chiều
-              cao lo trường hợp thường, `sticky` lo phần còn lại — không có con
-              số vh nào đúng cho mọi cửa sổ.
+              KHÔNG `sticky`. Từng có, để khung ghim ở đỉnh khi bảng sửa phải
+              cuộn — nhưng bảng sửa nằm BÊN DƯỚI khung, nên cuộn là nó chui
+              xuống dưới khung đang ghim và bị che mất. Cuộn cả trang thì khung
+              trôi lên, nhưng không có gì bị che.
 
-              51vh: cao bằng quá nửa cửa sổ. Đủ to để căn chỗ bằng mắt, và
-              `sticky` gánh phần bảng sửa bị đẩy xuống dưới màn hình. Muốn to
-              nhỏ khác thì đổi ĐÚNG con số này, không cần đụng gì khác.
+              51vh là cỡ NỀN — 100% trên thanh thu phóng. Cao bằng quá nửa
+              cửa sổ: đủ to để căn chỗ bằng mắt.
 
-              KHÔNG kèm `relative`: hai lớp cùng đặt `position` thì cái nào
-              thắng là do thứ tự Tailwind sinh ra CSS, không phải thứ tự viết
-              trong `className` — một sự tình cờ, không phải một quy tắc. Và
-              `sticky` cũng đã tạo gốc toạ độ cho các world `absolute` bên
-              trong, y như `relative`. */}
+              Cỡ thật = 51vh × `zoom`, và người dựng tự vặn. Trước đây đây là
+              một hằng số, đúng khi chỉ có bản ngang; bản dọc ở cùng 51vh thì
+              chỉ rộng chừng 29vh, và kéo thả trong một dải hẹp như vậy thì mỗi
+              pixel trên màn là sáu đơn vị toạ độ — căn không nổi. Thu phóng chỉ
+              đổi khung NHÌN, không đổi dữ liệu: toạ độ vẫn lưu theo hệ thế
+              giới, nên phóng to rồi thu lại thì không có gì xê dịch.
+
+              `relative` là gốc toạ độ cho các world `absolute` bên trong. */}
           <div
             ref={board.boardRef}
-            className="sticky top-3 z-10 mx-auto w-full max-w-[calc(51vh*16/9)] overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950 select-none"
-            // Giữ đúng tỉ lệ khung, nếu không thì kéo thả lệch theo trục.
-            style={{ aspectRatio: `${GALAXY.width} / ${GALAXY.height}` }}
+            className="relative mx-auto w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950 select-none"
+            style={{
+              // Giữ đúng tỉ lệ khung, nếu không thì kéo thả lệch theo trục.
+              aspectRatio: `${canvas.width} / ${canvas.height}`,
+              // Trần BỀ RỘNG suy từ trần chiều cao — xem ghi chú dài phía trên.
+              // Ở bản dọc khung cao gấp ba lần bề ngang, nên cùng một trần chiều
+              // cao cho ra một khung hẹp; đó đúng là thứ cần, vì màn hình học
+              // sinh cũng hẹp như vậy.
+              maxWidth: `calc(${caoKhung}vh * ${canvas.width} / ${canvas.height})`,
+            }}
             onPointerDown={(e) => {
               if (e.target === e.currentTarget) setSelectedId(null);
             }}
           >
-            {galaxy.background_url ? (
+            {doc_G('background_url') ? (
               <BackgroundLayer
-                url={galaxy.background_url}
-                kind={galaxy.background_kind}
+                url={doc_G('background_url')}
+                kind={doc_G('background_kind')}
                 className="pointer-events-none absolute inset-0 size-full object-cover"
               />
             ) : (
@@ -319,15 +457,42 @@ export function GalaxyDesigner() {
               </div>
             )}
 
+            {/* VÙNG AN TOÀN của bản dọc.
+                Khung thiết kế là 9:16, còn điện thoại thật chạy từ 0.45 tới
+                0.56 — nên tấm bản đồ được phóng cho PHỦ KÍN màn và mép thừa bị
+                cắt (xem `GalaxyMap`). Đo thật trên sáu cỡ máy phổ biến: chỗ bị
+                cắt nhiều nhất là khoảng 9% mỗi mép.
+
+                Nên đường đứt này là lời hứa duy nhất giữ được: thứ gì nằm
+                trong nó thì máy nào cũng thấy. Không vẽ ra thì người dựng căn
+                một cái khung sát mép, thấy đẹp trên khung soạn, rồi mất một
+                nửa chữ trên điện thoại của học sinh — mà mỗi đời máy mất một
+                kiểu khác nhau. */}
+            {doc && (
+              <div
+                className="pointer-events-none absolute inset-[9%] z-30 rounded border border-dashed border-orichalcum-400/45"
+                aria-hidden
+              >
+                <span className="absolute -top-px left-1 -translate-y-full text-[10px] text-orichalcum-400/70">
+                  {t('galaxy.designer.safeArea')}
+                </span>
+              </div>
+            )}
+
             {worlds.map((world, index) => {
               const live = board.ghost?.id === world.id ? board.ghost : null;
-              const spot = defaultWorldSpot(index, worlds.length);
-              const x = live?.x ?? world.scene_x ?? spot.x;
-              const y = live?.y ?? world.scene_y ?? spot.y;
+              const spot = defaultWorldSpot(index, worlds.length, huong);
+              // Chỗ đứng của hướng ĐANG SỬA. Bản dọc nằm trong `world.portrait`,
+              // và chưa đặt thì rơi về chỗ rải đều của chính hướng đó — không
+              // rơi về toạ độ bản ngang, vì 3000 theo trục x là ngoài mép một
+              // bản đồ chỉ rộng 1800.
+              const dat = doc ? world.portrait : world;
+              const x = live?.x ?? dat?.scene_x ?? spot.x;
+              const y = live?.y ?? dat?.scene_y ?? spot.y;
               const size =
                 board.sizeDraft?.id === world.id
                   ? board.sizeDraft.w
-                  : (world.icon_size ?? DEFAULT_WORLD_SIZE);
+                  : (dat?.icon_size ?? DEFAULT_WORLD_SIZE);
               const active = world.id === selectedId;
               const draft = pulseDraft?.id === world.id ? pulseDraft : null;
 
@@ -336,11 +501,11 @@ export function GalaxyDesigner() {
                   key={world.id}
                   className="absolute"
                   style={{
-                    left: `${(x / GALAXY.width) * 100}%`,
-                    top: `${(y / GALAXY.height) * 100}%`,
+                    left: `${(x / canvas.width) * 100}%`,
+                    top: `${(y / canvas.height) * 100}%`,
                     // Bề rộng đặt Ở ĐÂY, trên chính thẻ `absolute`, để phần trăm
                     // quy chiếu theo KHUNG SOẠN chứ không theo chỗ trống còn lại.
-                    width: `${(size / GALAXY.width) * 100}%`,
+                    width: `${(size / canvas.width) * 100}%`,
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
@@ -409,25 +574,40 @@ export function GalaxyDesigner() {
             })}
             {(['title', 'desc'] as const).map((kind) => {
               const live = board.ghost?.id === FRAME_ID[kind] ? board.ghost : null;
-              const x = live?.x ?? galaxy[`${kind}_x`] ?? FRAME[kind].x;
-              const y = live?.y ?? galaxy[`${kind}_y`] ?? FRAME[kind].y;
+              const spec = frameSpec(kind, huong);
+              const x = live?.x ?? doc_G(`${kind}_x`) ?? spec.x;
+              const y = live?.y ?? doc_G(`${kind}_y`) ?? spec.y;
               const width =
                 board.sizeDraft?.id === FRAME_ID[kind]
                   ? board.sizeDraft.w
-                  : (galaxy[`${kind}_width`] ?? FRAME[kind].width);
+                  : (doc_G(`${kind}_width`) ?? spec.width);
               const active = selectedId === FRAME_ID[kind];
-              const target = { id: FRAME_ID[kind], x, y, w: width, h: width };
+              // Cận trên/dưới RIÊNG cho khung chữ, không dùng cận chung của
+              // bảng. Cận chung là hợp của world và khung (40…bề rộng bản đồ),
+              // mà server chỉ nhận khung từ 80 trở lên — kéo xuống 60 là cú
+              // kéo kết thúc bằng một lỗi 422 im lặng, và người dựng thấy nút
+              // kéo cỡ "không ăn".
+              const target = {
+                id: FRAME_ID[kind],
+                x,
+                y,
+                w: width,
+                h: width,
+                min: FRAME_WIDTH.min,
+                max: rongKhung.max,
+              };
 
               return (
                 <GalaxyFrame
-                  key={kind}
+                  key={`${huong}:${kind}`}
                   kind={kind}
-                  imageUrl={galaxy[`${kind}_url`]}
+                  orientation={huong}
+                  imageUrl={doc_G(`${kind}_url`)}
                   x={x}
                   y={y}
                   width={width}
-                  color={tint?.id === FRAME_ID[kind] ? tint.color : galaxy[`${kind}_color`]}
-                  fontScale={galaxy[`${kind}_font`]}
+                  color={tint?.id === FRAME_ID[kind] ? tint.color : doc_G(`${kind}_color`)}
+                  fontScale={doc_G(`${kind}_font`)}
                   wrapper={(boxStyle, content) => (
                     <div className="absolute" {...boxStyle}>
                       <div className="relative w-full">
@@ -467,9 +647,35 @@ export function GalaxyDesigner() {
             })}
           </div>
 
-          <p className="mt-2 text-xs text-slate-500">
-            {t('galaxy.designer.dragHint')} · {t('designer.autoSave')}
-          </p>
+          {/* THANH THU PHÓNG.
+              Chỉ đổi cỡ KHUNG XEM TRƯỚC, không đụng gì tới dữ liệu — mọi toạ độ
+              vẫn lưu theo hệ thế giới, nên phóng to để căn cho dễ rồi thu lại
+              thì cái đã đặt không xê dịch một đơn vị nào.
+
+              Nhớ theo từng hướng: bản dọc cần to hơn hẳn bản ngang, và bắt
+              người dựng chỉnh lại mỗi lần bấm qua bấm lại là một thao tác thừa
+              lặp cả buổi. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <span>{t('galaxy.designer.zoom')}</span>
+              <input
+                type="range"
+                min={50}
+                max={300}
+                step={10}
+                value={zoomHienTai}
+                onChange={(e) =>
+                  setZoom((prev) => ({ ...prev, [huong]: Number(e.currentTarget.value) }))
+                }
+                className="w-40 accent-lagoon-400"
+              />
+              <span className="w-10 tabular-nums">{zoomHienTai}%</span>
+            </label>
+
+            <p className="text-xs text-slate-500">
+              {t('galaxy.designer.dragHint')} · {t('designer.autoSave')}
+            </p>
+          </div>
 
           {/* Bảng sửa world nằm NGAY DƯỚI khung xem trước, không ở cột phải.
               Xếp dọc bên phải thì nó dài quá màn hình, và lúc cuộn xuống tới ô
@@ -506,14 +712,14 @@ export function GalaxyDesigner() {
               label={t('galaxy.designer.background')}
               accept={BACKGROUND_ACCEPT}
               busy={uploading === 'background'}
-              hasValue={Boolean(galaxy.background_media_id)}
+              hasValue={Boolean(doc_G('background_media_id'))}
               onPick={(file) => void uploadFor('background', file)}
-              onClear={() => void patchGalaxy({ clear_background: true })}
+              onClear={() => void ghiG({ clear_background: true })}
               preview={
-                galaxy.background_url ? (
+                doc_G('background_url') ? (
                   <BackgroundLayer
-                    url={galaxy.background_url}
-                    kind={galaxy.background_kind}
+                    url={doc_G('background_url')}
+                    kind={doc_G('background_kind')}
                     still
                     className="mb-2 h-20 w-full rounded-lg border border-abyss-700 object-cover"
                   />
@@ -582,18 +788,16 @@ export function GalaxyDesigner() {
                   )}
                   accept={IMAGE_ACCEPT}
                   busy={uploading === kind}
-                  hasValue={Boolean(galaxy[`${kind}_media_id`])}
+                  hasValue={Boolean(doc_G(`${kind}_media_id`))}
                   onPick={(file) => void uploadFor(kind, file)}
                   onClear={() =>
-                    void patchGalaxy(
-                      kind === 'title' ? { clear_title: true } : { clear_desc: true },
-                    )
+                    void ghiG(kind === 'title' ? { clear_title: true } : { clear_desc: true })
                   }
                   preview={
-                    galaxy[`${kind}_url`] ? (
+                    doc_G(`${kind}_url`) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={galaxy[`${kind}_url`]!}
+                        src={doc_G(`${kind}_url`)!}
                         alt=""
                         className="mb-2 max-h-16 w-full rounded-lg border border-abyss-700 object-contain"
                       />
@@ -602,13 +806,17 @@ export function GalaxyDesigner() {
                 />
 
                 <FrameTextFields
-                  color={galaxy[`${kind}_color`] ?? FRAME[kind].color}
-                  fontScale={galaxy[`${kind}_font`] ?? FRAME_FONT.base}
+                  // `key` buộc dựng lại khi đổi hướng: ô màu và ô cỡ chữ dùng
+                  // `defaultValue`, nên không có nó thì sang bản dọc vẫn thấy
+                  // con số của bản ngang.
+                  key={huong}
+                  color={doc_G(`${kind}_color`) ?? frameSpec(kind, huong).color}
+                  fontScale={doc_G(`${kind}_font`) ?? FRAME_FONT.base}
                   onPreview={(color) => setTint(color ? { id: FRAME_ID[kind], color } : null)}
                   onColor={(value) =>
-                    void patchGalaxy({ [`${kind}_color`]: value }).then(() => setTint(null))
+                    void ghiG({ [`${kind}_color`]: value }).then(() => setTint(null))
                   }
-                  onFontScale={(value) => void patchGalaxy({ [`${kind}_font`]: value })}
+                  onFontScale={(value) => void ghiG({ [`${kind}_font`]: value })}
                 />
               </div>
             ))}

@@ -56,6 +56,10 @@ export interface SceneQuest {
   order_index: number;
   phase: 'advisor' | 'main';
   quest_object_key: string;
+  /**
+   * Tên hiện trên vật thể. Có thể chứa ký tự XUỐNG DÒNG do người dựng gõ Enter
+   * trong ô tên — Phaser tự tách dòng, và các dòng được căn giữa.
+   */
   label: string;
   scene_x: number | null;
   scene_y: number | null;
@@ -102,6 +106,13 @@ export interface SceneCharacter {
 const BG_VIDEO_KEY = 'stage_bg_video';
 
 export interface StageSceneData {
+  /**
+   * KHUNG VẼ của bố cục đang dùng — 3200×1800 ở bản ngang, 1800×3200 ở bản dọc.
+   *
+   * Bỏ trống = bản ngang, đúng như trước khi có bố cục dọc. Mọi toạ độ trong
+   * `quests`, `collision`, `startPos`, `spawnPos` đều thuộc khung này.
+   */
+  canvas?: { width: number; height: number };
   /** URL ảnh nền. Rỗng = chưa có ảnh, cảnh dùng nền biển mặc định. */
   backgroundUrl: string;
   /**
@@ -190,6 +201,16 @@ const DONE_SUFFIX = ' ✓';
 /** Ổ khoá gắn trước nhãn nhiệm vụ đang khoá. Có dấu cách ở cuối. */
 const LOCK_PREFIX = '🔒 ';
 
+/**
+ * KHUNG VẼ MẶC ĐỊNH — bản ngang, 3200×1800.
+ *
+ * Từ đây trở đi cảnh đọc `this.khungW` / `this.khungH` chứ không đọc hai hằng
+ * số này: màn chơi có thể mang thêm một bố cục DỌC (1800×3200), và khung vẽ
+ * quyết định cỡ nền, tầm nhìn camera, lưới đường đi và mọi phép kẹp toạ độ.
+ *
+ * Hai hằng số ở lại làm GIÁ TRỊ LÙI: chỗ gọi không truyền `canvas` thì cảnh
+ * chạy y hệt trước khi có bản dọc — không một dòng nào của bản ngang đổi.
+ */
 const WORLD_WIDTH = WORLD.width;
 const WORLD_HEIGHT = WORLD.height;
 // Tốc độ đi ở `character.ts`: chế độ đi thử của trình thiết kế phải chạy đúng
@@ -421,6 +442,22 @@ export class StageScene extends Phaser.Scene {
     this.sceneData = data;
   }
 
+  /**
+   * Khung vẽ đang dùng. Không truyền thì là bản ngang — xem `WORLD_WIDTH`.
+   *
+   * Getter chứ không phải một trường gán trong `init`: `create()` và mấy hàm
+   * dựng cảnh chạy ở những thời điểm khác nhau, và một trường thì có thể được
+   * đọc trước khi được gán. Đọc thẳng từ `sceneData` thì không có khoảnh khắc
+   * nào nó sai.
+   */
+  private get khungW(): number {
+    return this.sceneData?.canvas?.width ?? WORLD_WIDTH;
+  }
+
+  private get khungH(): number {
+    return this.sceneData?.canvas?.height ?? WORLD_HEIGHT;
+  }
+
   setTypingGuard(typing: boolean) {
     this.typing = typing;
   }
@@ -488,8 +525,8 @@ export class StageScene extends Phaser.Scene {
   }
 
   create() {
-    const centerX = WORLD_WIDTH / 2;
-    const centerY = WORLD_HEIGHT / 2;
+    const centerX = this.khungW / 2;
+    const centerY = this.khungH / 2;
 
     // KHÔNG đặt `setBounds`: camera luôn hiện trọn thế giới, nên giới hạn cuộn
     // là thừa — và khi khung nhìn rộng hơn giới hạn, Phaser kẹp toạ độ cuộn lại
@@ -497,7 +534,7 @@ export class StageScene extends Phaser.Scene {
 
     const ocean = this.add.graphics().setDepth(-2);
     ocean.fillGradientStyle(0x020b10, 0x020b10, 0x071e28, 0x071e28, 1);
-    ocean.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    ocean.fillRect(0, 0, this.khungW, this.khungH);
 
     // Đi lại được trên CẢ bản đồ, chừa một lề quanh mép.
     //
@@ -508,8 +545,8 @@ export class StageScene extends Phaser.Scene {
     this.walkArea = new Phaser.Geom.Rectangle(
       WALK_MARGIN,
       WALK_MARGIN,
-      WORLD_WIDTH - WALK_MARGIN * 2,
-      WORLD_HEIGHT - WALK_MARGIN * 2,
+      this.khungW - WALK_MARGIN * 2,
+      this.khungH - WALK_MARGIN * 2,
     );
 
     this.collision = readCollision(this.sceneData.collision);
@@ -517,7 +554,7 @@ export class StageScene extends Phaser.Scene {
     // mili giây lúc vào màn thì không ai thấy, còn một mili giây chen vào giữa
     // cú bấm đầu tiên thì thành một khựng nhẹ đúng lúc người chơi đang nhìn.
     this.grid = this.collision
-      ? bakeGrid((x, y) => this.canWalk(x, y), { width: WORLD_WIDTH, height: WORLD_HEIGHT })
+      ? bakeGrid((x, y) => this.canWalk(x, y), { width: this.khungW, height: this.khungH })
       : null;
 
     // Dựng nền; không dựng được thì thử tải lại MỘT lần — xem `retryBackground()`.
@@ -712,9 +749,9 @@ export class StageScene extends Phaser.Scene {
     const camera = this.cameras.main;
     if (camera.width === 0 || camera.height === 0) return;
 
-    const zoom = Math.min(camera.width / WORLD_WIDTH, camera.height / WORLD_HEIGHT);
+    const zoom = Math.min(camera.width / this.khungW, camera.height / this.khungH);
     camera.setZoom(zoom);
-    camera.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    camera.centerOn(this.khungW / 2, this.khungH / 2);
     this.rescaleLabels(zoom);
   }
 
@@ -734,8 +771,12 @@ export class StageScene extends Phaser.Scene {
     //
     // Lần trước tôi đặt scale = 1/zoom, tức cỡ màn hình bằng đúng FONT (40px) —
     // to gần bốn lần so với 11px bên trình thiết kế.
-    const scale = LABEL.SCREEN / (LABEL.FONT * zoom);
-    const gapWorld = LABEL.GAP / zoom;
+    //
+    // `this.scale.zoom` < 1 khi canvas vẽ theo mật độ điểm ảnh (xem
+    // `phaser-canvas.tsx`): khi đó một "px màn hình" là 1/zoom điểm ảnh canvas.
+    const px = 1 / (this.scale.zoom || 1);
+    const scale = (LABEL.SCREEN * px) / (LABEL.FONT * zoom);
+    const gapWorld = (LABEL.GAP * px) / zoom;
 
     for (const node of this.nodes) {
       node.label.setScale(scale);
@@ -1119,7 +1160,7 @@ export class StageScene extends Phaser.Scene {
 
     if (this.textures.exists('stage_bg')) {
       const bg = this.add.image(centerX, centerY, 'stage_bg');
-      bg.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
+      bg.setDisplaySize(this.khungW, this.khungH);
       bg.setOrigin(0.5).setDepth(0);
       return true;
     }
@@ -1166,8 +1207,8 @@ export class StageScene extends Phaser.Scene {
 
   private createStorm() {
     for (let i = 0; i < 90; i += 1) {
-      const rx = Phaser.Math.Between(50, WORLD_WIDTH - 50);
-      const ry = Phaser.Math.Between(50, WORLD_HEIGHT - 50);
+      const rx = Phaser.Math.Between(50, this.khungW - 50);
+      const ry = Phaser.Math.Between(50, this.khungH - 50);
       const drop = this.add.line(0, 0, rx, ry, rx - 18, ry + 36, 0x9be8ff, 0.35).setDepth(4);
       this.tweens.add({
         targets: drop,
@@ -1181,7 +1222,7 @@ export class StageScene extends Phaser.Scene {
     }
 
     const flash = this.add
-      .rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, 0xffffff, 0)
+      .rectangle(this.khungW / 2, this.khungH / 2, this.khungW, this.khungH, 0xffffff, 0)
       .setDepth(5);
     this.time.addEvent({
       delay: 5000,
@@ -1263,10 +1304,17 @@ export class StageScene extends Phaser.Scene {
           // Đệm vừa đủ chỗ cho nét viền tràn ra ngoài glyph. Không có nền nên
           // nó vô hình; bỏ hẳn thì Phaser cắt cụt viền ở mép texture.
           padding: { x: LABEL.STROKE, y: LABEL.STROKE },
+          // CĂN GIỮA từng dòng. Người dựng xuống dòng bằng Enter trong ô tên
+          // (ký tự xuống dòng đi nguyên từ database xuống đây, Phaser tự tách dòng), và
+          // một nhãn hai dòng căn trái thì trông như rơi lệch khỏi vật thể nó
+          // thuộc về. Nhãn một dòng thì căn trái hay giữa cũng như nhau — không
+          // một nhãn nào đang có đổi hình.
+          align: 'center',
         })
         // Neo ĐÁY nhãn: đặt y = mép trên ảnh là nhãn nằm gọn phía trên, không
         // đè lên hình.
         .setOrigin(0.5, 1);
+
 
       // Thùng bọc để nhịp thở có chỗ ghi `scale` của riêng nó — xem `QuestNode`.
       // Nhãn nằm ở GỐC của thùng; chỗ đứng do thùng mang, `rescaleLabels()` đặt.
@@ -1674,7 +1722,7 @@ export class StageScene extends Phaser.Scene {
     const video = this.bgVideo;
     if (!video) return;
     if (video.width === this.bgVideoSize.w && video.height === this.bgVideoSize.h) return;
-    video.setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT);
+    video.setDisplaySize(this.khungW, this.khungH);
     this.bgVideoSize = { w: video.width, h: video.height };
   }
 

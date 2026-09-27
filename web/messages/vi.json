@@ -13,7 +13,8 @@
     "play": "Vào chơi",
     "characters": "Nhân vật",
     "reports": "Báo cáo",
-    "config": "Cấu hình"
+    "config": "Cấu hình",
+    "account": "Tài khoản"
   },
   "role": {
     "admin": "Quản trị viên",
@@ -144,11 +145,11 @@
     "siteTitlePlaceholder": "ví dụ: Vitaverse — Play to Learn",
     "perLocale": "Đang sửa bản “{locale}”. Đổi ngôn ngữ ở thanh đầu trang để sửa bản kia.",
     "favicon": "Biểu tượng tab (favicon)",
-    "faviconHint": "Cái hình nhỏ trên tab trình duyệt. Để trống thì dùng file mặc định.",
+    "faviconHint": "Biểu tượng nhỏ trên tab trình duyệt — và trên điện thoại, đây cũng là biểu tượng ngoài màn hình chính khi có người thêm trang vào đó. Để trống thì dùng ảnh mặc định.",
     "faviconUpload": "Tải ảnh lên",
     "faviconReplace": "Đổi ảnh khác",
     "faviconRemove": "Gỡ ảnh",
-    "faviconSize": "Ảnh PNG hoặc SVG vuông là hợp nhất — từ 32×32 tới 512×512. Nó hiện ra ở bề ngang 16 pixel, nên đừng nhiều chi tiết.",
+    "faviconSize": "Nên dùng ảnh PNG vuông, cỡ 512×512: tab trình duyệt sẽ thu về 16 pixel, còn Android chỉ cho \"thêm vào màn hình chính\" khi biểu tượng rộng từ 192 pixel trở lên. Hình vẽ nên đơn giản vì nó phải đọc được ở cả hai cỡ.",
     "lockedOpacity": "Độ mờ của màn đang khoá",
     "lockedOpacityHint": "Màn đang khoá trên bản đồ của học sinh hiện rõ tới đâu. Càng thấp càng mờ. Không bao giờ mất hẳn — lớp vẫn phải thấy là còn có gì phía trước.",
     "lockedOpacityPreview": "Màn 1"
@@ -158,7 +159,15 @@
     "noWorlds": "Chưa có thế giới nào được phát hành.",
     "noWorldsHint": "Hãy quay lại sau, hoặc hỏi giáo viên của bạn.",
     "locked": "Đang khoá",
-    "gateReady": "Bạn đã đủ mảnh bản đồ — Cánh cổng Thời gian đã sẵn sàng!"
+    "gateReady": "Bạn đã đủ mảnh bản đồ — Cánh cổng Thời gian đã sẵn sàng!",
+    "rotate": {
+      "title": "Xoay ngang máy để chơi",
+      "body": "Atlantis được vẽ theo khổ ngang. Xoay ngang điện thoại là cả cuộc phiêu lưu vừa trọn màn hình.",
+      "auto": "Xoay giúp tôi",
+      "hint": "Xoay rồi mà không đổi? Điện thoại đang bật khoá xoay màn hình — tắt nó trong trung tâm điều khiển.",
+      "fullscreen": "Chơi toàn màn hình",
+      "exitFullscreen": "Thoát toàn màn hình"
+    }
   },
   "admin": {
     "title": "Quản trị",
@@ -685,6 +694,12 @@
       "boundary": "Bấm ra ngoài mép bản đồ thì nhân vật đi theo hướng đó tới khi chạm mép rồi dừng.",
       "energy": "Năng lượng là của riêng bạn, nhận được sau khi qua nhiệm vụ NPC. Dùng để mua gợi ý."
     },
+    "guide": {
+      "dontShow": "Không hiện lại nữa",
+      "close": "Đóng",
+      "open": "Cách chơi",
+      "langLabel": "Ngôn ngữ hướng dẫn"
+    },
     "advisorLocked": "Đang khoá. Qua “{npc}” trước đã — NPC trao cho bạn bí quyết cần dùng ở đây.",
     "energyMine": "Năng lượng của bạn — của riêng bạn, không dùng chung với đội",
     "next": "Tiếp →",
@@ -723,6 +738,9 @@
     "introVideo": {
       "title": "Video mở màn",
       "hint": "Chạy trong lúc màn chơi đang nạp ngầm, hết video là vào thẳng. Bỏ trống thì học sinh vào ngay, y như trước.",
+      "landscape": "Bản ngang",
+      "portrait": "Bản dọc",
+      "emptyPortrait": "Chưa có video cho bản dọc — học sinh cầm điện thoại dọc sẽ vào thẳng. Không dùng lại video bản ngang: phim 16:9 trên màn dọc chỉ còn một dải hẹp. Nên quay khổ 9:16.",
       "empty": "Chưa có video — học sinh vào thẳng, đúng như hiện tại. Đây là một lựa chọn hợp lệ.",
       "remove": "Gỡ video",
       "duration": "Dài {seconds} giây",
@@ -887,7 +905,12 @@
     "lockedMessagePlaceholder": "ví dụ: Chưa phải cửa này. Gặp người gác đã.",
     "lockedVoice": "Thu câu này",
     "lockedNoVoice": "Người canh giữ nhiệm vụ này chưa có giọng",
-    "lockedListen": "Nghe thử"
+    "lockedListen": "Nghe thử",
+    "hud": {
+      "info": "Thông tin màn (tên, đồng hồ, nhiệm vụ)",
+      "exits": "Chơi lại / Rời màn",
+      "tools": "Cụm công cụ (loa, sổ tay, năng lượng)"
+    }
   },
   "galaxy": {
     "designer": {
@@ -919,7 +942,13 @@
       "titleFrame": "Ảnh khung tiêu đề",
       "descFrame": "Ảnh khung mô tả",
       "textColor": "Màu chữ",
-      "textSize": "Cỡ chữ"
+      "textSize": "Cỡ chữ",
+      "landscape": "Màn ngang",
+      "portrait": "Màn dọc",
+      "portraitReady": "Đã thiết kế bản dọc",
+      "portraitEmpty": "Chưa có bản dọc. Tải một ảnh nền lên ở đây thì điện thoại cầm dọc sẽ thấy bố cục này, thay vì được mời xoay ngang máy.",
+      "safeArea": "Vùng an toàn — máy nào cũng thấy",
+      "zoom": "Cỡ xem trước"
     }
   },
   "lobby": {
@@ -935,6 +964,7 @@
       "contentBox": "Khung nội dung",
       "contentHint": "Chỗ vẽ chữ bên trong ảnh nền. Kéo cái khung đứt nét trên khung xem trước, hoặc gõ số — tính theo phần trăm của khối, nên đổi cỡ khối thì khung vẫn nằm đúng chỗ.",
       "contentDrag": "Kéo để đặt khung nội dung",
+      "buttonShown": "Hiện nút này cho học sinh",
       "buttonText": "Chữ trên nút",
       "buttonTextEmpty": "Bỏ trống — chỉ hiện ảnh",
       "blockImage": "Ảnh của khối",
@@ -954,7 +984,13 @@
       "worldLevelHint": "Chữ tự do hiện ở phòng chờ — “Easy”, “C2”, “3”. Bỏ trống thì lấy theo độ khó.",
       "zoomIn": "Phóng to",
       "zoomOut": "Thu nhỏ",
-      "zoomReset": "Vừa khung"
+      "zoomReset": "Vừa khung",
+      "portraitEmpty": "Chưa có bản dọc. Tải một ảnh nền lên ở đây thì điện thoại cầm dọc sẽ thấy bố cục này, thay vì được mời xoay ngang máy.",
+      "portraitNoInherit": "Bản dọc không thừa kế gì của thiên hà: toạ độ bên đó thuộc khung 16:9, đặt vào đây là rơi ra ngoài mép.",
+      "showTitle": "Hiện khung tiêu đề",
+      "showDesc": "Hiện khung mô tả",
+      "count": "Số chương hiển thị một lúc",
+      "stage_count": "Số màn hiển thị một lúc trong minimap"
     },
     "element": {
       "stats": "Bảng thành tích",
@@ -969,7 +1005,9 @@
       "statShards": "Mảnh bản đồ",
       "statStars": "Số sao",
       "statLevel": "Cấp độ world",
-      "statProgress": "Tiến độ world"
+      "statProgress": "Tiến độ world",
+      "back": "Nút về bản đồ thiên hà",
+      "controls": "Cụm nút góc (loa, tài khoản)"
     },
     "sample": {
       "player1": "Mia",
@@ -1119,6 +1157,8 @@
       "panelImageHint": "Để trống thì tấm bảng trong suốt và cảnh chơi hiện xuyên qua — đó là cách thường dùng. Đặt ảnh khi muốn cuộc trò chuyện diễn ra trong một khung cảnh riêng.",
       "bubbleImages": "Ảnh bong bóng",
       "bubbleImagesHint": "Không có thì bong bóng dùng kiểu kính mặc định. Ảnh sẽ kéo giãn cho vừa bong bóng, nên hãy dùng khung trơn — bong bóng vẫn dài ra theo chữ.",
+      "textSize": "Cỡ chữ hội thoại",
+      "textSizeHint": "Cỡ chữ trong bong bóng của người canh giữ, của học sinh và của các đáp án — cả ba cùng một cỡ. Riêng cho từng hướng màn hình. Bỏ trống = mặc định {mac}px.",
       "pace": "Nhịp trò chuyện",
       "gap": "Nghỉ giữa hai lượt nói",
       "gapHint": "Nói xong một câu thì chờ bao lâu mới tới bong bóng sau. Tính từ lúc tiếng dứt, hoặc từ lúc hết quãng đọc nếu câu đó không có tiếng. Mặc định 1,0 giây.",
