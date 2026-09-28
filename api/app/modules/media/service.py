@@ -131,6 +131,15 @@ async def save_upload(
 
     await anyio.to_thread.run_sync(_ghi)
 
+    # Video: dời mục lục lên đầu file và tách ảnh poster — xem `video.py`.
+    # Trong threadpool như việc ghi đĩa: ffmpeg là tiến trình đồng bộ.
+    kich_thuoc = len(data)
+    if kind == MediaKind.VIDEO:
+        from app.modules.media.video import optimize
+
+        await anyio.to_thread.run_sync(optimize, target)
+        kich_thuoc = target.stat().st_size
+
     width, height = (
         await anyio.to_thread.run_sync(_image_size, data)
         if kind == MediaKind.IMAGE
@@ -143,7 +152,7 @@ async def save_upload(
         kind=kind,
         mime=mime,
         original_name=(filename or "")[:255] or None,
-        size_bytes=len(data),
+        size_bytes=kich_thuoc,
         width=width,
         height=height,
         folder=folder,

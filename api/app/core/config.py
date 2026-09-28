@@ -92,6 +92,11 @@ class Settings(BaseSettings):
     #: Mặc định TƯƠNG ĐỐI: mỗi tên miền tự phục vụ file của mình, và dữ liệu
     #: không đóng đinh một tên miền nào. Xem DEPLOY.md §7b.
     storage_public_url: str = "/media"
+    #: Lệnh `ffmpeg` (và `ffprobe` cùng thư mục) — xử lý video lúc tải lên:
+    #: dời mục lục MP4 lên đầu file và tách ảnh poster. Chỉ tên lệnh thì tìm
+    #: trong PATH. Không có ffmpeg thì video vẫn lưu được, chỉ là bỏ qua bước
+    #: tối ưu — xem `app/modules/media/video.py`.
+    ffmpeg_path: str = "ffmpeg"
 
     # ---------- API ----------
     api_host: str = "0.0.0.0"

@@ -38,3 +38,24 @@ export const BACKGROUND_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
 
 /** Ảnh nền là ảnh hay video. Server trả xuống, giao diện KHÔNG đoán theo đuôi. */
 export type BackgroundKind = 'image' | 'video';
+
+/**
+ * Đuôi của ảnh POSTER nằm cạnh mỗi video — PHẢI khớp `POSTER_SUFFIX` phía API
+ * (`api/app/modules/media/video.py`). Server tách khung hình đầu ra lúc tải lên.
+ */
+const POSTER_SUFFIX = '.poster.jpg';
+
+/**
+ * URL ảnh poster của một video: khung hình đầu, hiện NGAY trong lúc video còn
+ * tải — không còn khoảng đen khi vào phòng chờ hay màn chơi.
+ *
+ * Suy ra theo quy ước tên, không có cột riêng: mọi chỗ đang cầm URL video (kể
+ * cả đề bài đã đóng băng) đều tự có poster. Video tải lên trước khi có tính năng
+ * này thì chạy `scripts/optimize_videos.py` một lần; thiếu poster thì trình
+ * duyệt chỉ bỏ qua, không vỡ gì.
+ */
+export function posterOf(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const sach = url.split('#')[0]!.split('?')[0]!;
+  return `${sach}${POSTER_SUFFIX}`;
+}

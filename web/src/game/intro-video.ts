@@ -89,6 +89,7 @@ export function borrowIntroVideo(): HTMLVideoElement {
 export function releaseIntroVideo(el: HTMLVideoElement) {
   el.pause();
   el.removeAttribute('src');
+  el.removeAttribute('poster');
   el.load();
   el.remove();
   busy = false;

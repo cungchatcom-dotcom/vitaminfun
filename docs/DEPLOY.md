@@ -231,7 +231,7 @@ Token phiên nằm trong cookie `httpOnly`, nên mã chạy trên trình duyệt
 
 ```bash
 sudo apt update
-sudo apt install -y curl git nginx postgresql
+sudo apt install -y curl git nginx postgresql ffmpeg
 
 # Node 20 + pnpm  (Next 15 cần Node >= 18.18)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -252,11 +252,29 @@ sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt update
 sudo apt install -y python3.12 python3.12-venv
 ```
 
+**ffmpeg** (trong dòng `apt install` ở trên) để API tối ưu video lúc tải lên: dời
+mục lục MP4 lên đầu file (`+faststart` — không có nó, trình duyệt phải tải gần hết
+một video nền 10–15MB mới hiện được khung hình đầu) và tách ảnh poster
+(`<video>.poster.jpg`, hiện ngay trong lúc video tải). Thiếu ffmpeg thì video vẫn
+tải lên được, chỉ bỏ qua bước này. Đường dẫn khác PATH thì đặt `FFMPEG_PATH` trong
+`.env`.
+
+**Server đã chạy từ trước khi có bước này**: cài ffmpeg, cập nhật mã, rồi xử lý các
+video đã tải lên một lần (có `--dry-run` để xem trước; bản gốc được sao lưu vào
+`<kho media>/_backup_faststart/`; chạy lại nhiều lần vô hại):
+
+```bash
+sudo apt install -y ffmpeg
+api/.venv/bin/python scripts/optimize_videos.py --dry-run
+api/.venv/bin/python scripts/optimize_videos.py
+```
+
 Kiểm tra trước khi đi tiếp — sai bản Python thì lỗi nổ ra tận lúc `pip install`:
 
 ```bash
 python3.12 --version   # mong đợi 3.12.x
 node --version         # mong đợi v20.x
+ffmpeg -version | head -1
 pnpm --version
 ```
 

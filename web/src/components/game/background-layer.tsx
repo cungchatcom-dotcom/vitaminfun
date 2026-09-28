@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import type { BackgroundKind } from '@/lib/media';
+import { posterOf, type BackgroundKind } from '@/lib/media';
 
 /**
  * Lớp NỀN của một màn hình: ảnh tĩnh hoặc video.
@@ -54,6 +54,8 @@ export function BackgroundLayer({
   sound?: { on: boolean; volume: number } | null;
 }) {
   const video = useRef<HTMLVideoElement>(null);
+  /** Ảnh poster hỏng (video cũ chưa được tách poster) — lùi về thẻ video. */
+  const [posterHong, setPosterHong] = useState(false);
 
   // Tuỳ chọn MỚI NHẤT cho listener đọc lại — cùng lý do với `AmbientPlayer`:
   // cú bấm mở khoá có thể chạy rất lâu sau lúc gắn, và tới lúc đó người chơi có
@@ -104,6 +106,23 @@ export function BackgroundLayer({
 
   if (!url) return null;
 
+  // KHUNG ĐỨNG YÊN (minimap): vẽ thẳng ảnh poster, không dựng thẻ video nào.
+  // Nhiều vòng tròn cùng lúc mà mỗi cái nuôi một bộ giải mã chỉ để ghim ở một
+  // khung hình là phí; một tấm JPG vài chục KB làm đúng việc đó.
+  if (kind === 'video' && still && !posterHong) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={posterOf(url)}
+        alt=""
+        className={className}
+        draggable={false}
+        onError={() => setPosterHong(true)}
+        aria-hidden
+      />
+    );
+  }
+
   if (kind === 'video') {
     return (
       <video
@@ -112,6 +131,8 @@ export function BackgroundLayer({
         // đó và vẽ ra, nên một thẻ không autoplay vẫn có hình thay vì một ô đen.
         // Rẻ hơn hẳn việc bắt người dựng tải thêm một tấm ảnh đại diện.
         src={still && !url.includes('#') ? `${url}#t=0.1` : url}
+        // Khung hình đầu, hiện NGAY trong lúc video tải — xem `posterOf`.
+        poster={posterOf(url)}
         className={className}
         // Câm từ đầu, LUÔN LUÔN. Effect ở trên mới là chỗ mở tiếng, và chỉ khi
         // được phép — xem chú thích đầu file.
