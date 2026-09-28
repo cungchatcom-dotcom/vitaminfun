@@ -255,7 +255,9 @@ sudo apt install -y python3.12 python3.12-venv
 **ffmpeg** (trong dòng `apt install` ở trên) để API tối ưu video lúc tải lên: dời
 mục lục MP4 lên đầu file (`+faststart` — không có nó, trình duyệt phải tải gần hết
 một video nền 10–15MB mới hiện được khung hình đầu) và tách ảnh poster
-(`<video>.poster.jpg`, hiện ngay trong lúc video tải). Thiếu ffmpeg thì video vẫn
+(`<video>.poster.jpg`, dùng cho khung đứng yên như minimap — KHÔNG đặt làm
+`poster` của video nền đang chạy: Chrome giữ poster tới khi video chạy hẳn, lâu
+hơn cả lúc nó tự vẽ khung hình đầu). Thiếu ffmpeg thì video vẫn
 tải lên được, chỉ bỏ qua bước này. Đường dẫn khác PATH thì đặt `FFMPEG_PATH` trong
 `.env`.
 

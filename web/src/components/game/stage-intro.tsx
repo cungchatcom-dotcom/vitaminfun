@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 
 import { borrowIntroVideo, releaseIntroVideo } from '@/game/intro-video';
 import { readMusicPrefs, writeMusicPrefs } from '@/game/music-prefs';
-import { posterOf } from '@/lib/media';
 
 import { useMusicPrefs } from './music-controls';
 
@@ -112,8 +111,6 @@ export function StageIntro({
     el.className = 'size-full object-contain';
     el.setAttribute('aria-label', t('label'));
     el.src = src;
-    // Khung hình đầu hiện ngay trong lúc video tải — xem `posterOf`.
-    el.poster = posterOf(src) ?? '';
     const onEnded = () => setXong(true);
     // Hỏng thì đi tiếp NGAY, không đợi `ready`: tấm màn đã không còn che
     // được gì nữa, giữ nó lại chỉ là một màn hình đen thừa.

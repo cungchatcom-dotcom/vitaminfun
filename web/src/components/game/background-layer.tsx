@@ -131,8 +131,11 @@ export function BackgroundLayer({
         // đó và vẽ ra, nên một thẻ không autoplay vẫn có hình thay vì một ô đen.
         // Rẻ hơn hẳn việc bắt người dựng tải thêm một tấm ảnh đại diện.
         src={still && !url.includes('#') ? `${url}#t=0.1` : url}
-        // Khung hình đầu, hiện NGAY trong lúc video tải — xem `posterOf`.
-        poster={posterOf(url)}
+        // KHÔNG đặt `poster` cho video đang chạy: Chrome giữ ảnh poster tới khi
+        // video THẬT SỰ bắt đầu chạy (đủ dữ liệu để phát liền), trong khi không
+        // có poster thì nó vẽ khung hình đầu ngay khi mới tải được một mẩu. Đã
+        // thử trên server thật — có poster, người chơi nhìn một tấm ảnh đứng
+        // yên lâu hơn hẳn. Poster chỉ dùng cho khung đứng yên (minimap, ở trên).
         className={className}
         // Câm từ đầu, LUÔN LUÔN. Effect ở trên mới là chỗ mở tiếng, và chỉ khi
         // được phép — xem chú thích đầu file.
