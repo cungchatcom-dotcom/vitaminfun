@@ -51,11 +51,13 @@ from app.modules.play.schemas import (
     PlayChapterOut,
     PlayFrameOut,
     PlayGalaxyOut,
+    PlayGalaxyPortraitOut,
     PlayLobbyOut,
     PlayRankOut,
     PlayStageOut,
     PlayWorldDetailOut,
     PlayWorldOut,
+    PlayWorldPortraitOut,
     QuestProgress,
     QuestionProgress,
     ReviewAttempt,
@@ -145,6 +147,10 @@ async def _world_summary(db: DbDep, user: User, world: World) -> dict[str, Any]:
         "icon_size": world.icon_size,
         "pulse_percent": world.pulse_percent,
         "pulse_period_ms": world.pulse_period_ms,
+        # Chỗ đứng ở bố cục DỌC. Đi qua schema chứ không trả thẳng cột JSON —
+        # cột JSON không có kiểu, nên trường lạ phải rụng ở đây chứ không rụng
+        # giữa lúc học sinh đang nhìn bản đồ.
+        "portrait": PlayWorldPortraitOut.model_validate(world.portrait_json or {}),
         # Khoá = giáo viên bấm khoá, HOẶC chưa có màn nào phát hành. World rỗng
         # mà mở toang thì học sinh bấm vào một chỗ trống và tưởng game hỏng.
         "is_locked": world.is_locked or published == 0,
@@ -244,7 +250,40 @@ async def read_galaxy(current: CurrentUserDep, db: DbDep) -> PlayGalaxyOut:
         desc_width=galaxy.desc_width,
         desc_color=galaxy.desc_color,
         desc_font=galaxy.desc_font,
+        portrait=await _galaxy_portrait(db, galaxy.portrait_json or {}),
         worlds=[PlayWorldOut(**await _world_summary(db, current, world)) for world in worlds],
+    )
+
+
+async def _galaxy_portrait(db: DbDep, raw: dict) -> PlayGalaxyPortraitOut:
+    """Bố cục DỌC của bản đồ, đã đổi `media_id` thành URL.
+
+    Ảnh nền là DẤU HIỆU "đã thiết kế bản dọc" — giao diện chỉ cần kiểm một
+    trường. Nên khi chưa có ảnh nền thì trả về object rỗng luôn, không trả về
+    một nửa bố cục: toạ độ mấy cái khung mà không có nền thì vẽ ra chỉ là mấy
+    tấm biển trôi trên nền đen, tệ hơn hẳn lời mời xoay ngang máy.
+    """
+    nen = raw.get("background_media_id")
+    if not nen:
+        return PlayGalaxyPortraitOut()
+
+    return PlayGalaxyPortraitOut(
+        background_url=await _url(db, nen),
+        background_kind=await _kind(db, nen),
+        title_url=await _url(db, raw.get("title_media_id")),
+        title_x=raw.get("title_x"),
+        title_y=raw.get("title_y"),
+        title_width=raw.get("title_width"),
+        title_height=raw.get("title_height"),
+        title_color=raw.get("title_color"),
+        title_font=raw.get("title_font"),
+        desc_url=await _url(db, raw.get("desc_media_id")),
+        desc_x=raw.get("desc_x"),
+        desc_y=raw.get("desc_y"),
+        desc_width=raw.get("desc_width"),
+        desc_height=raw.get("desc_height"),
+        desc_color=raw.get("desc_color"),
+        desc_font=raw.get("desc_font"),
     )
 
 
@@ -336,6 +375,66 @@ async def _lobby(db: DbDep, world: World) -> PlayLobbyOut:
         desc=await frame("desc"),
         layout=layout,
         urls=urls,
+        audio=world.audio_json or {},
+        audio_urls=(await _audio_media(db, world.audio_json or {}))[0],
+    )
+
+
+async def _lobby_doc(db: DbDep, world: World) -> PlayLobbyOut | None:
+    """Phòng chờ ở BỐ CỤC DỌC, hoặc `None` nếu người dựng chưa thiết kế.
+
+    Trả về CÙNG hình dạng với bản ngang (`PlayLobbyOut`). Nhờ vậy màn phòng chờ
+    chỉ chọn một trong hai object rồi vẽ y hệt nhau — không có nhánh "nếu dọc
+    thì..." rải khắp phần vẽ, tức không có chỗ nào để quên.
+
+    ## Không thừa kế, ở cả hai nghĩa
+
+    Không thừa kế của THIÊN HÀ: bản ngang có luật đó vì thiên hà cũng là một
+    tấm 16:9, còn ở đây thì nền thiên hà là ảnh ngang, đặt vào khung dọc là cắt
+    mất hai phần ba.
+
+    Không thừa kế của BẢN NGANG: toạ độ bản ngang nằm trong hệ 3200×1800, và
+    trong khung 1800×3200 thì `x = 2830` (chỗ mặc định của bảng xếp hạng) nằm
+    ngoài mép phải. Trống thì để trống, và giao diện dùng chỗ mặc định của
+    chính bản dọc.
+
+    ## Ảnh nền là dấu hiệu "đã thiết kế"
+
+    Một trường để kiểm, và là trường không thể thiếu: phòng chờ không nền thì
+    mười ba cái khối trôi trên nền đen. Có toạ độ mà không có nền thì thà mời
+    xoay ngang máy.
+    """
+    raw = world.lobby_portrait_json or {}
+    nen = raw.get("background_media_id")
+    if not nen:
+        return None
+
+    def khung(name: str) -> PlayFrameOut:
+        return PlayFrameOut(
+            x=raw.get(f"{name}_x"),
+            y=raw.get(f"{name}_y"),
+            width=raw.get(f"{name}_width"),
+            height=raw.get(f"{name}_height"),
+            color=raw.get(f"{name}_color"),
+            font=raw.get(f"{name}_font"),
+            # MẶC ĐỊNH TẮT: chưa ai bật thì không vẽ. Xem `WorldLobbyPortrait`.
+            visible=bool(raw.get(f"{name}_visible")),
+        )
+
+    tieu_de, mo_ta = khung("title"), khung("desc")
+    tieu_de.url = await _url(db, raw.get("title_media_id"))
+    mo_ta.url = await _url(db, raw.get("desc_media_id"))
+
+    blocks = raw.get("blocks") or {}
+    return PlayLobbyOut(
+        background_url=await _url(db, nen),
+        background_kind=await _kind(db, nen),
+        title=tieu_de,
+        desc=mo_ta,
+        layout=blocks,
+        urls=await worlds_service.block_urls(db, blocks),
+        # Nhạc DÙNG CHUNG: nó không liên quan gì tới hình dạng màn hình, và một
+        # bản nhạc thứ hai cho cùng một phòng chờ là một thứ để quên cập nhật.
         audio=world.audio_json or {},
         audio_urls=(await _audio_media(db, world.audio_json or {}))[0],
     )
@@ -644,6 +743,7 @@ async def read_world(world_id: uuid.UUID, current: CurrentUserDep, db: DbDep) ->
     return PlayWorldDetailOut(
         **summary,
         lobby=await _lobby(db, world),
+        lobby_portrait=await _lobby_doc(db, world),
         leaderboard=await _leaderboard(db, world.id, current.id),
         players_total=await db.scalar(
             select(func.count()).select_from(WorldProgress).where(WorldProgress.world_id == world.id)
@@ -875,6 +975,19 @@ class StageIntroOut(BaseModel):
     """Video mở màn của một màn chơi. `None` = màn này vào thẳng."""
 
     intro_video_url: str | None = None
+    #: Video mở màn của BẢN DỌC — tệp riêng (`stages.portrait_json`). Trang
+    #: chọn một trong hai theo hướng màn hình; không có thì cầm dọc vào thẳng,
+    #: không mượn video ngang.
+    intro_video_portrait_url: str | None = None
+
+    #: Màn này ĐÃ có bố cục dọc chưa.
+    #:
+    #: Ở đây chứ không ở `snapshot`, vì trang màn chơi phải quyết định trước khi
+    #: lượt chơi tồn tại: có mời người chơi xoay ngang máy hay không. Cùng lý do
+    #: và cùng đường với video mở màn.
+    #:
+    #: Ảnh nền là dấu hiệu — xem `_snapshot_portrait`.
+    has_portrait: bool = False
 
 
 @router.get(
@@ -914,10 +1027,19 @@ async def stage_intro(stage_id: uuid.UUID, current: CurrentUserDep, db: DbDep) -
     if stage is None:
         raise NotFoundError(ErrorCode.NOT_FOUND, resource="stage")
 
-    if await service.resumable_run(db, current, stage.id) is not None:
-        return StageIntroOut(intro_video_url=None)
+    co_ban_doc = bool((stage.portrait_json or {}).get("background_media_id"))
 
-    return StageIntroOut(intro_video_url=await _url(db, stage.intro_video_media_id))
+    if await service.resumable_run(db, current, stage.id) is not None:
+        return StageIntroOut(intro_video_url=None, has_portrait=co_ban_doc)
+
+    video_doc = (stage.portrait_json or {}).get("intro_video_media_id")
+    return StageIntroOut(
+        intro_video_url=await _url(db, stage.intro_video_media_id),
+        intro_video_portrait_url=(
+            await _url(db, uuid.UUID(video_doc)) if co_ban_doc and video_doc else None
+        ),
+        has_portrait=co_ban_doc,
+    )
 
 
 @router.post(

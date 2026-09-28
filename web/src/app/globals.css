@@ -89,3 +89,220 @@ body {
     background-position-x: var(--sprite-travel, 0);
   }
 }
+
+/* LỚP PHỦ "XOAY NGANG MÁY" — xem `RotateGate`.
+ *
+ * Thuần CSS, không một dòng JavaScript: xoay máy là trình duyệt đánh giá lại
+ * media query ngay trong khung hình đó. Làm bằng `matchMedia` + state thì lớp
+ * phủ luôn chậm một nhịp sau cú xoay, và ở lần vẽ đầu (dựng trên server, nơi
+ * không có `matchMedia`) nó đoán sai — hoặc loé lên trên máy tính, hoặc để lộ
+ * màn chơi dọc một nhịp rồi mới che.
+ *
+ * Ba điều kiện, thiếu một cái là che nhầm người:
+ *
+ *   - `orientation: portrait` — chính cái cần sửa.
+ *   - `pointer: coarse` — CẢM ỨNG. Không có nó thì một cửa sổ trình duyệt hẹp
+ *     và cao trên máy tính cũng bị che, mà ở đó người dùng chỉ cần kéo rộng
+ *     cửa sổ ra, không xoay được cái màn hình nào cả.
+ *   - `max-width: 600px` — ĐIỆN THOẠI, không phải máy tính bảng. iPad dựng
+ *     đứng rộng 768–1024px: tấm tranh 16:9 co lại vẫn đọc được, nên bắt người
+ *     ta xoay là phiền chứ không phải giúp.
+ */
+.rotate-gate {
+  display: none;
+}
+
+/* BA ĐIỀU KIỆN NÀY CÓ MỘT BẢN SAO: `PORTRAIT_SCREEN` trong `src/game/pointer.ts`.
+ * Hai bên hỏi cùng một câu — một bên để ẩn/hiện lớp phủ, một bên để React chọn
+ * bố cục. Lệch nhau thì hỏng theo kiểu tệ nhất: lớp phủ "xoay ngang máy" hiện
+ * đè lên chính cái bố cục dọc vừa được vẽ ra cho nó. Sửa một chỗ thì sửa cả
+ * chỗ kia. */
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  .rotate-gate {
+    display: grid;
+  }
+
+  /* MÀN DỌC THÌ BỎ ĐỆM, để tấm bản đồ chạm tới bốn mép.
+   *
+   * Khung `<main>` của màn học sinh có `p-3` — đúng cho máy tính, nơi tấm bản
+   * đồ là một bức tranh đóng khung nằm giữa trang. Trên điện thoại thì 12px
+   * mỗi bên là 12px không bao giờ lấy lại được, và cái viền bo góc quanh một
+   * thứ đang phủ kín màn trông như một lỗi vẽ.
+   *
+   * Chỉ ở ĐÂY, không sửa `p-3` trong JSX: bản ngang giữ nguyên đệm của nó. */
+  .play-frame {
+    padding: 0 !important;
+
+    /* KHUNG ĐO cho `cqw`/`cqh` của tấm bản đồ bên trong, và là chỗ CẮT phần
+     * tràn ra. Tấm bản đồ dọc được phóng cho phủ kín màn nên nó lớn hơn khung
+     * này ở một chiều; không cắt thì phần thừa đẩy cả trang trôi ngang.
+     *
+     * Chỉ đặt trong media query này: bản ngang không phóng phủ, và `contain`
+     * là thứ không nên bật ở nơi nó không giải quyết gì. */
+    container-type: size;
+    overflow: hidden;
+  }
+}
+
+/* Cái điện thoại tự ngả sang ngang rồi dựng lại — nói bằng ĐỘNG TÁC đúng thứ
+   dòng chữ bên dưới đang nói bằng chữ. Dừng hẳn ở tư thế ngang một nhịp, để
+   người xem kịp thấy đích đến chứ không chỉ thấy một thứ đang lắc. */
+@keyframes rotate-hint {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  45%,
+  80% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.rotate-hint {
+  animation: rotate-hint 2.8s ease-in-out infinite;
+}
+
+/* Ai đã tắt hiệu ứng chuyển động trong hệ điều hành thì giữ nguyên tư thế
+   ngang — đó là ĐÍCH, nên đứng yên ở đó vẫn nói được ý. */
+@media (prefers-reduced-motion: reduce) {
+  .rotate-hint {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+}
+
+/* KHUNG SÁNG cho chương / màn "đang ở đây": màn đang chơi dở và màn mở cuối
+ * cùng — xem `highlightedStageIds`.
+ *
+ * Một vầng sáng THỞ chậm chứ không phải một viền đứng yên: hàng chương và minimap
+ * đã có sẵn viền ở mọi ô, nên thêm một viền màu nữa chỉ là một ô viền khác màu
+ * giữa bốn ô viền. Thứ mắt bắt được ngay trên một tấm tranh nhiều màu là thứ
+ * ĐANG CHUYỂN ĐỘNG.
+ *
+ * `box-shadow` chứ không `filter: drop-shadow` hay `scale`: không đổi kích thước
+ * ô nên không đẩy hai ô bên cạnh, và vẫn sáng ra NGOÀI viền dù ô có
+ * `overflow-hidden` — bóng của chính phần tử không bị chính nó cắt. */
+/* HAI LỚP SÁNG, hai phần tử.
+ *
+ * `.glow-current` TỎA RA ngoài — đặt lên chính cái ô. Đẹp, nhưng ô chương nằm
+ * trong một khối `overflow-hidden` cao vừa khít ô, nên phần tỏa lên trên và
+ * xuống dưới bị cắt mất.
+ *
+ * `.glow-current-inner` HẮT VÀO trong — đặt lên một lớp phủ NẰM TRÊN ảnh bìa.
+ * Không gộp được vào `.glow-current`: bóng `inset` được vẽ DƯỚI mọi phần tử con,
+ * nên đặt lên cái ô thì tấm ảnh bìa đè kín nó. Lớp này không bao giờ bị cắt —
+ * cái ô vẫn sáng dù khối bao ngoài chật tới đâu. */
+@keyframes glow-outer {
+  from {
+    box-shadow:
+      0 0 0 2px var(--color-orichalcum-400),
+      0 0 10px 2px rgb(251 191 36 / 0.45);
+  }
+  to {
+    box-shadow:
+      0 0 0 3px var(--color-orichalcum-400),
+      0 0 26px 8px rgb(251 191 36 / 0.8);
+  }
+}
+
+@keyframes glow-inner {
+  from {
+    box-shadow: inset 0 0 10px 1px rgb(251 191 36 / 0.35);
+  }
+  to {
+    box-shadow: inset 0 0 24px 5px rgb(251 191 36 / 0.65);
+  }
+}
+
+.glow-current {
+  animation: glow-outer 1.6s ease-in-out infinite alternate;
+}
+
+.glow-current-inner {
+  animation: glow-inner 1.6s ease-in-out infinite alternate;
+}
+
+/* Tắt chuyển động thì vẫn SÁNG, chỉ đứng yên ở mức sáng nhất — cái viền vẫn
+ * phải nói được "ở đây". */
+@media (prefers-reduced-motion: reduce) {
+  .glow-current {
+    animation: none;
+    box-shadow:
+      0 0 0 3px var(--color-orichalcum-400),
+      0 0 22px 6px rgb(251 191 36 / 0.7);
+  }
+
+  .glow-current-inner {
+    animation: none;
+    box-shadow: inset 0 0 20px 4px rgb(251 191 36 / 0.55);
+  }
+}
+
+/* Ô NHẬP TRÊN CẢM ỨNG PHẢI ĐỦ 16px.
+ *
+ * Safari trên iPhone tự PHÓNG TO cả trang khi con trỏ nhảy vào một ô nhập có
+ * cỡ chữ dưới 16px — và nó KHÔNG thu lại sau khi gõ xong, nên người chơi ở lại
+ * trong một màn hình bị kéo to cho tới khi tự chụm hai ngón lại. `.field-input`
+ * đang là `text-sm` (14px), vừa đủ để dính.
+ *
+ * Chặn từ GỐC thay vì đi thu lại sau: cho Safari không còn lý do để phóng.
+ * Cách kia — `maximum-scale=1` trong thẻ viewport — cũng hết phóng, nhưng nó
+ * tắt luôn khả năng tự phóng to của người dùng, tức là lấy mất một công cụ trợ
+ * năng để sửa một lỗi trình bày.
+ *
+ * 16px chỉ áp trên CẢM ỨNG: màn hình chuột không có hành vi này, và ở đó chữ
+ * 14px là cỡ đã cân với phần còn lại của bảng. */
+@media (pointer: coarse) {
+  .field-input {
+    font-size: 16px;
+  }
+}
+
+/*
+ * THEME ATLANTIS Ở ĐIỆN THOẠI DỌC — viền mỏng lại.
+ *
+ * Nẹp đá 12px, lề xà cừ 10px và viền vàng 7px là cỡ cho một tấm bảng rộng 700px.
+ * Trên màn 390px, ba lớp ấy cộng lại ăn gần 60px bề ngang và cả chục pixel bề
+ * cao — đúng chỗ đoạn chat đang thiếu. Giữ màu, chỉ mỏng đi.
+ *
+ * `!important`: biến theme đặt INLINE trên thẻ (`themeVars`), và chỉ một luật
+ * `!important` mới thắng được style inline. Chọn theo `data-q-theme` nên theme
+ * `classic` (không đặt biến nào) không bị đụng tới.
+ */
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  .q-board[data-q-theme='atlantis'] {
+    --q-frame-pad: 5px !important;
+    --q-frame-radius: 1rem !important;
+    --q-inner-radius: 0.75rem !important;
+    --q-body-margin: 5px !important;
+    --q-body-radius: 0.6rem !important;
+    --q-body-border: 3px solid #ac8a3b !important;
+  }
+}
+
+/*
+ * ĐIỆN THOẠI DỌC: TẮT MỌI `backdrop-filter` (kính mờ).
+ *
+ * Trên trình duyệt di động, một khối có `backdrop-filter` bị vẽ thành một lớp
+ * riêng — và lớp ấy có khi được rasterize ở độ phân giải thấp hơn màn hình
+ * (DPR 2–3), nên CHỮ BÊN TRONG nhoè theo. Đã thấy thật: bảng hướng dẫn, bảng
+ * kết quả hết giờ. Bỏ `backdrop-blur` ở bảng hướng dẫn là chữ nét lại ngay.
+ *
+ * Tắt ở MỘT chỗ thay vì gỡ từng lớp: cả màn chơi, bảng nhiệm vụ, bong bóng
+ * chat, cụm HUD, menu tài khoản… có chừng ba chục chỗ dùng, và chỗ nào quên gỡ
+ * sẽ là chỗ tiếp theo bị báo mờ. Nền của các khối ấy vẫn giữ nguyên màu/độ
+ * trong — chỉ mất lớp làm nhoè cảnh phía sau.
+ *
+ * Cùng điều kiện với `PORTRAIT_SCREEN`: máy bàn và bản ngang không đổi gì.
+ */
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  *,
+  ::before,
+  ::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

@@ -922,6 +922,171 @@ dài nhất, hoặc sửa cho nó không tràn được nữa.
 
 ---
 
+## Khung ngoài của màn học sinh — KHÔNG có thanh trên cùng
+
+`/play/*` không dựng `TopBar`. Thanh ấy chạy ngang hết bề rộng để chở đúng ba
+thứ — tên trang, tên người, nút đăng xuất — và đổi lại ăn khoảng 56px chiều cao.
+Cả ba đều đã có chỗ khác: tên trang thì chính tấm bản đồ viết to giữa màn, còn
+tên người và lối đăng xuất là việc làm một lần mỗi buổi.
+
+Chỗ đó giờ là **cụm góc trên phải**, nổi trên tấm bản đồ và không chiếm chiều
+cao nào: nút loa (`MusicControls`) và nút tài khoản (`PlayerMenu`) — một hình
+tròn mang chữ cái đầu của tên, bấm ra bảng tên · email · vai trò · Đăng xuất.
+Chữ cái đầu chứ không phải hình người chung chung: máy phòng học dùng chung, và
+nhìn chữ cái của mình là cách nhanh nhất biết người trước đã đăng xuất chưa.
+
+Vì sao đáng bỏ: xoay ngang điện thoại thì 56px ấy là khoảng một phần tám màn
+hình, cắt thẳng vào tấm tranh 16:9 vốn đã phải co để vừa chiều cao. Máy tính thì
+chỉ là phí chỗ; điện thoại thì là mất nội dung.
+
+Giáo viên/admin vào `/play/*` vẫn có `PreviewBanner` ở trên cùng, và lối
+**Thoát** về `/teacher` nằm trong đó — bỏ `TopBar` không cắt đường về của họ.
+
+---
+
+## Điện thoại dựng đứng: lớp phủ "xoay ngang máy"
+
+Mọi màn học sinh là một BỨC TRANH 16:9 do người dựng vẽ. Tranh 16:9 nhét vào
+khung dọc thì chỉ **co lại** được chứ không xếp lại được: 3200×1800 trong một
+màn rộng 390px là một dải ảnh cao 220px nằm giữa hai khoảng trống, chữ bé tới
+mức không đọc nổi. Không có cách bố trí nào cứu được, vì chính tỉ lệ mới là thứ
+sai.
+
+Nên `/play/*` che kín màn bằng `RotateGate` và nói thẳng: màn dọc không phải tư
+thế để chơi. Dựng ở `app/[locale]/play/layout.tsx` — một bản cho cả ba màn.
+
+Hiện/ẩn **thuần CSS** (`.rotate-gate` trong `globals.css`), không một dòng
+JavaScript: xoay máy là trình duyệt đánh giá lại media query ngay trong khung
+hình đó. Làm bằng `matchMedia` + state thì lớp phủ luôn chậm một nhịp sau cú
+xoay, và lần vẽ đầu — dựng trên server, nơi không có `matchMedia` — đoán sai.
+
+Ba điều kiện, thiếu một cái là che nhầm người:
+
+| Điều kiện | Vì sao |
+|---|---|
+| `orientation: portrait` | chính cái cần sửa |
+| `pointer: coarse` | cảm ứng. Không có nó thì cửa sổ hẹp-và-cao trên máy tính cũng bị che, mà ở đó người dùng kéo rộng cửa sổ chứ không xoay được màn hình nào |
+| `max-width: 600px` | điện thoại, không phải máy tính bảng. iPad dựng đứng rộng 768–1024px, tranh co lại vẫn đọc được |
+
+Bên dưới lớp phủ trang **vẫn chạy**: Phaser giữ cảnh, nhạc giữ nhịp, đồng hồ
+của lượt chơi vẫn đếm (giờ chơi tính từ `started_at` ở server). Xoay xong là lộ
+ra đúng chỗ đang dở, không phải nạp lại.
+
+### Một cú chạm, mỗi máy làm tới đâu thì làm tới đó
+
+Xoay máy bằng tay luôn là đường chính và chạy ở mọi máy. Nhưng ai đang **bật
+khoá xoay màn hình** thì xoay máy KHÔNG LÀM GÌ CẢ — trình duyệt không bao giờ
+được báo là máy vừa quay. `RotateAction` trên lớp phủ là lối tắt cho ca đó, lấy
+bậc cao nhất máy cho phép:
+
+| Bậc | Làm gì | Máy nào |
+|---|---|---|
+| 1 | `requestFullscreen()` + `orientation.lock('landscape')` — xoay thật, đè lên cả khoá xoay của hệ điều hành | Android, iPad |
+| 2 | chỉ `requestFullscreen()`, rồi xoay máy nốt | máy có toàn màn hình mà không cho khoá hướng |
+| 3 | không vẽ nút nào | iPhone Safari |
+
+Bậc 3 **cố ý không có nút**: một cái nút bấm vào không xảy ra gì còn tệ hơn là
+không có nút, vì người ta bấm lại vài lần rồi mới chịu đọc dòng chữ. Dòng chữ
+đó — "xoay rồi mà không đổi? điện thoại đang bật khoá xoay" — hiện ở mọi máy,
+vì nó là câu trả lời duy nhất đúng cho iPhone.
+
+Phải có người CHẠM: `requestFullscreen()` chỉ chạy trong một sự kiện do người
+dùng sinh ra. Mà cú chạm ấy vốn đã phải có — trình duyệt cũng đòi đúng một cú
+chạm như vậy trước khi cho phát nhạc.
+
+### Vì sao KHÔNG quay cái trang bằng `transform: rotate(90deg)`
+
+Đó là cách duy nhất "tự xoay" được trên iPhone, và nó hỏng ba chỗ:
+
+- **Phaser** chạy ở chế độ `Scale.RESIZE`, tự đo khung bằng
+  `getBoundingClientRect()`. Sau một phép quay, hàm đó trả về hình chữ nhật
+  **bao ngoài** canvas đã quay: Phaser vừa đo sai kích thước vừa đổi ngược trục
+  toạ độ điểm chạm — chạm vào NPC bên trái thì nhận một cú chạm phía dưới.
+- **Bàn phím ảo** (có dạng câu hỏi gõ chữ) do hệ điều hành vẽ, nó không biết
+  trang đang tự quay nên bật lên theo chiều dọc, che mất ô đang gõ.
+- `100dvh`, `position: fixed`, thanh địa chỉ Safari — vẫn tính theo màn dọc.
+
+Và nó cũng không tiết kiệm được cú chạm nào: iOS bắt xin quyền cảm biến nghiêng,
+cũng bằng một cú chạm.
+
+### Thêm vào màn hình chính (Android + iOS)
+
+Cài trang lên màn hình chính thì nó mở ra **không có thanh địa chỉ và thanh
+tab** — đúng khoảng một phần tư chiều cao đang mất khi chơi ngang, lấy lại được
+mà không phải bấm nút toàn màn hình mỗi lần vào.
+
+Dựng ở `app/manifest.ts` (route động, `force-dynamic`) + phần `appleWebApp`
+trong `generateMetadata` của `[locale]/layout.tsx`.
+
+| | Android/Chrome | iOS/Safari |
+|---|---|---|
+| Bỏ thanh địa chỉ | có | có |
+| `orientation: 'landscape'` | **có** — mở ra là nằm ngang sẵn, kể cả khi máy đang bật khoá xoay | **không** — iOS lờ trường này; vẫn cần xoay tay, và `RotateGate` vẫn nhắc |
+| Lời mời cài đặt | trình duyệt tự mời | người dùng tự bấm Chia sẻ → Thêm vào MH chính |
+
+Khai `orientation` vẫn đúng dù iOS lờ đi: một trường bị lờ thì vô hại, bỏ nó đi
+là Android mất nốt.
+
+Ba chỗ dễ vấp:
+
+- **Tên và biểu tượng lấy từ màn Cấu hình**, không viết cứng — cùng cái tên và
+  cái favicon giáo viên đã đặt. Nhãn dưới biểu tượng dùng bản NGẮN (không kèm
+  khẩu hiệu): iOS cắt ở khoảng một chục ký tự.
+- **Biểu tượng phải từ 192px trở lên** thì Chrome mới mời cài. Cỡ khai trong
+  manifest đọc THẬT từ `media_assets.width/height` (`favicon_width` /
+  `favicon_height` trong `SiteConfigOut`) — khai bừa thì Chrome giải mã ảnh ra,
+  thấy không khớp, và bỏ qua. Màn Cấu hình đã ghi rõ: nên dùng PNG vuông 512×512.
+- **Không khai `maskable`.** Đó là một lời hứa rằng ảnh chừa sẵn viền an toàn
+  ~20% quanh mép, vì máy được phép cắt tới đó. Ảnh giáo viên tải lên là cái
+  favicon họ có; hứa hộ thì cái giá là logo bị xén mép ngoài màn hình chính.
+
+Hai điều kiện của môi trường: phải chạy **HTTPS** (trừ `localhost`), và trên iOS
+bản cài có kho dữ liệu RIÊNG, tách khỏi Safari — nên lần đầu mở app từ màn hình
+chính, học sinh đăng nhập lại một lần.
+
+---
+
+### Toàn màn hình còn dùng cả khi ĐÃ nằm ngang
+
+Xoay ngang xong vẫn chưa hết chật: thanh địa chỉ và thanh tab ăn khoảng một
+phần tư chiều cao, mà chiều cao là đúng thứ tấm tranh 16:9 đang thiếu. Nên
+`FullscreenButton` đứng trong cụm góc của cả ba màn học sinh — **chỉ trên cảm
+ứng** (`useCoarsePointer`), và chỉ khi `document.fullscreenEnabled`. Trên máy
+tính, cỡ cửa sổ là thứ người dùng tự chọn và đã có sẵn F11; thêm nút vào HUD chỉ
+là thêm một thứ che mất bức tranh.
+
+---
+
+## Cảm ứng: không được giấu gì sau `:hover`
+
+Ngón tay KHÔNG có trạng thái "đang rê tới". Mọi thứ chỉ hiện ra khi hover thì
+trên điện thoại là giấu vĩnh viễn, và không có thông báo lỗi nào cho người dùng
+biết mình đang thiếu gì.
+
+Luật:
+
+- Thứ chỉ đổi **hình thức** (sáng lên, phóng nhẹ, viền đổi màu) thì cứ `hover:`
+  — trạng thái nghỉ vẫn đọc được, không mất gì.
+- Thứ hover **mở ra hoặc hiện nội dung** thì phải có đường khác trên cảm ứng.
+  Chỉ đổi bề ngoài thì dùng `[@media(hover:hover)]:` trong class; cần một cờ
+  trong React thì dùng `useCoarsePointer()` (`web/src/game/pointer.ts`).
+- **Vùng chạm** tối thiểu ~44px: `[@media(pointer:coarse)]:min-h-11` /
+  `:size-8` ... Bảng hội thoại còn bị thu tỉ lệ để vừa khung, nên nút 20px ở đó
+  trên màn còn nhỏ hơn 20px.
+
+Ba chỗ đã sửa theo luật này: cụm HUD trong màn chơi (trước đây `opacity-55` cố
+định, chỉ rõ lên khi rê chuột), `MusicControls`, và nút nghe của `TinyAudio`
+trong bảng hội thoại.
+
+`MusicControls` trên cảm ứng **chỉ còn nút loa** — bấm là bật/tắt, không có
+thanh âm lượng. Điện thoại chỉnh to nhỏ bằng phím âm lượng của máy, thứ nằm
+ngay dưới ngón tay; một thanh trượt 96px đè lên tấm tranh để làm lại đúng việc
+đó chỉ là thêm một thứ che tranh, và kéo một thanh mảnh bằng ngón tay thì trượt
+nhiều hơn trúng. (Bản trước để thanh trượt mở sẵn trên cảm ứng — đúng về kỹ
+thuật, nhưng thứ nên làm là bỏ hẳn.)
+
+---
+
 ## Ánh xạ màn hình → route
 
 Mọi route `/play/*` dùng chung cho học sinh và cho giáo viên/admin ở chế độ chơi thử.

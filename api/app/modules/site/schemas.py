@@ -16,6 +16,15 @@ class SiteConfigOut(BaseModel):
     favicon_media_id: uuid.UUID | None = None
     #: URL dựng sẵn để `<link rel="icon">` dùng thẳng. `None` = chưa đặt ảnh.
     favicon_url: str | None = None
+    #: Cỡ THẬT của ảnh đó, đọc từ `media_assets`.
+    #:
+    #: Có mặt ở đây vì web app manifest bắt khai `sizes` cho từng biểu tượng, và
+    #: Chrome chỉ cho cài lên màn hình chính khi có một biểu tượng từ 192px trở
+    #: lên. Khai bừa "512x512" thì Chrome giải mã ảnh ra, thấy không khớp, và bỏ
+    #: qua — tức là nói dối xong vẫn không cài được, chỉ khác là không biết vì
+    #: sao. `None` = ảnh không phải kiểu đọc được cỡ (SVG chẳng hạn).
+    favicon_width: int | None = None
+    favicon_height: int | None = None
 
     #: Màn đang khoá trên minimap hiện rõ bao nhiêu phần trăm (độ mờ, 0..100).
     locked_stage_opacity: int = 50

@@ -111,6 +111,35 @@ class SnapshotQuestion(BaseModel):
     has_transcript: bool = False
 
 
+class SnapshotStagePortrait(BaseModel):
+    """BỐ CỤC DỌC của màn, đã đóng băng trong đề bài.
+
+    Cùng hình dạng với `StagePortrait` bên worlds, nhưng ở đây mọi thứ đã giải
+    xong: `media_id` thành URL, bố cục hội thoại thành ảnh sẵn sàng vẽ. Đề bài
+    đóng băng thì không còn ai để hỏi lại nữa.
+    """
+
+    background_url: str | None = None
+    background_kind: BackgroundKind | None = None
+    collision: CollisionMap | None = None
+    spawn_x: int | None = None
+    spawn_y: int | None = None
+    character_height: int | None = None
+    dialogue: dict[str, Any] = {}
+    dialogue_urls: dict[str, str] = {}
+    #: Ba cụm HUD, đã đóng băng. Khoá thiếu = chỗ mặc định của bản dọc.
+    hud: dict[str, Any] = {}
+
+
+class SnapshotQuestPortrait(BaseModel):
+    """Chỗ đứng của một nhiệm vụ ở bố cục dọc, đã đóng băng."""
+
+    scene_x: int | None = None
+    scene_y: int | None = None
+    icon_size: int | None = None
+    trigger_radius: int | None = None
+
+
 class SnapshotQuest(BaseModel):
     id: uuid.UUID
     order_index: int
@@ -121,6 +150,8 @@ class SnapshotQuest(BaseModel):
     scene_x: int | None = None
     scene_y: int | None = None
     trigger_radius: int | None = None
+    #: Chỗ đứng ở bố cục DỌC. Object rỗng = màn này chưa có bản dọc.
+    portrait: SnapshotQuestPortrait = Field(default_factory=lambda: SnapshotQuestPortrait())
     #: URL ảnh vật thể, đã đóng băng vào snapshot.
     icon_url: str | None = None
     #: NGƯỜI CANH GIỮ nhiệm vụ này, đã đóng băng cùng đề bài — tên, ảnh đại
@@ -214,6 +245,16 @@ class SnapshotStage(BaseModel):
     #: URL ảnh nền từng khối, ĐÓNG BĂNG như `audio_urls` và vì cùng lý do: đổi
     #: file giữa chừng thì hai máy đang chơi cùng màn sẽ thấy hai thứ khác nhau.
     dialogue_urls: dict[str, str] = {}
+
+    #: BỐ CỤC DỌC, đóng băng CÙNG LÚC với bản ngang.
+    #:
+    #: `None` = màn chưa có bản dọc, và điện thoại dựng đứng vẫn được mời xoay
+    #: ngang máy. Ảnh chụp CŨ không có khoá này nên cũng đọc ra `None` — đúng
+    #: nghĩa, không cần vá dữ liệu cũ.
+    #:
+    #: Gửi cả hai vì hướng màn hình đổi được GIỮA LƯỢT CHƠI, mà đề bài thì đã
+    #: đóng băng và không hỏi lại server nữa.
+    portrait: SnapshotStagePortrait | None = None
 
 
 class StageSnapshot(BaseModel):
@@ -562,6 +603,43 @@ class PlayChapterOut(BaseModel):
     minimap_url: str | None = None
 
 
+class PlayWorldPortraitOut(BaseModel):
+    """Chỗ đứng của một world ở bố cục DỌC. Xem `WorldPortrait` bên worlds."""
+
+    scene_x: int | None = None
+    scene_y: int | None = None
+    icon_size: int | None = None
+
+
+class PlayGalaxyPortraitOut(BaseModel):
+    """BỐ CỤC DỌC của bản đồ thiên hà, đã dựng sẵn URL.
+
+    `background_url is None` = **chưa thiết kế bản dọc**, và màn hình dọc sẽ
+    được mời xoay ngang máy. Lấy ảnh nền làm dấu hiệu vì đó là thứ đầu tiên
+    người dựng đặt và là thứ không thể thiếu: một bản đồ không nền thì các world
+    trôi trên nền đen.
+    """
+
+    background_url: str | None = None
+    background_kind: BackgroundKind | None = None
+
+    title_url: str | None = None
+    title_x: int | None = None
+    title_y: int | None = None
+    title_width: int | None = None
+    title_height: int | None = None
+    title_color: str | None = None
+    title_font: int | None = None
+
+    desc_url: str | None = None
+    desc_x: int | None = None
+    desc_y: int | None = None
+    desc_width: int | None = None
+    desc_height: int | None = None
+    desc_color: str | None = None
+    desc_font: int | None = None
+
+
 class PlayWorldOut(BaseModel):
     """Một world trên bản đồ thiên hà (S0)."""
 
@@ -596,6 +674,10 @@ class PlayWorldOut(BaseModel):
     can_enter: bool = True
     #: Vẽ vành tròn (khung bao + thanh tiến độ) quanh world.
     show_ring: bool = False
+
+    #: CHỖ ĐỨNG Ở BỐ CỤC DỌC, hệ toạ độ 1800×3200. Object rỗng = chưa đặt,
+    #: bản đồ dọc tự rải đều — y như `scene_x` còn `None` ở bản ngang.
+    portrait: PlayWorldPortraitOut = Field(default_factory=lambda: PlayWorldPortraitOut())
 
     #: Tiến độ của CHÍNH người gọi, không phải của cả phòng.
     my_skill_pts: int
@@ -637,6 +719,14 @@ class PlayGalaxyOut(BaseModel):
     desc_color: str | None = None
     desc_font: int | None = None
 
+    #: BỐ CỤC DỌC, gửi CÙNG lượt với bản ngang.
+    #:
+    #: Cả hai cùng đi xuống chứ không hỏi server "tôi đang dọc hay ngang": xoay
+    #: máy là đổi bố cục ngay trong khung hình đó, không chờ một lượt mạng, và
+    #: không có cảnh máy chủ đoán hình dạng màn hình của một cái máy nó chưa
+    #: từng thấy. Hai bố cục cộng lại vẫn là vài chục con số và dăm cái URL.
+    portrait: PlayGalaxyPortraitOut = Field(default_factory=lambda: PlayGalaxyPortraitOut())
+
     worlds: list[PlayWorldOut]
 
 
@@ -655,6 +745,9 @@ class PlayFrameOut(BaseModel):
     height: int | None = None
     color: str | None = None
     font: int | None = None
+    #: Có vẽ khung này không. Bản ngang luôn `True` — nó chưa bao giờ có công
+    #: tắc này. Bản dọc theo cờ người dựng đặt, và MẶC ĐỊNH TẮT.
+    visible: bool = True
 
 
 class PlayLobbyOut(BaseModel):
@@ -712,6 +805,12 @@ class PlayWorldDetailOut(PlayWorldOut):
 
     #: Phần trình bày: nền, hai khung chữ, bố cục các khối.
     lobby: PlayLobbyOut
+    #: Bản DỌC của đúng thứ trên. `None` = người dựng chưa thiết kế, và điện
+    #: thoại dựng đứng sẽ được mời xoay ngang máy.
+    #:
+    #: Cùng hình dạng chứ không phải một hình dạng riêng: màn phòng chờ chọn
+    #: một trong hai rồi vẽ y hệt nhau.
+    lobby_portrait: PlayLobbyOut | None = None
     #: Năm người dẫn đầu world này, và tổng số người đã từng chơi.
     leaderboard: list[PlayRankOut] = []
     players_total: int = 0

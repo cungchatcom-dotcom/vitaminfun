@@ -98,7 +98,9 @@ export function McqRenderer({
           3rem). Ở màn hội thoại, bốn phương án hai dòng đẩy đoạn chat thành một
           khe hẹp — mà đoạn chat mới là thứ đáng đọc, còn đây chỉ là chỗ bấm một
           cái. Cao tối thiểu 2.5rem vẫn thừa cho một ngón tay. */}
-      <div className="grid gap-2 sm:grid-cols-2">
+      {/* MÀN DỌC: khe giữa các phương án hẹp lại (6px thay vì 8px) — bốn
+          phương án thì ba khe, và mỗi pixel ở đây là một pixel đoạn chat mất. */}
+      <div className="grid gap-2 sm:grid-cols-2 [@media(orientation:portrait)_and_(pointer:coarse)]:gap-1">
         {options.map((option, index) => {
           const isOn = selected.includes(option.id);
           const laDapAn = dapAnDung.has(option.id);
@@ -127,7 +129,17 @@ export function McqRenderer({
               type="button"
               disabled={disabled}
               onClick={() => toggle(option.id)}
-              className={`flex h-full min-h-10 w-full items-center gap-2.5 rounded-xl border-2 px-3 py-2 text-start text-[0.95rem] leading-snug transition disabled:opacity-60 ${
+              // MÀN DỌC GỌN LẠI để bốn phương án lọt hết mà không phải cuộn:
+              // chữ 14px thay vì 15px, dòng khít hơn (`leading-tight`), đệm dọc
+              // 6px, cao tối thiểu 36px. Ô vẫn TRẢI HẾT bề ngang màn hình nên
+              // ngón tay không khó nhắm — cái khó bấm là ô vừa thấp vừa hẹp,
+              // không phải ô thấp mà rộng cả màn.
+              //
+              // Sàn 44px của cảm ứng giờ chỉ áp khi nằm NGANG: ở đó màn thấp
+              // nhưng rộng, phương án xếp hai cột và còn thừa chỗ. Để nó áp cả
+              // ở màn dọc là mỗi ô cao thêm 8px, bốn ô là 32px — đúng phần
+              // khiến danh sách phải cuộn và nút Trả lời đè lên phương án cuối.
+              className={`flex h-full min-h-10 w-full items-center gap-2.5 rounded-xl border-2 px-3 py-2 text-start text-[length:var(--q-text,0.95rem)] leading-snug transition disabled:opacity-60 [@media(orientation:landscape)_and_(pointer:coarse)]:min-h-11 [@media(orientation:portrait)_and_(pointer:coarse)]:min-h-8 [@media(orientation:portrait)_and_(pointer:coarse)]:gap-1.5 [@media(orientation:portrait)_and_(pointer:coarse)]:px-2 [@media(orientation:portrait)_and_(pointer:coarse)]:py-1 [@media(orientation:portrait)_and_(pointer:coarse)]:text-[length:var(--q-text,0.875rem)] [@media(orientation:portrait)_and_(pointer:coarse)]:leading-tight [@media(orientation:portrait)_and_(pointer:coarse)]:rounded-lg ${
                 tieng ? "pe-10 " : ""
               }${tone ? "" : isOn ? "" : "hover:brightness-125"}`}
               // Viền dày đổi màu thay vì chỉ đổi nền: người mù màu vẫn phân biệt
@@ -167,7 +179,7 @@ export function McqRenderer({
             >
               <span
                 aria-hidden
-                className={`grid size-5 shrink-0 place-items-center border-2 text-[0.65rem] font-bold ${
+                className={`grid size-5 shrink-0 place-items-center border-2 text-[0.65rem] font-bold [@media(orientation:portrait)_and_(pointer:coarse)]:size-4 [@media(orientation:portrait)_and_(pointer:coarse)]:text-[0.6rem] ${
                   multi ? "rounded" : "rounded-full"
                 }`}
                 style={
@@ -201,7 +213,7 @@ export function McqRenderer({
                 type="button"
                 aria-label={option.text}
                 onClick={() => phat(tieng)}
-                className="absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full bg-black/25 text-xs transition hover:bg-lagoon-500/30"
+                className="absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full bg-black/25 text-xs transition hover:bg-lagoon-500/30 [@media(pointer:coarse)]:size-9"
               >
                 🔊
               </button>

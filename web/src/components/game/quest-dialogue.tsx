@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import {
   DIALOGUE,
+  dialogueCanvas,
   DIALOGUE_BACKGROUND,
   DIALOGUE_BLOCK_KEYS,
   dialogueBox,
@@ -108,8 +109,16 @@ export function QuestDialogue({
   header,
   onClose,
   onTypingChange,
+  orientation = 'landscape',
 }: {
   layout: DialogueSaved;
+  /**
+   * Bố cục NGANG hay DỌC. Quyết cả khung quy đổi phần trăm lẫn chỗ đứng mặc
+   * định của sáu khối — xem `dialogueSpec`.
+   *
+   * Mặc định `'landscape'`: mọi chỗ gọi đang có đều là bản ngang.
+   */
+  orientation?: 'landscape' | 'portrait';
   /**
    * URL ảnh nền của TỪNG KHỐI, tra sẵn theo `media_id` bên trong bố cục.
    *
@@ -142,6 +151,7 @@ export function QuestDialogue({
   onTypingChange: (typing: boolean) => void;
 }) {
   const t = useTranslations();
+  const khung = dialogueCanvas(orientation);
 
   return (
     <section
@@ -150,7 +160,7 @@ export function QuestDialogue({
         // Cao TRƯỚC, rộng suy ra. Khu chơi rộng và thấp, nên chiều cao mới là
         // cái chặn — lấy bề rộng làm chuẩn thì tấm bảng cao hơn khung nhìn và
         // cả câu hỏi lẫn nút Trả lời đều bị cắt mất. Đã gặp thật.
-        aspectRatio: `${DIALOGUE.width} / ${DIALOGUE.height}`,
+        aspectRatio: `${khung.width} / ${khung.height}`,
         // `cqw` của các khối con đo theo BỀ RỘNG TẤM BẢNG này. Thiếu dòng này
         // thì `cqw` không có gì để đo và cỡ chữ nhảy loạn — chữ NPC to gấp ba.
         containerType: "inline-size",
@@ -197,13 +207,14 @@ export function QuestDialogue({
         </button>
       </div>
 
-      <Block k="npcAvatar" layout={layout} urls={urls}>
+      <Block orientation={orientation} k="npcAvatar" layout={layout} urls={urls}>
         <Actor actor={npc} role="npc" pose={npcPose} name={npcName} />
       </Block>
 
-      <Block k="npcBubble" layout={layout} urls={urls} grow>
+      <Block orientation={orientation} k="npcBubble" layout={layout} urls={urls} grow>
         {npcQuestion && (
           <Bubble
+          orientation={orientation}
             side="npc"
             layout={layout}
             urls={urls}
@@ -213,9 +224,10 @@ export function QuestDialogue({
         )}
       </Block>
 
-      <Block k="playerBubble" layout={layout} urls={urls} grow>
+      <Block orientation={orientation} k="playerBubble" layout={layout} urls={urls} grow>
         {playerLine && (
           <Bubble
+          orientation={orientation}
             side="me"
             layout={layout}
             urls={urls}
@@ -228,9 +240,10 @@ export function QuestDialogue({
       {/* Lời phán. Ba chấm "đang gõ" hiện ở ĐÂY chứ không ở bong bóng câu hỏi:
           thứ học sinh đang chờ sau khi bấm Trả lời là câu này, và đề bài thì
           phải đứng yên để họ còn đối chiếu. */}
-      <Block k="npcVerdict" layout={layout} urls={urls} grow>
+      <Block orientation={orientation} k="npcVerdict" layout={layout} urls={urls} grow>
         {(npcVerdict || typing) && (
           <Bubble
+          orientation={orientation}
             side="npc"
             layout={layout}
             urls={urls}
@@ -241,7 +254,7 @@ export function QuestDialogue({
         )}
       </Block>
 
-      <Block k="playerAvatar" layout={layout} urls={urls}>
+      <Block orientation={orientation} k="playerAvatar" layout={layout} urls={urls}>
         <Actor
           actor={player}
           role="player"
@@ -255,7 +268,7 @@ export function QuestDialogue({
           một tấm bảng tối rỗng nằm dưới đó chỉ là một cái khung chờ việc
           không bao giờ tới. */}
       {answer && (
-        <Block k="answerBox" layout={layout} urls={urls}>
+        <Block orientation={orientation} k="answerBox" layout={layout} urls={urls}>
           {/* Ảnh nền do người dựng tải lên thì bỏ hết khung mặc định đi: hai lớp
             khung lồng nhau là thứ không ai cố ý muốn. */}
           <div
@@ -289,6 +302,7 @@ function Block({
   urls,
   grow = false,
   children,
+  orientation,
 }: {
   k: DialogueBlockKey;
   layout: DialogueSaved;
@@ -307,17 +321,19 @@ function Block({
    */
   grow?: boolean;
   children: ReactNode;
+  orientation: 'landscape' | 'portrait';
 }) {
-  const box = dialogueBox(k, layout[k]);
+  const khung = dialogueCanvas(orientation);
+  const box = dialogueBox(k, layout[k], orientation);
   const url = urls[k];
-  const height = `${(box.height / DIALOGUE.height) * 100}%`;
+  const height = `${(box.height / khung.height) * 100}%`;
   return (
     <div
       className="absolute"
       style={{
-        left: `${((box.x - box.width / 2) / DIALOGUE.width) * 100}%`,
-        top: `${((box.y - box.height / 2) / DIALOGUE.height) * 100}%`,
-        width: `${(box.width / DIALOGUE.width) * 100}%`,
+        left: `${((box.x - box.width / 2) / khung.width) * 100}%`,
+        top: `${((box.y - box.height / 2) / khung.height) * 100}%`,
+        width: `${(box.width / khung.width) * 100}%`,
         ...(grow ? { minHeight: height } : { height }),
       }}
     >
@@ -350,6 +366,7 @@ function Bubble({
   k,
   line,
   dots = false,
+  orientation,
 }: {
   side: "npc" | "me";
   layout: DialogueSaved;
@@ -358,9 +375,10 @@ function Bubble({
   line: DialogueLine | null;
   /** Hiện ba chấm "đang gõ" thay cho chữ. */
   dots?: boolean;
+  orientation: 'landscape' | 'portrait';
 }) {
   const saved = layout[k];
-  const outer = dialogueBox(k, saved);
+  const outer = dialogueBox(k, saved, orientation);
   const box = dialogueContent(k, saved?.content);
 
   /**

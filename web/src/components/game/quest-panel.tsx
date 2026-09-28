@@ -1076,6 +1076,9 @@ export function QuestPanel({
         // Cùng dấu với bảng hội thoại: phím Enter bắt ở cửa sổ chỉ nhận khi tiêu
         // điểm còn nằm trong một tấm bảng của nhiệm vụ.
         data-quest-panel=""
+        // `max-w-lg` là trần cho màn rộng. Trên màn dọc nó không chạm tới —
+        // bề ngang màn hình mới là cái chặn — nên không cần nhánh riêng; thứ
+        // cần là đệm ngoài thu lại, và đó nằm ở `StagePlay`.
         className="pointer-events-auto w-full max-w-lg"
         /**
          * MẶC ĐÚNG BỘ ÁO của màn. Trước đây tấm này dùng một bộ lớp riêng
@@ -1491,9 +1494,12 @@ export function QuestPanel({
           // `div` này, nên nó chỉ chạy khi tiêu điểm còn nằm bên trong — mà tiêu
           // điểm rơi ra ngoài suốt. Giờ nó nằm ở cửa sổ; xem `nopBangEnter` phía
           // trên. Giữ cả hai thì một cú Enter chạy hai lần, nộp hai bong bóng.
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 [@media(orientation:portrait)_and_(pointer:coarse)]:gap-1.5">
             {!finished && question && hienPhuongAn && (
-              <div>
+              // Màn dọc: khung trả lời bỏ đệm dọc để hàng nút chỉ cao đúng
+              // bằng cái nút — nên đệm trên chuyển về đây, cho phương án đầu
+              // không dính sát vạch trên.
+              <div className="[@media(orientation:portrait)_and_(pointer:coarse)]:pt-1.5">
                 <QuestionRenderer
                   type={question.type}
                   // Đề bài đã đóng băng mang cả cách ra đề. Nhưng ở ĐÂY chỉ truyền
@@ -1511,13 +1517,24 @@ export function QuestPanel({
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            {/* HÀNG NÚT.
+                Màn dọc: KHÔNG đệm dọc — khung trả lời (`QuestChat`) cũng không,
+                nên dải chứa nút cao đúng bằng cái nút, và `bottom-0` là dính
+                sát đáy.
+                Màn DỌC: dính đáy khung trả lời và có nền riêng, nên danh sách
+                đáp án cuộn TRÔI RA SAU nó thay vì đẩy nó xuống — nút Trả lời
+                lúc nào cũng nằm trong tầm ngón tay. Căn GIỮA vì trên màn hẹp
+                thì dòng gợi ý bên trái bị bóp còn vài chữ, và một cái nút lệch
+                hẳn sang phải thì tay phải với.
+                Màn NGANG giữ nguyên: một hàng, gợi ý trái, nút phải. */}
+            <div className="flex items-center gap-3 [@media(orientation:portrait)_and_(pointer:coarse)]:sticky [@media(orientation:portrait)_and_(pointer:coarse)]:bottom-0 [@media(orientation:portrait)_and_(pointer:coarse)]:z-10 [@media(orientation:portrait)_and_(pointer:coarse)]:-mx-3 [@media(orientation:portrait)_and_(pointer:coarse)]:justify-center [@media(orientation:portrait)_and_(pointer:coarse)]:gap-2 [@media(orientation:portrait)_and_(pointer:coarse)]:px-3 [@media(orientation:portrait)_and_(pointer:coarse)]:py-0 [@media(orientation:portrait)_and_(pointer:coarse)]:backdrop-blur [@media(orientation:portrait)_and_(pointer:coarse)]:[background:var(--q-bar-bg,rgba(4,18,31,0.35))]"
+            >
               {loiNop ? (
                 <span role="alert" className="flex-1 text-xs text-coral-400">
                   {t(loiNop)}
                 </span>
               ) : (
-                <span className="flex-1 text-xs text-slate-400">
+                <span className="flex-1 text-xs text-slate-400 [@media(orientation:portrait)_and_(pointer:coarse)]:hidden">
                   {finished || !question
                     ? ""
                     : typing
@@ -1668,7 +1685,10 @@ function AssistButton({
         // Cùng cỡ với cái loa đứng cạnh, và nền ĐẶC: dải nút này nằm đè lên mép
         // bong bóng, nên một cái nút trong mờ sẽ lẫn nửa vào nền bong bóng, nửa
         // vào đáy biển.
-        className={`grid size-5 place-items-center rounded-full ring-1 ring-white/15 transition ${
+        // To hơn hẳn trên CẢM ỨNG: 20px là cỡ vừa tay một con trỏ chuột nhọn,
+        // còn đầu ngón tay cần gấp đôi. Và cả bảng này còn bị thu tỉ lệ để vừa
+        // khung, nên 20px trên giấy còn bé hơn 20px trên màn.
+        className={`grid size-5 place-items-center rounded-full ring-1 ring-white/15 transition [@media(pointer:coarse)]:size-8 ${
           disabled
             ? // Mờ nhưng VẪN THẤY. Bản trước dùng `bg-white/5 text-slate-600` và
               // trên nền biển sáng thì cái nút biến mất hẳn — không thấy thì
@@ -1682,7 +1702,7 @@ function AssistButton({
       >
         <svg
           viewBox="0 0 24 24"
-          className="size-3"
+          className="size-3 [@media(pointer:coarse)]:size-4"
           aria-hidden
           fill="currentColor"
         >

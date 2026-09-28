@@ -22,6 +22,13 @@ export type DialogueActor = components['schemas']['DialogueActor'];
 export const startRun = (stageId: string) =>
   request<Run>(`/play/stages/${stageId}/start`, { method: 'POST' });
 
+/**
+ * Video mở màn của màn — `intro_video_url` rỗng khi đang có lượt chơi dở.
+ * Trang hỏi cái này phía server lúc render; "Chơi lại" hỏi lại ở client.
+ */
+export const getStageIntro = (stageId: string) =>
+  request<components['schemas']['StageIntroOut']>(`/play/stages/${stageId}/intro`);
+
 export const getRun = (runId: string) => request<Run>(`/play/runs/${runId}`);
 
 export const abandonRun = (runId: string) =>

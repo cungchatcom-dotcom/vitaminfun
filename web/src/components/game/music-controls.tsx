@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { useCoarsePointer } from '@/game/pointer';
+
 import {
   DEFAULT_MUSIC_PREFS,
   MUSIC_PREFS_EVENT,
@@ -112,7 +114,21 @@ export function MusicControls({ className = '' }: { className?: string }) {
   const [hover, setHover] = useState(false);
   const [tieuDiemBanPhim, setTieuDiemBanPhim] = useState(false);
   const [dangKeo, setDangKeo] = useState(false);
-  const open = hover || tieuDiemBanPhim || dangKeo;
+
+  /**
+   * CẢM ỨNG thì CHỈ CÓ NÚT LOA — bấm là bật/tắt, không có thanh âm lượng.
+   *
+   * Trên điện thoại, người ta chỉnh to nhỏ bằng phím âm lượng của máy — thứ
+   * nằm ngay dưới ngón tay và chỉnh được cả tiếng hệ thống. Một thanh trượt
+   * rộng 96px nằm đè lên tấm bản đồ để làm lại đúng việc đó thì chỉ là thêm
+   * một thứ che tranh, và kéo một thanh mảnh như vậy bằng ngón tay thì trượt
+   * nhiều hơn trúng.
+   *
+   * Bản trước để thanh trượt MỞ SẴN trên cảm ứng (vì không rê chuột được thì
+   * không mở ra được). Đúng về kỹ thuật, nhưng thứ nên làm là bỏ hẳn nó đi.
+   */
+  const cham = useCoarsePointer();
+  const open = !cham && (hover || tieuDiemBanPhim || dangKeo);
 
   // Kết thúc cú kéo nghe ở WINDOW, không ở thanh trượt: nhả chuột ngoài cụm thì
   // thanh trượt chẳng bao giờ thấy `pointerup`, và cụm sẽ kẹt mở vĩnh viễn.
@@ -157,6 +173,9 @@ export function MusicControls({ className = '' }: { className?: string }) {
         <span className="sr-only">{prefs.on ? t('mute') : t('unmute')}</span>
       </button>
 
+      {/* Không vẽ luôn trên cảm ứng, chứ không chỉ thu về bề rộng 0: một ô
+          trượt vô hình vẫn nằm trong cây trợ năng và trong luồng Tab. */}
+      {!cham && (
       <label
         className={`flex items-center overflow-hidden transition-[width,opacity] ${
           open ? 'w-24 opacity-100' : 'w-0 opacity-0'
@@ -177,6 +196,7 @@ export function MusicControls({ className = '' }: { className?: string }) {
           className="w-20 accent-lagoon-400"
         />
       </label>
+      )}
     </div>
   );
 }

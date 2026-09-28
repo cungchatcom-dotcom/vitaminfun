@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { DIALOGUE_BACKGROUND, type DialogueSaved } from "@/game/dialogue";
+import { DIALOGUE_BACKGROUND, textPx, type DialogueSaved } from "@/game/dialogue";
 import { themeVars } from "@/game/dialogue-theme";
+import { usePortraitScreen } from "@/game/pointer";
 import { DIALOGUE_REST, type DialoguePose, type DialogueRole } from "@/game/character";
 
 import type { DialogueActor } from "@/lib/play";
@@ -176,8 +177,79 @@ export function QuestChat({
    * sau này nó là một thẻ `<audio>` — và tắt nhạc nền khi học sinh nghe đề bài
    * là một thứ không ai yêu cầu.
    */
-  const nodes = useRef(new Map<number, HTMLAudioElement>());
+  /**
+   * Nguồn tiếng của từng bong bóng, theo `seq`. CHỈ là đường dẫn.
+   *
+   * Trước đây đây là sổ các thẻ `<audio>` — mỗi bong bóng một thẻ riêng. Đúng
+   * trên máy tính, HỎNG trên iPhone: Safari đòi MỖI thẻ media phải được mở khoá
+   * bằng một cú chạm của người dùng. Câu chào phát được vì nó đi ngay sau cú
+   * chạm vào người canh giữ; câu hỏi đến sau bằng hẹn giờ, trên một thẻ vừa
+   * mới sinh ra và chưa ai chạm vào — nên bị chặn, và học sinh phải chạm màn
+   * hình mới nghe được.
+   *
+   * Giờ cả đoạn chat dùng ĐÚNG MỘT thẻ (`loa`), mở khoá một lần rồi đổi nguồn
+   * cho từng câu. Một thẻ đã được chạm thì mọi lần phát sau đều qua.
+   */
+  const nguon = useRef(new Map<number, string>());
   const daTuPhat = useRef<number | null>(null);
+
+  /** Thẻ `<audio>` DUY NHẤT của cả đoạn chat. */
+  const loa = useRef<HTMLAudioElement>(null);
+  /** Màn điện thoại dọc — thanh tiêu đề dùng mặt nhỏ hơn. */
+  const doc = usePortraitScreen();
+  /** Câu đang nằm trên loa. `null` = chưa nạp câu nào. */
+  const [seqPhat, setSeqPhat] = useState<number | null>(null);
+  const [dangChay, setDangChay] = useState(false);
+  const [viTri, setViTri] = useState(0);
+  const [conLai, setConLai] = useState(0);
+
+  /**
+   * MỞ KHOÁ thẻ loa bằng cú chạm đầu tiên vào bảng.
+   *
+   * Phát một đoạn im lặng cực ngắn rồi dừng ngay — người dùng không nghe thấy
+   * gì, nhưng trình duyệt ghi nhận "thẻ này đã được người dùng cho phép", và
+   * từ đó mọi lệnh phát của chương trình đều được chấp nhận.
+   *
+   * Chạy trong CHÍNH trình xử lý sự kiện chạm: Safari chỉ tính khi `play()`
+   * được gọi đồng bộ bên trong cử chỉ, hẹn giờ một nhịp là mất hiệu lực.
+   */
+  const daMoKhoa = useRef(false);
+  /**
+   * Đếm số lần `phat()` được gọi. Mở khoá xong thì chỉ DỪNG loa nếu trong lúc
+   * đó không ai xin phát thật — xem `moKhoa`.
+   */
+  const lanPhat = useRef(0);
+  const moKhoa = useCallback(() => {
+    const el = loa.current;
+    if (!el || daMoKhoa.current) return;
+    daMoKhoa.current = true;
+    // ĐANG ĐỌC thì loa đã mở sẵn rồi — không đụng vào. Bản trước vẫn chạy
+    // play→pause ở đây, và cú chạm đầu tiên vào màn hình cắt ngang câu hỏi
+    // đang tự đọc.
+    if (!el.paused) return;
+    const truoc = lanPhat.current;
+    const viTriCu = el.currentTime;
+    if (!el.src) el.src = IM_LANG;
+    // Câm trong lúc mở khoá: loa có thể đang nạp một câu thật đang tạm dừng,
+    // và phát "thử" nó dù vài mili-giây cũng là một tiếng bật nghe thấy.
+    el.muted = true;
+    void el
+      .play()
+      .then(() => {
+        el.muted = false;
+        // Trong lúc chờ, có người xin phát thật (cú chạm này cũng là cú chạm
+        // "hẹn lại" của `phat()`) — để yên cho nó đọc.
+        if (lanPhat.current !== truoc) return;
+        el.pause();
+        el.currentTime = viTriCu;
+      })
+      .catch(() => {
+        el.muted = false;
+        // Trình duyệt vẫn từ chối. Không sao: `phat()` còn lớp hẹn-lại phía
+        // dưới, và lần chạm sau sẽ thử mở khoá lại.
+        daMoKhoa.current = false;
+      });
+  }, []);
 
   /**
    * Tắt mọi thẻ KHÁC. Gọi khi một thẻ vừa bắt đầu phát.
@@ -186,14 +258,10 @@ export function QuestChat({
    * của người dùng sẽ chạy vào nhánh `currentTime = 0`, và mỗi lần tua tới rồi
    * bấm tiếp là bài đọc nhảy về đầu.
    */
-  const tatCacKhac = useCallback((seq: number) => {
-    for (const [key, other] of nodes.current) {
-      if (key !== seq && !other.paused) {
-        other.pause();
-        other.currentTime = 0;
-      }
-    }
-  }, []);
+  //
+  // MỘT thẻ thì luật "một tiếng tại một lúc" thành hiển nhiên: nạp câu mới là
+  // câu cũ dừng. Không còn gì để đi tắt hộ ai.
+
 
   /**
    * IM HẾT — không chừa thẻ nào.
@@ -203,9 +271,8 @@ export function QuestChat({
    * chứ không phải nghe lại từ đầu.
    */
   const imHet = useCallback(() => {
-    for (const node of nodes.current.values()) {
-      if (!node.paused) node.pause();
-    }
+    const el = loa.current;
+    if (el && !el.paused) el.pause();
   }, []);
 
   useEffect(() => {
@@ -226,24 +293,36 @@ export function QuestChat({
    * Nên khi bị từ chối thì HẸN LẠI: chạm tiếp theo vào trang, dù chạm vào đâu,
    * là phát. Một lần duy nhất, và gỡ ngay sau đó.
    */
-  const phat = useCallback(
-    (seq: number) => {
-      const node = nodes.current.get(seq);
-      if (!node) return;
-      tatCacKhac(seq);
-      node.currentTime = 0;
-      void node.play().catch(() => {
-        const lai = () => {
-          window.removeEventListener("pointerdown", lai);
-          window.removeEventListener("keydown", lai);
-          void node.play().catch(() => undefined);
-        };
-        window.addEventListener("pointerdown", lai, { once: true });
-        window.addEventListener("keydown", lai, { once: true });
-      });
-    },
-    [tatCacKhac],
-  );
+  const phat = useCallback((seq: number) => {
+    const el = loa.current;
+    const src = nguon.current.get(seq);
+    if (!el || !src) return;
+    lanPhat.current += 1;
+    el.muted = false;
+
+    // Chỉ nạp lại khi ĐỔI câu: gán `src` bằng đúng giá trị đang có vẫn làm
+    // trình duyệt tải lại và về giây 0, nên bấm tiếp một câu đang tạm dừng sẽ
+    // nhảy về đầu thay vì nghe tiếp.
+    if (!el.src.endsWith(src)) {
+      el.src = src;
+      el.currentTime = 0;
+    }
+    setSeqPhat(seq);
+
+    void el.play().catch(() => {
+      // Trình duyệt vẫn chặn (chưa có cú chạm nào). HẸN LẠI: chạm tiếp theo
+      // vào trang, dù chạm vào đâu, là phát. Một lần duy nhất, gỡ ngay sau đó.
+      const lai = () => {
+        window.removeEventListener("pointerdown", lai);
+        window.removeEventListener("keydown", lai);
+        lanPhat.current += 1;
+        el.muted = false;
+        void el.play().catch(() => undefined);
+      };
+      window.addEventListener("pointerdown", lai, { once: true });
+      window.addEventListener("keydown", lai, { once: true });
+    });
+  }, []);
 
   /**
    * TỰ PHÁT câu mới nhất, đúng MỘT lần.
@@ -283,7 +362,15 @@ export function QuestChat({
       // Dấu để chỗ khác nhận ra "đang ở trong bảng nhiệm vụ" — phím Enter của
       // `QuestPanel` chỉ nhận khi tiêu điểm còn nằm trong đây.
       data-quest-panel=""
-      className="pointer-events-auto relative flex h-full max-h-full w-full max-w-3xl flex-col"
+      // MỞ KHOÁ thẻ loa ngay ở cú chạm ĐẦU TIÊN vào bảng — xem `moKhoa`. Đặt
+      // ở khung ngoài cùng để chạm vào đâu cũng tính: bấm một phương án, kéo
+      // thanh cuộn, chạm vào bong bóng. Sau đó mọi câu tự phát đều qua.
+      onPointerDownCapture={moKhoa}
+      className="q-board pointer-events-auto relative flex h-full max-h-full w-full max-w-3xl flex-col"
+      // Tên theme lên DOM để `globals.css` chỉnh RIÊNG theme đó ở màn dọc
+      // (viền vàng mỏng lại…) — biến theme đặt inline, nên chỉ một luật CSS
+      // `!important` trong media query mới ghi đè được.
+      data-q-theme={layout.theme ?? "classic"}
       /**
        * KHUNG NGOÀI, và là chỗ duy nhất đặt biến của theme.
        *
@@ -298,6 +385,9 @@ export function QuestChat({
        */
       style={{
         ...themeVars(layout.theme),
+        // Cỡ chữ bong bóng + đáp án do người dựng đặt. Không đặt = không có
+        // biến, và hai chỗ ấy rơi về cỡ mặc định của hướng.
+        ...(textPx(layout) !== null && { "--q-text": `${textPx(layout)}px` }),
         padding: "var(--q-frame-pad, 0px)",
         borderRadius: "var(--q-frame-radius, 1rem)",
         background: "var(--q-frame-bg, transparent)",
@@ -336,13 +426,15 @@ export function QuestChat({
           nút ở góc phải. Ở bản trước không có thanh này và tên người canh giữ
           không xuất hiện ở đâu cả. */}
       <header
-        className="relative z-10 flex shrink-0 items-center gap-2.5 px-3 py-2 backdrop-blur-sm"
+        // Màn DỌC: thanh tiêu đề thấp lại — mặt nhỏ hơn, đệm dọc mỏng hơn.
+        // Mỗi pixel ở đây là một pixel lấy khỏi đoạn chat.
+        className="relative z-10 flex shrink-0 items-center gap-2.5 px-3 py-2 backdrop-blur-sm [@media(orientation:portrait)_and_(pointer:coarse)]:gap-2 [@media(orientation:portrait)_and_(pointer:coarse)]:py-1"
         style={{
           background: "var(--q-header-bg, rgba(4,18,31,0.35))",
           borderBottom: "1px solid var(--q-header-line, rgba(255,255,255,0.10))",
         }}
       >
-        <Face actor={npc} role="npc" pose={npcPose} name={npcName} />
+        <Face actor={npc} role="npc" pose={npcPose} name={npcName} size={doc ? 30 : undefined} />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: MSG.incomingInk }}>
           {npcName}
         </span>
@@ -385,10 +477,17 @@ export function QuestChat({
             key={line.seq}
             line={line}
             urls={urls}
-            nodes={nodes.current}
-            onPlay={() => tatCacKhac(line.seq)}
-            onPlayingChange={onPlayingChange}
-            onAudioEnded={onAudioEnded}
+            nguon={nguon.current}
+            active={seqPhat === line.seq}
+            playing={seqPhat === line.seq && dangChay}
+            pos={seqPhat === line.seq ? viTri : 0}
+            left={seqPhat === line.seq ? conLai : 0}
+            onToggle={() => {
+              moKhoa();
+              const el = loa.current;
+              if (seqPhat === line.seq && el && !el.paused) el.pause();
+              else phat(line.seq);
+            }}
             extras={actions?.(line) ?? null}
             // Mặt chỉ hiện ở tin CUỐI của một cụm cùng người nói — đúng như
             // Messenger. Hiện ở mọi tin thì một dãy bốn câu của người canh giữ
@@ -411,7 +510,20 @@ export function QuestChat({
           một câu trắc nghiệm sáu phương án dài hơn cả đoạn chat, và để nó đẩy
           đoạn chat ra khỏi màn hình là mất đúng thứ vừa dựng lên. */}
       <div
-        className="relative z-10 max-h-[45%] shrink-0 overflow-y-auto px-3 py-2.5 backdrop-blur-sm"
+        // MÀN DỌC: trần 46%, đệm dọc mỏng hơn. Từng lên 60% để bốn phương án
+        // lọt hết không cuộn — nhưng khi ấy vùng hội thoại chỉ còn một khe,
+        // mà đó là thứ đáng đọc. Phương án đã gọn lại (xem `renderers.tsx`);
+        // câu nào dài quá thì khung này cuộn, nút Trả lời vẫn dính đáy.
+        //
+        // Bản trước hạ trần xuống 32% để chừa chỗ cho đoạn chat — và chính
+        // nó buộc phải cuộn: bốn phương án cộng hàng nút không bao giờ lọt vào
+        // một phần ba màn hẹp. Giờ phương án đã gọn lại (xem `renderers.tsx`),
+        // nên nới trần ra là đủ chỗ cho cả bộ. Đoạn chat vẫn thấy câu hỏi: nó
+        // tự cuộn về đáy, tức về đúng câu mới nhất.
+        //
+        // Hàng nút vẫn DÍNH ĐÁY (`sticky` ở `QuestPanel`): câu nào có sáu
+        // phương án dài thì vẫn cuộn, và lúc đó nút Trả lời không bị đẩy đi.
+        className="relative z-10 max-h-[45%] shrink-0 overflow-y-auto px-3 py-2.5 backdrop-blur-sm [@media(orientation:portrait)_and_(pointer:coarse)]:max-h-[46%] [@media(orientation:portrait)_and_(pointer:coarse)]:py-0"
         style={{
           background: "var(--q-bar-bg, rgba(4,18,31,0.35))",
           borderTop: "1px solid var(--q-bar-line, rgba(255,255,255,0.10))",
@@ -420,6 +532,38 @@ export function QuestChat({
         {answer}
       </div>
       </div>
+      {/* THẺ LOA DUY NHẤT của cả đoạn chat — xem `nguon`.
+          `preload="none"`: không tải gì cho tới khi thật sự phát. */}
+      <audio
+        ref={loa}
+        preload="none"
+        className="hidden"
+        onPlay={() => {
+          setDangChay(true);
+          onPlayingChange?.(true);
+        }}
+        onPause={() => {
+          setDangChay(false);
+          onPlayingChange?.(false);
+        }}
+        onTimeUpdate={(e) => {
+          const el = e.currentTarget;
+          const tong = Number.isFinite(el.duration) ? el.duration : 0;
+          setViTri(tong > 0 ? el.currentTime / tong : 0);
+          setConLai(Math.max(0, Math.ceil(tong - el.currentTime)));
+        }}
+        onLoadedMetadata={(e) => {
+          const el = e.currentTarget;
+          setConLai(Number.isFinite(el.duration) ? Math.ceil(el.duration) : 0);
+          setViTri(0);
+        }}
+        onEnded={() => {
+          setDangChay(false);
+          setViTri(0);
+          onPlayingChange?.(false);
+          if (seqPhat !== null) onAudioEnded?.(seqPhat);
+        }}
+      />
     </section>
   );
 }
@@ -429,19 +573,26 @@ function Row({
   line,
   urls,
   face,
-  nodes,
-  onPlay,
-  onPlayingChange,
-  onAudioEnded,
+  nguon,
+  active,
+  playing,
+  pos,
+  left,
+  onToggle,
   extras,
 }: {
   line: ChatLine;
   urls: Record<string, string>;
   face: ReactNode;
-  nodes: Map<number, HTMLAudioElement>;
-  onPlay: () => void;
-  onPlayingChange?: (playing: boolean) => void;
-  onAudioEnded?: (seq: number) => void;
+  /** Sổ nguồn tiếng theo `seq` — bong bóng ghi đường dẫn của mình vào đây. */
+  nguon: Map<number, string>;
+  /** Câu này có đang nằm trên loa không. */
+  active: boolean;
+  playing: boolean;
+  /** Tiến độ 0…1 và số giây còn lại — chỉ có nghĩa khi `active`. */
+  pos: number;
+  left: number;
+  onToggle: () => void;
   /** Nút trợ giúp của riêng bong bóng này, xếp TRƯỚC cái loa. */
   extras?: ReactNode;
 }) {
@@ -483,10 +634,11 @@ function Row({
           <TinyAudio
             src={line.audio_url}
             seq={line.seq}
-            nodes={nodes}
-            onPlay={onPlay}
-            onPlayingChange={onPlayingChange}
-            onAudioEnded={onAudioEnded}
+            nguon={nguon}
+            playing={playing}
+            pos={active ? pos : 0}
+            left={active ? left : 0}
+            onToggle={onToggle}
           />
         )}
       </span>
@@ -502,7 +654,9 @@ function Row({
           tối đa chuyển lên cột, nếu không thì dải nút không bị chặn gì và một
           thanh thời gian mở ra có thể đẩy cả hàng rộng quá khổ. */}
       <div
-        className={`flex max-w-[72%] min-w-0 flex-col ${
+        // Màn DỌC: bong bóng rộng hơn — ở 72% của một tấm bảng 390px trừ mặt,
+        // viền và đệm, mỗi dòng chỉ còn vài chữ và câu hỏi thành một cột dài.
+        className={`flex max-w-[72%] min-w-0 flex-col [@media(orientation:portrait)_and_(pointer:coarse)]:max-w-[84%] ${
           cuaMinh ? "items-end" : "items-start"
         }`}
       >
@@ -544,7 +698,9 @@ function Row({
           >
             {line.text && (
               <p
-                className="text-[0.95rem] leading-snug whitespace-pre-wrap"
+                // Cỡ chữ = `--q-text` (người dựng chỉnh), CÙNG biến với chữ
+                // của các phương án. Mặc định 0,95rem ngang, 0,875rem dọc.
+                className="text-[length:var(--q-text,0.95rem)] leading-snug whitespace-pre-wrap [@media(orientation:portrait)_and_(pointer:coarse)]:text-[length:var(--q-text,0.875rem)]"
                 // CHỈ đổi màu, không bôi đậm. Màu đã đủ nói "đúng" hay "sai";
                 // thêm nét đậm là câu khen được hét to hơn mọi câu khác trong
                 // cuộc trò chuyện, lặp lại ở từng câu hỏi.
@@ -737,41 +893,58 @@ export function Face({
  * Thẻ `<audio>` thật vẫn còn, chỉ là bị giấu: luật "một tiếng tại một lúc" và
  * việc tự phát đều làm việc trực tiếp với nó qua sổ tay `nodes`.
  */
+/**
+ * Một đoạn WAV IM LẶNG cực ngắn, chỉ để MỞ KHOÁ thẻ loa.
+ *
+ * 44 byte header + không có mẫu nào: trình duyệt phát xong trong chớp mắt,
+ * người dùng không nghe thấy gì, nhưng thẻ đã được đánh dấu "người dùng cho
+ * phép" và mọi lệnh phát sau đó đều qua.
+ */
+const IM_LANG =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
 function TinyAudio({
   src,
   seq,
-  nodes,
-  onPlay,
-  onPlayingChange,
-  onAudioEnded,
+  nguon,
+  playing,
+  pos,
+  left,
+  onToggle,
 }: {
   src: string;
   seq: number;
-  nodes: Map<number, HTMLAudioElement>;
-  onPlay: () => void;
-  onPlayingChange?: (playing: boolean) => void;
-  onAudioEnded?: (seq: number) => void;
+  nguon: Map<number, string>;
+  playing: boolean;
+  /** Tiến độ 0…1 và số giây còn lại của CHÍNH câu này. */
+  pos: number;
+  left: number;
+  onToggle: () => void;
 }) {
-  const node = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [pos, setPos] = useState(0);
-  const [left, setLeft] = useState(0);
+  /**
+   * Thẻ `<audio>` ĐÃ ĐI KHỎI ĐÂY — cả đoạn chat dùng chung một cái.
+   *
+   * Mỗi bong bóng một thẻ riêng thì trên iPhone chỉ thẻ nào được chạm mới phát
+   * được, và câu đến sau bằng hẹn giờ luôn im. Xem `nguon` / `loa` ở
+   * `QuestChat`. Ở đây chỉ còn phần NHÌN: cái nút và thanh thời gian.
+   */
+  useEffect(() => {
+    nguon.set(seq, src);
+    return () => {
+      nguon.delete(seq);
+    };
+  }, [nguon, seq, src]);
+
   /**
    * Con trỏ đang ở trên khối này.
    *
    * Bằng STATE chứ không bằng `group-hover` của CSS: lớp nhóm có tên
    * (`group/au`) chỉ tồn tại nếu Tailwind gom được nó lúc dựng, và nếu không
-   * thì thanh thời gian im lặng không bao giờ mở ra — một cái hỏng không có dấu
-   * hiệu nào ngoài việc rê chuột vào thấy không có gì xảy ra. Đã gặp thật.
+   * thì thanh thời gian im lặng không bao giờ mở ra — một cái hỏng không có
+   * dấu hiệu nào ngoài việc rê chuột vào thấy không có gì xảy ra. Đã gặp thật.
    */
   const [hover, setHover] = useState(false);
-
-  function toggle() {
-    const el = node.current;
-    if (!el) return;
-    if (el.paused) void el.play().catch(() => undefined);
-    else el.pause();
-  }
+  const mo = hover || playing;
 
   return (
     <span
@@ -786,40 +959,24 @@ function TinyAudio({
     >
       <button
         type="button"
-        onClick={toggle}
+        onClick={onToggle}
         aria-label={src}
-        // CÙNG cỡ, CÙNG màu với mấy nút trợ giúp đứng cạnh. Tô màu nhấn riêng
-        // cho cái loa là biến nó thành việc chính của bong bóng, mà việc chính
-        // là đọc chữ — tiếng chỉ là thứ nghe thêm.
-        //
-        // Nền ĐẶC chứ không trong mờ: dải này nằm ĐÈ lên mép bong bóng, nên một
-        // cái nút trong mờ sẽ lẫn nửa vào nền bong bóng, nửa vào đáy biển.
-        className="grid size-5 shrink-0 place-items-center rounded-full bg-abyss-950/70 text-slate-300 ring-1 ring-white/15 transition hover:bg-abyss-800 hover:text-slate-100"
+        className="grid size-6 shrink-0 place-items-center rounded-full bg-black/25 text-[11px] transition hover:bg-black/40 [@media(pointer:coarse)]:size-8"
       >
-        {/* VẼ chứ không gõ ký tự. `▶` và `❚❚` là ký tự Unicode có bản emoji, và
-            Chrome dựng chúng thành emoji MÀU — cái nút hoá ra một ô vuông xanh
-            giữa hai cái nút xám, dù lớp màu đặt thế nào cũng không đổi được.
-            Đã gặp thật. */}
-        <svg viewBox="0 0 24 24" className="size-3" aria-hidden fill="currentColor">
-          {playing ? (
-            <path d="M8 5h3v14H8zM13 5h3v14h-3z" />
-          ) : (
-            <path d="M8 5.5v13l11-6.5z" />
-          )}
-        </svg>
+        <span aria-hidden>{playing ? "⏸" : "🔊"}</span>
       </button>
 
-      {/* Thanh thời gian: rộng 0 khi nghỉ, trượt ra khi rê chuột hoặc đang phát.
-          Đổi `width` chứ không `display`: có `transition` thì nó trượt ra chứ
-          không nhảy phịch. */}
+      {/* Thanh thời gian chỉ mở khi RÊ TỚI hoặc ĐANG PHÁT — xem `mo`. Luôn
+          hiện thì mỗi bong bóng có tiếng đều kéo theo một thanh xám, và đoạn
+          chat trông như một danh sách tệp. */}
       <span
-        className={`flex items-center gap-1.5 overflow-hidden transition-[width,opacity] duration-200 ${
-          playing || hover ? "w-24 opacity-100" : "w-0 opacity-0"
+        className={`flex items-center gap-1.5 overflow-hidden transition-[width,opacity] ${
+          mo ? "w-24 opacity-100" : "w-0 opacity-0"
         }`}
       >
-        <span className="h-[3px] flex-1 rounded-full bg-white/25">
+        <span className="h-1 flex-1 overflow-hidden rounded-full bg-black/25">
           <span
-            className="block h-full rounded-full bg-white/80"
+            className="block h-full rounded-full bg-current opacity-70"
             style={{ width: `${Math.round(pos * 100)}%` }}
           />
         </span>
@@ -827,47 +984,6 @@ function TinyAudio({
           {mmss(left)}
         </span>
       </span>
-
-      <audio
-        ref={(el) => {
-          node.current = el;
-          if (el) nodes.set(seq, el);
-          else nodes.delete(seq);
-        }}
-        src={src}
-        preload="none"
-        className="hidden"
-        // Bấm PLAY trên bong bóng này thì mọi bong bóng khác im: một cuộc trò
-        // chuyện có hai giọng cùng nói là không nghe ra được câu nào.
-        onPlay={() => {
-          onPlay();
-          setPlaying(true);
-          onPlayingChange?.(true);
-        }}
-        onPause={() => {
-          setPlaying(false);
-          onPlayingChange?.(false);
-        }}
-        onEnded={() => {
-          setPlaying(false);
-          setPos(0);
-          onPlayingChange?.(false);
-          onAudioEnded?.(seq);
-        }}
-        onTimeUpdate={(event) => {
-          const el = event.currentTarget;
-          const total = el.duration;
-          // `duration` là `NaN` cho tới khi đọc xong metadata — chia cho nó thì
-          // thanh chạy nhảy loạn ở giây đầu.
-          if (!Number.isFinite(total) || total <= 0) return;
-          setPos(el.currentTime / total);
-          setLeft(Math.max(0, total - el.currentTime));
-        }}
-        onLoadedMetadata={(event) => {
-          const total = event.currentTarget.duration;
-          if (Number.isFinite(total)) setLeft(total);
-        }}
-      />
     </span>
   );
 }

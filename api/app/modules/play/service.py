@@ -169,6 +169,37 @@ async def actors_of(
     }
 
 
+async def _snapshot_portrait(db: AsyncSession, stage: Stage) -> dict[str, Any] | None:
+    """Bố cục DỌC của màn, đã đổi `media_id` thành URL — hoặc `None`.
+
+    Ảnh nền là dấu hiệu "đã thiết kế bản dọc": một cảnh không nền thì nhân vật
+    đứng trên nền đen, tệ hơn hẳn lời mời xoay ngang máy. Một trường để kiểm, và
+    là trường không thể thiếu.
+    """
+    raw = stage.portrait_json or {}
+    nen = raw.get("background_media_id")
+    if not nen:
+        return None
+
+    url, kind = None, None
+    row = (
+        await db.execute(
+            select(MediaAsset.url, MediaAsset.kind).where(MediaAsset.id == uuid.UUID(str(nen)))
+        )
+    ).first()
+    if row is not None:
+        url, kind = row
+
+    dialogue = raw.get("dialogue") or {}
+    return {
+        **raw,
+        "background_url": url,
+        "background_kind": kind,
+        # Ảnh của từng khối hội thoại, đóng băng như mọi URL khác trong đề bài.
+        "dialogue_urls": await block_urls(db, dialogue),
+    }
+
+
 async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any], dict[str, Any]]:
     """Dựng (đề bài, đáp án) từ trạng thái HIỆN TẠI của màn.
 
@@ -370,6 +401,10 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
                 "scene_x": quest.scene_x,
                 "scene_y": quest.scene_y,
                 "trigger_radius": quest.trigger_radius,
+                # Chỗ đứng ở bố cục DỌC, đóng băng CÙNG LÚC với bản ngang chứ
+                # không phải thay cho nó — xem `"portrait"` của màn bên dưới.
+                # `{}` = màn này chưa có bản dọc.
+                "portrait": quest.portrait_json or {},
                 "icon_url": icons.get(quest.icon_media_id),
                 # NGƯỜI CANH GIỮ, đóng băng cùng lý do với ảnh vật thể: giáo
                 # viên đổi NPC giữa chừng thì lượt đang chơi vẫn nói chuyện với
@@ -493,6 +528,16 @@ async def build_snapshot(db: AsyncSession, stage: Stage) -> tuple[dict[str, Any]
             # đổi — hoặc bị xoá — từ lúc lượt này bắt đầu.
             "dialogue": (dialogue := await effective_dialogue(db, stage)),
             "dialogue_urls": await block_urls(db, dialogue),
+            # BỐ CỤC DỌC, đóng băng CẢ HAI chứ không phải bố cục đã chọn.
+            #
+            # Hướng màn hình đổi được GIỮA LƯỢT CHƠI: học sinh xoay máy là cảnh
+            # phải vẽ lại theo bố cục kia, mà đề bài thì đã đóng băng và không
+            # hỏi lại server nữa. Đóng băng một bố cục thôi là xoay máy giữa
+            # chừng thì mất cảnh.
+            #
+            # `None` = màn chưa có bản dọc. Ảnh chụp CŨ không có khoá này và đọc
+            # ra cũng `None` — đúng nghĩa, không cần vá dữ liệu cũ.
+            "portrait": await _snapshot_portrait(db, stage),
         },
         "quests": snapshot_quests,
     }

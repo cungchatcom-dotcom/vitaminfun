@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal';
 import { ApiError } from '@/lib/api-error';
 import { pickText } from '@/lib/i18n-text';
 import { pickCharacter, type PlayCharacter } from '@/lib/play';
+import { usePortraitScreen } from '@/game/pointer';
 
 /** Số nhân vật hiện cùng lúc trên một hàng ngang trong bộ chọn. */
 const PER_PAGE = 5;
@@ -196,6 +197,19 @@ function CharacterPicker({
 }) {
   const t = useTranslations('lobby.character');
   const [page, setPage] = useState(0);
+  const doc = usePortraitScreen();
+
+  if (doc) {
+    return (
+      <PortraitPicker
+        characters={characters}
+        chosenId={chosenId}
+        locale={locale}
+        onClose={onClose}
+        onChoose={onChoose}
+      />
+    );
+  }
 
   const pages = Math.max(1, Math.ceil(characters.length / PER_PAGE));
   const shown = characters.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
@@ -279,6 +293,95 @@ function CharacterPicker({
           <footer className="border-t border-abyss-800 px-5 py-2 text-center font-mono text-xs text-slate-500">
             {page + 1} / {pages}
           </footer>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Bộ chọn ở MÀN DỌC: lưới HAI cột, cuộn dọc.
+ *
+ * Năm nhân vật một hàng trên màn rộng 390px là năm cái thẻ rộng 50px — mặt nhỏ
+ * bằng móng tay, dòng giới thiệu không còn chỗ. Hai cột thì mỗi thẻ rộng gần nửa
+ * màn. Khung lưới cao vừa BA HÀNG (sáu nhân vật); nhiều hơn thì cuộn — trên điện
+ * thoại vuốt dọc là cử chỉ tự nhiên nhất, tự nhiên hơn bấm mũi tên lật trang.
+ */
+const PORTRAIT_CARD_REM = 13;
+
+function PortraitPicker({
+  characters,
+  chosenId,
+  locale,
+  onClose,
+  onChoose,
+}: {
+  characters: PlayCharacter[];
+  chosenId: string | null | undefined;
+  locale: string;
+  onClose: () => void;
+  onChoose: (id: string) => void;
+}) {
+  const t = useTranslations('lobby.character');
+  return (
+    <Modal label={t('pickTitle')} onClose={onClose}>
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-900 shadow-2xl">
+        <header className="flex items-center justify-between gap-3 border-b border-abyss-800 py-1 pr-1 pl-4">
+          <h2 className="text-lg font-semibold text-slate-100">{t('pickTitle')}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('prev')}
+            className="flex size-11 items-center justify-center text-xl text-slate-400 hover:text-slate-100"
+          >
+            ✕
+          </button>
+        </header>
+
+        {characters.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-500">{t('noneAvailable')}</p>
+        ) : (
+          <ul
+            className="grid grid-cols-2 gap-3 overflow-y-auto overscroll-contain p-3"
+            style={{
+              maxHeight: `min(calc(${PORTRAIT_CARD_REM * 3}rem + 3.0rem), 72dvh)`,
+              gridAutoRows: `${PORTRAIT_CARD_REM}rem`,
+            }}
+          >
+            {characters.map((character) => {
+              const current = character.id === chosenId;
+              return (
+                <li key={character.id}>
+                  <button
+                    type="button"
+                    onClick={() => onChoose(character.id)}
+                    className={`flex size-full flex-col items-center gap-1.5 overflow-hidden rounded-xl border p-3 text-center transition active:scale-[0.97] ${
+                      current
+                        ? 'border-orichalcum-400 bg-orichalcum-500/10'
+                        : 'border-abyss-800 bg-abyss-950/40 active:border-lagoon-500/60'
+                    }`}
+                  >
+                    {character.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={character.avatar_url}
+                        alt=""
+                        className="size-20 shrink-0 rounded-full border border-abyss-700 object-cover"
+                      />
+                    ) : (
+                      <span className="size-20 shrink-0 rounded-full border border-dashed border-abyss-700" />
+                    )}
+                    <span className="line-clamp-1 text-sm font-semibold text-slate-100">
+                      {pickText(character.name_i18n, locale)}
+                    </span>
+                    <span className="line-clamp-3 text-xs leading-snug text-slate-400">
+                      {pickText(character.bio_i18n, locale)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </Modal>

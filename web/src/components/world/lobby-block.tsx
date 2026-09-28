@@ -4,8 +4,13 @@ import { useTranslations } from 'next-intl';
 
 import { LobbyContent } from './lobby-content';
 
+import { ScaleToHeight } from '@/components/game/scale-to-height';
+
 import {
+  isLobbyControl,
   isLobbyStat,
+  LOBBY_PAGE_SIZE,
+  CHAPTER_ARROW_CLASS,
   LOBBY_RANK_ROWS,
   type LobbyContentSaved,
   type LobbyElementKey,
@@ -36,6 +41,7 @@ export function LobbyBlock({
   lines,
   content,
   chapters,
+  count,
 }: {
   elementKey: LobbyElementKey;
   imageUrl: string | null | undefined;
@@ -48,6 +54,8 @@ export function LobbyBlock({
   content?: LobbyContentSaved | null;
   /** Hàng chương: tên + ảnh + đã khoá hay chưa. Khối khác bỏ qua. */
   chapters?: { id: string; name: string; coverUrl?: string | null; locked: boolean }[];
+  /** Hàng chương: số ô mỗi trang người dựng đã chọn. */
+  count?: number | null;
 }) {
   return (
     <div
@@ -61,16 +69,70 @@ export function LobbyBlock({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={imageUrl} alt="" className="absolute inset-0 size-full" draggable={false} />
       )}
-      <LobbyContent elementKey={elementKey} saved={content}>
-        <Sample
-          elementKey={elementKey}
-          label={label}
-          text={text}
-          lines={lines}
-          chapters={chapters}
-        />
-      </LobbyContent>
+      {isLobbyControl(elementKey) ? (
+        // Khối điều khiển tự vẽ lấy, không qua `LobbyContent` — cùng lý do với
+        // bên màn học sinh (`WorldLobby`).
+        <ControlSample elementKey={elementKey} />
+      ) : (
+        <LobbyContent elementKey={elementKey} saved={content}>
+          <Sample
+            elementKey={elementKey}
+            label={label}
+            text={text}
+            lines={lines}
+            chapters={chapters}
+            count={count}
+          />
+        </LobbyContent>
+      )}
     </div>
+  );
+}
+
+/**
+ * MẪU của hai khối điều khiển — trông y như thật, nhưng không bấm được.
+ *
+ * Dựng lại bằng tay chứ không nhúng component thật: `PlayerMenu` cần một người
+ * đăng nhập để đọc tên, `MusicControls` ghi tuỳ chọn âm thanh của người đang
+ * xem, và cả hai sẽ bắt mất cú bấm mà người dựng dành cho việc KÉO khối. Cỡ,
+ * viền, khoảng cách thì chép đúng của thật — người dựng phải thấy đúng cái hàng
+ * nút sẽ chiếm bao nhiêu chỗ.
+ *
+ * Luôn vẽ cả nút toàn màn hình, dù trên máy tính học sinh không thấy nó: căn
+ * theo trường hợp DÀI NHẤT thì trên điện thoại cụm nút vẫn nằm gọn trong chỗ
+ * đã chừa.
+ */
+function ControlSample({ elementKey }: { elementKey: LobbyElementKey }) {
+  const t = useTranslations();
+  const tron =
+    'grid size-8 place-items-center rounded-full border border-white/25 bg-black/45 text-sm text-white/85';
+
+  if (elementKey === 'back') {
+    return (
+      <ScaleToHeight>
+        <span className="block rounded-lg border border-white/40 bg-abyss-950/70 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-white">
+          ← {t('play.title')}
+        </span>
+      </ScaleToHeight>
+    );
+  }
+
+  return (
+    <ScaleToHeight align="end">
+      <span className="flex items-center gap-2">
+        <span className={tron} aria-hidden>
+          ⛶
+        </span>
+        <span className="flex items-center rounded-full border border-white/25 bg-black/45 px-1 py-1">
+          <span className="px-2 py-0.5 text-sm text-white/85" aria-hidden>
+            🔊
+          </span>
+        </span>
+        <span className={`${tron} font-bold`} aria-hidden>
+          A
+        </span>
+      </span>
+    </ScaleToHeight>
   );
 }
 
@@ -80,12 +142,14 @@ function Sample({
   text,
   lines,
   chapters,
+  count,
 }: {
   elementKey: LobbyElementKey;
   label: string;
   text?: string;
   lines?: number;
   chapters?: { id: string; name: string; coverUrl?: string | null; locked: boolean }[];
+  count?: number | null;
 }) {
   const t = useTranslations('lobby.sample');
 
@@ -127,13 +191,30 @@ function Sample({
   }
 
   if (elementKey === 'chapters') {
-    // Luôn năm ô — đó là số chương màn hình thật hiển thị một lúc. Ô CHỈ CÓ
-    // ẢNH, không có tên viết dưới: đúng bằng thứ màn hình thật vẽ. Chưa có ảnh
-    // thì mới điền tên vào giữa, để còn phân biệt được năm cái ô trống.
-    const cells = chapters?.length ? chapters.slice(0, 5) : null;
+    // ĐÚNG số ô người dựng đã chọn — đó là số chương màn hình thật hiển thị
+    // một lúc. Ô CHỈ CÓ ẢNH, không có tên viết dưới: đúng bằng thứ màn hình thật
+    // vẽ. Chưa có ảnh thì mới điền tên vào giữa, để còn phân biệt các ô trống.
+    //
+    // Luôn đủ `n` ô kể cả khi world có ít chương hơn: người dựng đang căn một
+    // hàng sẽ còn dài ra theo thời gian, và căn trên hai ô thì tới lúc có năm
+    // chương, ô nào cũng hẹp đi một nửa.
+    const n = count ?? LOBBY_PAGE_SIZE.base;
+    const cells = Array.from({ length: n }, (_, i) => chapters?.[i] ?? null);
+
+    // Hai MŨI TÊN lật trang, y hệt bên màn học sinh (`PageArrow` trong
+    // `WorldLobby`): cùng lớp, cùng khoảng cách. Chúng chiếm chỗ thật trên hàng,
+    // nên thiếu chúng thì ô mẫu rộng hơn ô học sinh thấy — và người dựng căn cỡ
+    // khối theo một con số sai. Chỉ là hình, không bấm được.
+    const muiTen = (kyTu: string) => (
+      <span aria-hidden className={CHAPTER_ARROW_CLASS}>
+        {kyTu}
+      </span>
+    );
+
     return (
       <div className="flex size-full items-stretch gap-[1.5%]">
-        {(cells ?? Array.from({ length: 5 }, () => null)).map((chapter, index) => (
+        {muiTen('‹')}
+        {cells.map((chapter, index) => (
           <div
             key={chapter?.id ?? index}
             className="relative min-w-0 flex-1 overflow-hidden rounded-lg border border-white/40 bg-abyss-950/40"
@@ -158,6 +239,7 @@ function Sample({
             )}
           </div>
         ))}
+        {muiTen('›')}
       </div>
     );
   }

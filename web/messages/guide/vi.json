@@ -1,0 +1,29 @@
+{
+  "title": "Cách chơi màn này",
+  "subtitle": "Đọc một phút, chơi trôi cả màn",
+  "intro": "Bạn đang ở một màn của Atlantis. Nhiệm vụ của bạn: đi khắp màn, gặp người canh giữ, trả lời đúng các câu hỏi để mở đường và giành mảnh bản đồ.",
+  "move": {
+    "title": "Di chuyển nhân vật",
+    "body": "Bấm chuột hoặc chạm vào một điểm bất kỳ trên màn, nhân vật sẽ đi tới đó. Trên máy tính có thể dùng phím W A D X hoặc bốn phím mũi tên."
+  },
+  "npc": {
+    "title": "Gặp NPC dẫn chuyện TRƯỚC",
+    "body": "Hãy đi tới nhân vật dẫn chuyện (NPC) đầu tiên và hoàn thành nhiệm vụ của họ. Các nhiệm vụ khác còn khoá cho tới khi bạn qua được cửa này."
+  },
+  "energy": {
+    "title": "Điểm năng lượng",
+    "body": "Qua nhiệm vụ NPC là bạn nhận điểm năng lượng ⚡. Dùng nó để mua gợi ý trong lúc trả lời: xem transcript của đoạn nghe, hoặc xem bản dịch — câu khó sẽ dễ thở hơn nhiều."
+  },
+  "cluebook": {
+    "title": "Sổ tay bí quyết",
+    "body": "NPC cũng trao cho bạn sổ tay 📖 — bí kíp gói gọn những kiến thức trọng tâm của màn. Bấm biểu tượng 📖 ở góc màn để mở ra đọc lại bất cứ lúc nào."
+  },
+  "quests": {
+    "title": "Làm các nhiệm vụ còn lại",
+    "body": "Mỗi vật thể có tên trên bản đồ là một nhiệm vụ. Đi tới cho nhân vật đứng vào khung của nó, bảng câu hỏi sẽ mở ra. Trả lời đúng để hoàn thành; sai thì còn lượt để thử lại."
+  },
+  "time": {
+    "title": "Đồng hồ và lối ra",
+    "body": "Mỗi lượt chơi có thời gian riêng, xem ở góc trên. Hết giờ là kết thúc lượt. Bạn có thể bấm Chơi lại để bắt đầu lại từ đầu, hoặc Rời màn để quay về world."
+  }
+}

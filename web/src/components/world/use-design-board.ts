@@ -114,11 +114,29 @@ export function useDesignBoard({
   const commit = useRef({ onMove, onResize });
   commit.current = { onMove, onResize };
 
+  /**
+   * KHUNG VẼ cũng phải đi qua ref, CÙNG LÝ DO với hai hàm lưu ở trên.
+   *
+   * `onPointerMove` nằm trong một `useEffect` có mảng phụ thuộc rỗng, nên nó
+   * giữ mãi giá trị `canvas` của lần dựng ĐẦU TIÊN. Chừng nào khung vẽ là một
+   * hằng số thì không ai nhận ra — nó có đổi bao giờ đâu.
+   *
+   * Nhưng bản đồ thiên hà giờ có hai bố cục: 3200×1800 khi ngang, 1800×3200
+   * khi dọc. Bấm sang bản dọc là `startDrag` tính điểm đặt tay theo khung MỚI
+   * trong khi mỗi cú rê tính theo khung CŨ — hai hệ quy chiếu cho một cú kéo.
+   * Cái khung nhảy giật ra khỏi con trỏ, và kéo cỡ thì nhảy thẳng tới cận trên
+   * hoặc cận dưới, trông như nút kéo cỡ chết hẳn.
+   *
+   * Ref thì mỗi lần rê đọc đúng khung đang vẽ.
+   */
+  const khung = useRef(canvas);
+  khung.current = canvas;
+
   function toWorld(clientX: number, clientY: number) {
     const box = boardRef.current!.getBoundingClientRect();
     return {
-      x: Math.round(((clientX - box.left) / box.width) * canvas.width),
-      y: Math.round(((clientY - box.top) / box.height) * canvas.height),
+      x: Math.round(((clientX - box.left) / box.width) * khung.current.width),
+      y: Math.round(((clientY - box.top) / box.height) * khung.current.height),
     };
   }
 
@@ -148,8 +166,10 @@ export function useDesignBoard({
       const point = toWorld(event.clientX, event.clientY);
       setGhost({
         id: drag.id,
-        x: Math.max(0, Math.min(canvas.width, point.x - drag.dx)),
-        y: Math.max(0, Math.min(canvas.height, point.y - drag.dy)),
+        // `khung.current`, không phải `canvas`: cùng lý do với `toWorld` ngay
+        // trên — biến bắt được ở đây là của lần dựng đầu tiên.
+        x: Math.max(0, Math.min(khung.current.width, point.x - drag.dx)),
+        y: Math.max(0, Math.min(khung.current.height, point.y - drag.dy)),
       });
     }
 

@@ -2084,6 +2084,119 @@ export interface components {
             audio_names?: {
                 [key: string]: string;
             };
+            portrait?: components["schemas"]["GalaxyPortrait"];
+        };
+        /**
+         * GalaxyPortrait
+         * @description BỐ CỤC DỌC của bản đồ thiên hà — khung vẽ 1800×3200.
+         *
+         *     Bản song song của mấy trường cùng tên ở `GalaxyUpdate`/`GalaxyOut`, nhưng
+         *     gom vào một object thay vì hai chục trường `portrait_*` nằm rải ra: một
+         *     object thì thêm hướng thứ ba chỉ là thêm một trường, còn tiền tố thì nhân
+         *     đôi mọi thứ mỗi lần.
+         *
+         *     CHỈ những gì phụ thuộc hình dạng màn hình. Tên, mô tả, nhạc không có ở đây —
+         *     xoay máy thì chúng có đổi đâu; xem docs/GAME_DOMAIN.md.
+         *
+         *     Mọi trường đều `None` được, và object rỗng nghĩa là **chưa thiết kế bản
+         *     dọc** — lúc đó màn hình dọc vẫn được mời xoay ngang máy.
+         *
+         *     Khoảng giá trị theo khung DỌC: bề rộng tối đa 1800 (không phải 3200), chiều
+         *     cao tối đa 3200. Chép nguyên khoảng của bản ngang sang đây là cho người dựng
+         *     kéo cái khung ra ngoài mép bản đồ mà không có gì kêu.
+         */
+        GalaxyPortrait: {
+            /** Background Media Id */
+            background_media_id?: string | null;
+            /** Title Media Id */
+            title_media_id?: string | null;
+            /** Title X */
+            title_x?: number | null;
+            /** Title Y */
+            title_y?: number | null;
+            /** Title Width */
+            title_width?: number | null;
+            /** Title Height */
+            title_height?: number | null;
+            /** Title Color */
+            title_color?: string | null;
+            /** Title Font */
+            title_font?: number | null;
+            /** Desc Media Id */
+            desc_media_id?: string | null;
+            /** Desc X */
+            desc_x?: number | null;
+            /** Desc Y */
+            desc_y?: number | null;
+            /** Desc Width */
+            desc_width?: number | null;
+            /** Desc Height */
+            desc_height?: number | null;
+            /** Desc Color */
+            desc_color?: string | null;
+            /** Desc Font */
+            desc_font?: number | null;
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Title Url */
+            title_url?: string | null;
+            /** Desc Url */
+            desc_url?: string | null;
+        };
+        /**
+         * GalaxyPortraitPatch
+         * @description Bản gửi LÊN, kèm ba cái cờ gỡ ảnh.
+         *
+         *     `None` ở đây nghĩa là "không gửi trường này, giữ nguyên" — cùng luật với
+         *     `GalaxyUpdate`. Nên xoá ảnh phải có cờ riêng, vì `None` đã mang nghĩa khác.
+         */
+        GalaxyPortraitPatch: {
+            /** Background Media Id */
+            background_media_id?: string | null;
+            /** Title Media Id */
+            title_media_id?: string | null;
+            /** Title X */
+            title_x?: number | null;
+            /** Title Y */
+            title_y?: number | null;
+            /** Title Width */
+            title_width?: number | null;
+            /** Title Height */
+            title_height?: number | null;
+            /** Title Color */
+            title_color?: string | null;
+            /** Title Font */
+            title_font?: number | null;
+            /** Desc Media Id */
+            desc_media_id?: string | null;
+            /** Desc X */
+            desc_x?: number | null;
+            /** Desc Y */
+            desc_y?: number | null;
+            /** Desc Width */
+            desc_width?: number | null;
+            /** Desc Height */
+            desc_height?: number | null;
+            /** Desc Color */
+            desc_color?: string | null;
+            /** Desc Font */
+            desc_font?: number | null;
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Title Url */
+            title_url?: string | null;
+            /** Desc Url */
+            desc_url?: string | null;
+            /** Clear Background */
+            clear_background?: boolean | null;
+            /** Clear Title */
+            clear_title?: boolean | null;
+            /** Clear Desc */
+            clear_desc?: boolean | null;
         };
         /** GalaxyUpdate */
         GalaxyUpdate: {
@@ -2135,6 +2248,7 @@ export interface components {
             clear_title?: boolean | null;
             /** Clear Desc */
             clear_desc?: boolean | null;
+            portrait?: components["schemas"]["GalaxyPortraitPatch"] | null;
         };
         /**
          * GradeDetail
@@ -2250,6 +2364,47 @@ export interface components {
                 [key: string]: string;
             } | null;
             content?: components["schemas"]["LobbyContent"] | null;
+            /** Count */
+            count?: number | null;
+            /** Stage Count */
+            stage_count?: number | null;
+            /** Hidden */
+            hidden?: boolean | null;
+        };
+        /**
+         * LobbyElementPortrait
+         * @description Một khối phòng chờ ở BỐ CỤC DỌC.
+         *
+         *     Kế thừa `LobbyElement` để hình dạng không bao giờ lệch nhau — thêm một
+         *     trường cho khối (chẳng hạn màu chữ) là cả hai hướng cùng có.
+         *
+         *     Chỉ khai lại bốn khoảng toạ độ, vì khung vẽ xoay đi: rộng tối đa 1800, cao
+         *     tối đa 3200. Giữ nguyên khoảng của bản ngang là cho phép đặt một khối ở
+         *     `x = 3000`, tức ngoài mép một bản đồ chỉ rộng 1800, và không có gì kêu cho
+         *     tới khi học sinh mở ra và thấy khối biến mất.
+         */
+        LobbyElementPortrait: {
+            /** X */
+            x?: number | null;
+            /** Y */
+            y?: number | null;
+            /** W */
+            w?: number | null;
+            /** H */
+            h?: number | null;
+            /** Media Id */
+            media_id?: string | null;
+            /** Text I18N */
+            text_i18n?: {
+                [key: string]: string;
+            } | null;
+            content?: components["schemas"]["LobbyContent"] | null;
+            /** Count */
+            count?: number | null;
+            /** Stage Count */
+            stage_count?: number | null;
+            /** Hidden */
+            hidden?: boolean | null;
         };
         /**
          * LockedLineOut
@@ -2469,6 +2624,11 @@ export interface components {
             color?: string | null;
             /** Font */
             font?: number | null;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
         };
         /**
          * PlayGalaxyOut
@@ -2534,8 +2694,52 @@ export interface components {
             desc_color?: string | null;
             /** Desc Font */
             desc_font?: number | null;
+            portrait?: components["schemas"]["PlayGalaxyPortraitOut"];
             /** Worlds */
             worlds: components["schemas"]["PlayWorldOut"][];
+        };
+        /**
+         * PlayGalaxyPortraitOut
+         * @description BỐ CỤC DỌC của bản đồ thiên hà, đã dựng sẵn URL.
+         *
+         *     `background_url is None` = **chưa thiết kế bản dọc**, và màn hình dọc sẽ
+         *     được mời xoay ngang máy. Lấy ảnh nền làm dấu hiệu vì đó là thứ đầu tiên
+         *     người dựng đặt và là thứ không thể thiếu: một bản đồ không nền thì các world
+         *     trôi trên nền đen.
+         */
+        PlayGalaxyPortraitOut: {
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Title Url */
+            title_url?: string | null;
+            /** Title X */
+            title_x?: number | null;
+            /** Title Y */
+            title_y?: number | null;
+            /** Title Width */
+            title_width?: number | null;
+            /** Title Height */
+            title_height?: number | null;
+            /** Title Color */
+            title_color?: string | null;
+            /** Title Font */
+            title_font?: number | null;
+            /** Desc Url */
+            desc_url?: string | null;
+            /** Desc X */
+            desc_x?: number | null;
+            /** Desc Y */
+            desc_y?: number | null;
+            /** Desc Width */
+            desc_width?: number | null;
+            /** Desc Height */
+            desc_height?: number | null;
+            /** Desc Color */
+            desc_color?: string | null;
+            /** Desc Font */
+            desc_font?: number | null;
         };
         /**
          * PlayLobbyOut
@@ -2692,6 +2896,7 @@ export interface components {
              * @default false
              */
             show_ring: boolean;
+            portrait?: components["schemas"]["PlayWorldPortraitOut"];
             /** My Skill Pts */
             my_skill_pts: number;
             /** My Shards */
@@ -2708,6 +2913,7 @@ export interface components {
             /** My Character Id */
             my_character_id?: string | null;
             lobby: components["schemas"]["PlayLobbyOut"];
+            lobby_portrait?: components["schemas"]["PlayLobbyOut"] | null;
             /**
              * Leaderboard
              * @default []
@@ -2798,6 +3004,7 @@ export interface components {
              * @default false
              */
             show_ring: boolean;
+            portrait?: components["schemas"]["PlayWorldPortraitOut"];
             /** My Skill Pts */
             my_skill_pts: number;
             /** My Shards */
@@ -2806,6 +3013,18 @@ export interface components {
             stages_total: number;
             /** Stages Published */
             stages_published: number;
+        };
+        /**
+         * PlayWorldPortraitOut
+         * @description Chỗ đứng của một world ở bố cục DỌC. Xem `WorldPortrait` bên worlds.
+         */
+        PlayWorldPortraitOut: {
+            /** Scene X */
+            scene_x?: number | null;
+            /** Scene Y */
+            scene_y?: number | null;
+            /** Icon Size */
+            icon_size?: number | null;
         };
         /** PlayerDetailOut */
         PlayerDetailOut: {
@@ -3018,6 +3237,7 @@ export interface components {
             scene_y: number | null;
             /** Trigger Radius */
             trigger_radius: number | null;
+            portrait?: components["schemas"]["QuestPortrait"];
             /** Icon Media Id */
             icon_media_id: string | null;
             /** Npc Character Id */
@@ -3050,6 +3270,25 @@ export interface components {
             pass_score: number | null;
             /** Pass Score Effective */
             pass_score_effective: number;
+        };
+        /**
+         * QuestPortrait
+         * @description Chỗ đứng của một nhiệm vụ ở bố cục DỌC — hệ toạ độ 1800×3200.
+         *
+         *     `trigger_radius` nằm đây chứ không dùng chung: nó là khoảng cách tính bằng
+         *     đơn vị thế giới, mà hai khung có hai kích thước — bán kính 200 trên khung
+         *     rộng 3200 và trên khung rộng 1800 là hai vòng tròn khác hẳn nhau so với
+         *     cảnh quanh nó.
+         */
+        QuestPortrait: {
+            /** Scene X */
+            scene_x?: number | null;
+            /** Scene Y */
+            scene_y?: number | null;
+            /** Icon Size */
+            icon_size?: number | null;
+            /** Trigger Radius */
+            trigger_radius?: number | null;
         };
         /** QuestProgress */
         QuestProgress: {
@@ -3143,6 +3382,7 @@ export interface components {
             scene_y?: number | null;
             /** Trigger Radius */
             trigger_radius?: number | null;
+            portrait?: components["schemas"]["QuestPortrait"] | null;
             /** Icon Media Id */
             icon_media_id?: string | null;
             /** Npc Character Id */
@@ -3778,6 +4018,10 @@ export interface components {
             favicon_media_id?: string | null;
             /** Favicon Url */
             favicon_url?: string | null;
+            /** Favicon Width */
+            favicon_width?: number | null;
+            /** Favicon Height */
+            favicon_height?: number | null;
             /**
              * Locked Stage Opacity
              * @default 50
@@ -3836,6 +4080,7 @@ export interface components {
             scene_y?: number | null;
             /** Trigger Radius */
             trigger_radius?: number | null;
+            portrait?: components["schemas"]["SnapshotQuestPortrait"];
             /** Icon Url */
             icon_url?: string | null;
             npc?: components["schemas"]["DialogueActor"] | null;
@@ -3879,6 +4124,20 @@ export interface components {
             };
             /** Questions */
             questions: components["schemas"]["SnapshotQuestion"][];
+        };
+        /**
+         * SnapshotQuestPortrait
+         * @description Chỗ đứng của một nhiệm vụ ở bố cục dọc, đã đóng băng.
+         */
+        SnapshotQuestPortrait: {
+            /** Scene X */
+            scene_x?: number | null;
+            /** Scene Y */
+            scene_y?: number | null;
+            /** Icon Size */
+            icon_size?: number | null;
+            /** Trigger Radius */
+            trigger_radius?: number | null;
         };
         /**
          * SnapshotQuestion
@@ -4029,6 +4288,49 @@ export interface components {
             dialogue_urls: {
                 [key: string]: string;
             };
+            portrait?: components["schemas"]["SnapshotStagePortrait"] | null;
+        };
+        /**
+         * SnapshotStagePortrait
+         * @description BỐ CỤC DỌC của màn, đã đóng băng trong đề bài.
+         *
+         *     Cùng hình dạng với `StagePortrait` bên worlds, nhưng ở đây mọi thứ đã giải
+         *     xong: `media_id` thành URL, bố cục hội thoại thành ảnh sẵn sàng vẽ. Đề bài
+         *     đóng băng thì không còn ai để hỏi lại nữa.
+         */
+        SnapshotStagePortrait: {
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            collision?: components["schemas"]["CollisionMap"] | null;
+            /** Spawn X */
+            spawn_x?: number | null;
+            /** Spawn Y */
+            spawn_y?: number | null;
+            /** Character Height */
+            character_height?: number | null;
+            /**
+             * Dialogue
+             * @default {}
+             */
+            dialogue: {
+                [key: string]: unknown;
+            };
+            /**
+             * Dialogue Urls
+             * @default {}
+             */
+            dialogue_urls: {
+                [key: string]: string;
+            };
+            /**
+             * Hud
+             * @default {}
+             */
+            hud: {
+                [key: string]: unknown;
+            };
         };
         /** StageAudioStatusOut */
         StageAudioStatusOut: {
@@ -4174,12 +4476,36 @@ export interface components {
             };
         };
         /**
+         * StageHudBlock
+         * @description Một cụm HUD trong màn chơi, đặt theo hệ toạ độ của bố cục dọc.
+         *
+         *     Chỉ bốn con số: HUD tự vẽ lấy nội dung (đồng hồ, nút, đèn năng lượng), thứ
+         *     người dựng quyết là nó NẰM ĐÂU và TO BAO NHIÊU.
+         */
+        StageHudBlock: {
+            /** X */
+            x?: number | null;
+            /** Y */
+            y?: number | null;
+            /** W */
+            w?: number | null;
+            /** H */
+            h?: number | null;
+        };
+        /**
          * StageIntroOut
          * @description Video mở màn của một màn chơi. `None` = màn này vào thẳng.
          */
         StageIntroOut: {
             /** Intro Video Url */
             intro_video_url?: string | null;
+            /** Intro Video Portrait Url */
+            intro_video_portrait_url?: string | null;
+            /**
+             * Has Portrait
+             * @default false
+             */
+            has_portrait: boolean;
         };
         /** StageOut */
         StageOut: {
@@ -4322,6 +4648,7 @@ export interface components {
                 [key: string]: string;
             };
             collision?: components["schemas"]["CollisionMap"] | null;
+            portrait?: components["schemas"]["StagePortrait"];
             /** Audio */
             audio?: {
                 [key: string]: components["schemas"]["AudioTrack"];
@@ -4338,6 +4665,89 @@ export interface components {
             quests: components["schemas"]["QuestOut"][];
             /** Publish Blockers */
             publish_blockers: components["schemas"]["PublishBlocker"][];
+        };
+        /**
+         * StagePortrait
+         * @description BỐ CỤC DỌC của một màn chơi — khung vẽ 1800×3200.
+         *
+         *     Gom vào một object những thứ bản ngang để ở năm chỗ. Gom vì chúng cùng một
+         *     vòng đời: hoặc màn này đã có bản dọc, hoặc chưa. Mọi trường rỗng = chưa
+         *     thiết kế, và điện thoại dựng đứng vẫn được mời xoay ngang máy.
+         *
+         *     Câu hỏi, lời thoại, người canh giữ, nhạc, thời gian, năng lượng, điểm KHÔNG
+         *     có ở đây: xoay máy thì chúng có đổi đâu.
+         */
+        StagePortrait: {
+            /** Background Media Id */
+            background_media_id?: string | null;
+            collision?: components["schemas"]["CollisionMap"] | null;
+            /** Spawn X */
+            spawn_x?: number | null;
+            /** Spawn Y */
+            spawn_y?: number | null;
+            /** Character Height */
+            character_height?: number | null;
+            /** Dialogue */
+            dialogue?: {
+                [key: string]: unknown;
+            } | null;
+            /** Intro Video Media Id */
+            intro_video_media_id?: string | null;
+            /** Hud */
+            hud?: {
+                [key: string]: components["schemas"]["StageHudBlock"];
+            };
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Dialogue Urls */
+            dialogue_urls?: {
+                [key: string]: string;
+            };
+            /** Intro Video Url */
+            intro_video_url?: string | null;
+        };
+        /**
+         * StagePortraitPatch
+         * @description Bản gửi LÊN. `None` = không gửi; muốn GỠ thì dùng cờ riêng.
+         */
+        StagePortraitPatch: {
+            /** Background Media Id */
+            background_media_id?: string | null;
+            collision?: components["schemas"]["CollisionMap"] | null;
+            /** Spawn X */
+            spawn_x?: number | null;
+            /** Spawn Y */
+            spawn_y?: number | null;
+            /** Character Height */
+            character_height?: number | null;
+            /** Dialogue */
+            dialogue?: {
+                [key: string]: unknown;
+            } | null;
+            /** Intro Video Media Id */
+            intro_video_media_id?: string | null;
+            /** Hud */
+            hud?: {
+                [key: string]: components["schemas"]["StageHudBlock"];
+            };
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Dialogue Urls */
+            dialogue_urls?: {
+                [key: string]: string;
+            };
+            /** Intro Video Url */
+            intro_video_url?: string | null;
+            /** Clear Background */
+            clear_background?: boolean | null;
+            /** Clear Collision */
+            clear_collision?: boolean | null;
+            /** Clear Intro Video */
+            clear_intro_video?: boolean | null;
         };
         /** StageResult */
         StageResult: {
@@ -4457,6 +4867,7 @@ export interface components {
             collision?: components["schemas"]["CollisionMap"] | null;
             /** Clear Collision */
             clear_collision?: boolean | null;
+            portrait?: components["schemas"]["StagePortraitPatch"] | null;
             /** Dialogue Json */
             dialogue_json?: {
                 [key: string]: unknown;
@@ -4723,6 +5134,136 @@ export interface components {
             icon_size?: number | null;
         };
         /**
+         * WorldLobbyPortrait
+         * @description BỐ CỤC DỌC CỦA PHÒNG CHỜ — khung vẽ 1800×3200.
+         *
+         *     Gom vào một object đúng những thứ bản ngang để ở ba nơi: ảnh nền
+         *     (`lobby_media_id`), hai tấm khung (`title_*`/`desc_*`), và bố cục các khối
+         *     (`lobby_json`). Gom lại vì chúng cùng một vòng đời: hoặc người dựng đã thiết
+         *     kế bản dọc, hoặc chưa.
+         *
+         *     Mọi trường rỗng = **chưa thiết kế bản dọc**; lúc đó điện thoại dựng đứng vẫn
+         *     được mời xoay ngang máy.
+         *
+         *     Khoảng giá trị theo khung DỌC: bề rộng tối đa 1800, chiều cao tối đa 3200.
+         *     Chép nguyên khoảng của bản ngang sang đây là cho phép kéo một cái khung ra
+         *     ngoài mép mà không có gì kêu.
+         */
+        WorldLobbyPortrait: {
+            /** Background Media Id */
+            background_media_id?: string | null;
+            /** Title Media Id */
+            title_media_id?: string | null;
+            /** Title X */
+            title_x?: number | null;
+            /** Title Y */
+            title_y?: number | null;
+            /** Title Width */
+            title_width?: number | null;
+            /** Title Height */
+            title_height?: number | null;
+            /** Title Color */
+            title_color?: string | null;
+            /** Title Font */
+            title_font?: number | null;
+            /** Desc Media Id */
+            desc_media_id?: string | null;
+            /** Desc X */
+            desc_x?: number | null;
+            /** Desc Y */
+            desc_y?: number | null;
+            /** Desc Width */
+            desc_width?: number | null;
+            /** Desc Height */
+            desc_height?: number | null;
+            /** Desc Color */
+            desc_color?: string | null;
+            /** Desc Font */
+            desc_font?: number | null;
+            /** Title Visible */
+            title_visible?: boolean | null;
+            /** Desc Visible */
+            desc_visible?: boolean | null;
+            /** Blocks */
+            blocks?: {
+                [key: string]: components["schemas"]["LobbyElementPortrait"];
+            };
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Title Url */
+            title_url?: string | null;
+            /** Desc Url */
+            desc_url?: string | null;
+            /** Block Urls */
+            block_urls?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * WorldLobbyPortraitPatch
+         * @description Bản gửi LÊN, kèm ba cờ gỡ ảnh. Cùng luật với `GalaxyPortraitPatch`.
+         */
+        WorldLobbyPortraitPatch: {
+            /** Background Media Id */
+            background_media_id?: string | null;
+            /** Title Media Id */
+            title_media_id?: string | null;
+            /** Title X */
+            title_x?: number | null;
+            /** Title Y */
+            title_y?: number | null;
+            /** Title Width */
+            title_width?: number | null;
+            /** Title Height */
+            title_height?: number | null;
+            /** Title Color */
+            title_color?: string | null;
+            /** Title Font */
+            title_font?: number | null;
+            /** Desc Media Id */
+            desc_media_id?: string | null;
+            /** Desc X */
+            desc_x?: number | null;
+            /** Desc Y */
+            desc_y?: number | null;
+            /** Desc Width */
+            desc_width?: number | null;
+            /** Desc Height */
+            desc_height?: number | null;
+            /** Desc Color */
+            desc_color?: string | null;
+            /** Desc Font */
+            desc_font?: number | null;
+            /** Title Visible */
+            title_visible?: boolean | null;
+            /** Desc Visible */
+            desc_visible?: boolean | null;
+            /** Blocks */
+            blocks?: {
+                [key: string]: components["schemas"]["LobbyElementPortrait"];
+            };
+            /** Background Url */
+            background_url?: string | null;
+            /** Background Kind */
+            background_kind?: ("image" | "video") | null;
+            /** Title Url */
+            title_url?: string | null;
+            /** Desc Url */
+            desc_url?: string | null;
+            /** Block Urls */
+            block_urls?: {
+                [key: string]: string;
+            };
+            /** Clear Background */
+            clear_background?: boolean | null;
+            /** Clear Title */
+            clear_title?: boolean | null;
+            /** Clear Desc */
+            clear_desc?: boolean | null;
+        };
+        /**
          * WorldOption
          * @description Một lựa chọn của ô lọc world.
          */
@@ -4798,6 +5339,7 @@ export interface components {
              * @enum {string}
              */
             status: "draft" | "published";
+            portrait?: components["schemas"]["WorldPortrait"];
             /** World Code */
             world_code?: string | null;
             /** Lobby Media Id */
@@ -4846,6 +5388,7 @@ export interface components {
             verdict_json?: {
                 [key: string]: string[];
             };
+            lobby_portrait?: components["schemas"]["WorldLobbyPortrait"];
             /** Lobby Json */
             lobby_json?: {
                 [key: string]: unknown;
@@ -4881,6 +5424,25 @@ export interface components {
              * @default 0
              */
             stage_published_count: number;
+        };
+        /**
+         * WorldPortrait
+         * @description Chỗ đứng của một world ở BỐ CỤC DỌC — hệ toạ độ 1800×3200.
+         *
+         *     Chỉ ba con số, và đó là cố ý: ảnh world, vành tròn, nhịp thở dùng chung với
+         *     bản ngang vì chúng là trang trí của chính world — xoay máy thì có đổi gì
+         *     đâu. Tách thêm là bắt người dựng đặt hai lần cho một thứ không đổi.
+         *
+         *     Mọi trường `None` = chưa đặt; bản đồ dọc tự rải đều, y như bản ngang khi
+         *     `scene_x` còn NULL.
+         */
+        WorldPortrait: {
+            /** Scene X */
+            scene_x?: number | null;
+            /** Scene Y */
+            scene_y?: number | null;
+            /** Icon Size */
+            icon_size?: number | null;
         };
         /** WorldResult */
         WorldResult: {
@@ -4958,6 +5520,8 @@ export interface components {
             show_ring?: boolean | null;
             /** Clear Cover */
             clear_cover?: boolean | null;
+            portrait?: components["schemas"]["WorldPortrait"] | null;
+            lobby_portrait?: components["schemas"]["WorldLobbyPortraitPatch"] | null;
             /** Lobby Media Id */
             lobby_media_id?: string | null;
             /** Title Media Id */

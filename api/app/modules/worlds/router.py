@@ -38,6 +38,9 @@ from app.modules.worlds.schemas import (
     ChapterCreate,
     CollisionMap,
     GalaxyOut,
+    GalaxyPortrait,
+    QuestPortrait,
+    StagePortrait,
     GalaxyUpdate,
     ChapterOut,
     ChapterUpdate,
@@ -52,7 +55,9 @@ from app.modules.worlds.schemas import (
     StageOut,
     StageUpdate,
     WorldCreate,
+    WorldLobbyPortrait,
     WorldOut,
+    WorldPortrait,
     WorldUpdate,
 )
 
@@ -76,6 +81,24 @@ async def _background_kind(db: DbDep, media_id) -> str | None:
     if media_id is None:
         return None
     return await db.scalar(select(MediaAsset.kind).where(MediaAsset.id == media_id))
+
+
+async def _galaxy_portrait_out(db: DbDep, raw: dict[str, Any]) -> GalaxyPortrait:
+    """Đọc `galaxies.portrait_json` ra schema, kèm URL dựng sẵn.
+
+    Đi qua Pydantic chứ không trả thẳng cái dict: cột JSON không có kiểu, nên
+    một bản ghi cũ thiếu trường hay mang trường lạ sẽ lặng lẽ đi thẳng ra giao
+    diện. Dựng qua schema thì cái ra luôn đúng hình dạng, và trường lạ rụng lại
+    ở đây chứ không rụng giữa lúc người dùng đang kéo một cái khung.
+
+    `{}` vào thì ra một object toàn `None` — "chưa thiết kế bản dọc".
+    """
+    portrait = GalaxyPortrait.model_validate(raw or {})
+    portrait.background_url = await _url_of(db, portrait.background_media_id)
+    portrait.background_kind = await _background_kind(db, portrait.background_media_id)
+    portrait.title_url = await _url_of(db, portrait.title_media_id)
+    portrait.desc_url = await _url_of(db, portrait.desc_media_id)
+    return portrait
 
 
 async def _galaxy_out(db: DbDep, galaxy: Galaxy) -> GalaxyOut:
@@ -114,6 +137,7 @@ async def _galaxy_out(db: DbDep, galaxy: Galaxy) -> GalaxyOut:
         audio=galaxy.audio_json or {},
         audio_urls=_audio_galaxy[0],
         audio_names=_audio_galaxy[1],
+        portrait=await _galaxy_portrait_out(db, galaxy.portrait_json or {}),
     )
 
 
@@ -151,6 +175,25 @@ async def _lobby_urls(db: DbDep, layout: dict[str, Any]) -> dict[str, str]:
     }
 
 
+async def _lobby_portrait_out(db: DbDep, raw: dict[str, Any]) -> WorldLobbyPortrait:
+    """Đọc `worlds.lobby_portrait_json` ra schema, kèm URL dựng sẵn.
+
+    Đi qua Pydantic chứ không trả thẳng dict — cùng lý do với
+    `_galaxy_portrait_out`: cột JSON không có kiểu, và trường lạ phải rụng ở đây
+    chứ không rụng giữa lúc người dựng đang kéo một cái khối.
+    """
+    bo_cuc = WorldLobbyPortrait.model_validate(raw or {})
+    bo_cuc.background_url = await _url_of(db, bo_cuc.background_media_id)
+    bo_cuc.background_kind = await _background_kind(db, bo_cuc.background_media_id)
+    bo_cuc.title_url = await _url_of(db, bo_cuc.title_media_id)
+    bo_cuc.desc_url = await _url_of(db, bo_cuc.desc_media_id)
+    # MỘT truy vấn cho cả mười ba khối — xem `_lobby_urls`, cùng phép tra.
+    bo_cuc.block_urls = await _lobby_urls(
+        db, {k: v.model_dump(mode="json") for k, v in bo_cuc.blocks.items()}
+    )
+    return bo_cuc
+
+
 async def _world_out(db: DbDep, world: World) -> WorldOut:
     chapters, stages, published = await service.stage_counts(db, world.id)
 
@@ -173,6 +216,9 @@ async def _world_out(db: DbDep, world: World) -> WorldOut:
         shard_total=world.shard_total,
         cover_media_id=world.cover_media_id,
         cover_url=await url_of(world.cover_media_id),
+        # Đi qua schema, không trả thẳng dict — xem `_galaxy_portrait_out`.
+        portrait=WorldPortrait.model_validate(world.portrait_json or {}),
+        lobby_portrait=await _lobby_portrait_out(db, world.lobby_portrait_json or {}),
         lobby_media_id=world.lobby_media_id,
         lobby_url=await url_of(world.lobby_media_id),
         lobby_kind=await _background_kind(db, world.lobby_media_id),
@@ -358,6 +404,9 @@ async def _quests_out(db: DbDep, stage_id: uuid.UUID) -> list[QuestOut]:
                 scene_x=quest.scene_x,
                 scene_y=quest.scene_y,
                 trigger_radius=quest.trigger_radius,
+                # Đi qua schema, không trả thẳng cột JSON — xem
+                # `_galaxy_portrait_out`.
+                portrait=QuestPortrait.model_validate(quest.portrait_json or {}),
                 icon_media_id=quest.icon_media_id,
                 npc_character_id=quest.npc_character_id,
                 # Câu khoá phải ĐI RA nữa, không chỉ đi vào. Thiếu dòng này thì
@@ -427,6 +476,23 @@ async def _audio_media(db: DbDep, audio: dict[str, Any]) -> tuple[dict[str, str]
     return urls, names
 
 
+async def _stage_portrait_out(db: DbDep, raw: dict[str, Any]) -> StagePortrait:
+    """Đọc `stages.portrait_json` ra schema, kèm URL dựng sẵn.
+
+    Đi qua Pydantic như hai bố cục dọc kia — xem `_galaxy_portrait_out`.
+
+    KHÔNG giải kế thừa gì cả: bản ngang để trống bố cục hội thoại thì thừa của
+    màn đầu world, còn ở đây trống là TRỐNG. Bố cục bản ngang nằm trong hệ
+    3200×1800; rót vào khung 1800×3200 là bảng hội thoại rơi ra ngoài mép.
+    """
+    bo_cuc = StagePortrait.model_validate(raw or {})
+    bo_cuc.background_url = await _url_of(db, bo_cuc.background_media_id)
+    bo_cuc.background_kind = await _background_kind(db, bo_cuc.background_media_id)
+    bo_cuc.dialogue_urls = await service.block_urls(db, bo_cuc.dialogue or {})
+    bo_cuc.intro_video_url = await _url_of(db, bo_cuc.intro_video_media_id)
+    return bo_cuc
+
+
 async def _stage_out(db: DbDep, stage: Stage, world: World) -> StageOut:
     brief = await _stage_brief(db, stage, world)
     background_url = None
@@ -480,12 +546,67 @@ async def _stage_out(db: DbDep, stage: Stage, world: World) -> StageOut:
         collision=CollisionMap.model_validate(stage.collision_json)
         if stage.collision_json
         else None,
+        portrait=await _stage_portrait_out(db, stage.portrait_json or {}),
         audio=stage.audio_json or {},
         audio_urls=_audio_stage[0],
         audio_names=_audio_stage[1],
         quests=await _quests_out(db, stage.id),
         publish_blockers=await service.publish_blockers(db, stage, world),
     )
+
+
+def _merge_stage_portrait(hien: dict[str, Any] | None, patch) -> dict[str, Any]:
+    """GỘP bản vá bố cục dọc của MÀN CHƠI.
+
+    Ba nhóm, ba luật khác nhau — và chúng khác nhau vì thứ chúng chứa khác nhau:
+
+      - số lẻ (`spawn_x`, `character_height`…): gộp theo trường, `None` = không
+        gửi. Kéo chỗ xuất phát thì chỉ gửi hai con số đó.
+      - `collision` và `dialogue`: GHI ĐÈ CẢ CỤC. Trộn từng hình thì hai tab mở
+        cùng lúc sẽ đẻ ra một bản vẽ mà không ai vẽ, và không ai gỡ ra được.
+      - hai cờ `clear_*`: gỡ hẳn, vì `None` đã mang nghĩa "không gửi".
+
+    Trả về dict MỚI — SQLAlchemy theo dõi cột JSONB bằng phép so sánh tham
+    chiếu, sửa tại chỗ thì `commit()` không thấy gì đổi.
+    """
+    ra: dict[str, Any] = dict(hien or {})
+    if patch is None:
+        return ra
+
+    for field in (
+        "background_media_id",
+        "spawn_x",
+        "spawn_y",
+        "character_height",
+        "intro_video_media_id",
+    ):
+        gia_tri = getattr(patch, field, None)
+        if gia_tri is not None:
+            ra[field] = str(gia_tri) if isinstance(gia_tri, uuid.UUID) else gia_tri
+
+    if patch.collision is not None:
+        # `exclude_none` như bản ngang: một hình hộp không có `points`, một đa
+        # giác không có `w`/`h`.
+        ra["collision"] = patch.collision.model_dump(mode="json", exclude_none=True)
+    if patch.dialogue is not None:
+        ra["dialogue"] = patch.dialogue
+
+    # HUD gộp ở mức CỤM: kéo cụm đồng hồ thì hai cụm kia phải đứng yên. Bên
+    # trong một cụm thì thay hẳn — chỗ gọi luôn gửi trọn bốn con số.
+    if patch.hud:
+        cum = dict(ra.get("hud") or {})
+        for key, block in patch.hud.items():
+            cum[key] = block.model_dump(mode="json", exclude_none=True)
+        ra["hud"] = cum
+
+    if getattr(patch, "clear_background", None):
+        ra.pop("background_media_id", None)
+    if getattr(patch, "clear_collision", None):
+        ra.pop("collision", None)
+    if getattr(patch, "clear_intro_video", None):
+        ra.pop("intro_video_media_id", None)
+
+    return ra
 
 
 def _merge_audio(current: dict[str, Any] | None, payload: dict[str, AudioTrack] | None):
@@ -646,6 +767,94 @@ async def list_galaxies(db: DbDep) -> list[GalaxyOut]:
     return [await _galaxy_out(db, g) for g in galaxies]
 
 
+#: Trường của bố cục dọc được phép nằm trong `galaxies.portrait_json`.
+#:
+#: Danh sách TRẮNG, không phải "lấy hết những gì client gửi": mấy trường
+#: `*_url` ở `GalaxyPortrait` là do server dựng ra lúc trả về, và nếu để chúng
+#: đi ngược vào cột JSON thì ta lưu một bản sao của URL sẽ cũ đi ngay khi ai đó
+#: thay ảnh — đúng cái bẫy `media_assets.url` tuyệt đối đã mắc một lần.
+GALAXY_PORTRAIT_FIELDS = (
+    "background_media_id",
+    "title_media_id",
+    "title_x",
+    "title_y",
+    "title_width",
+    "title_height",
+    "title_color",
+    "title_font",
+    "desc_media_id",
+    "desc_x",
+    "desc_y",
+    "desc_width",
+    "desc_height",
+    "desc_color",
+    "desc_font",
+)
+
+
+def _merge_portrait(hien: dict[str, Any] | None, patch, fields: tuple[str, ...]) -> dict[str, Any]:
+    """GỘP bản vá bố cục dọc vào bản đang có.
+
+    Cùng luật `None = không gửi` mà cả router này đang dùng: giao diện kéo một
+    cái khung thì chỉ gửi toạ độ của khung đó, và mọi thứ khác phải đứng yên.
+    Thay cả cục thì mỗi cú kéo sẽ xoá sạch những gì người dựng đặt trước đó.
+
+    Trả về một dict MỚI, không sửa tại chỗ: SQLAlchemy theo dõi cột JSONB bằng
+    phép so sánh tham chiếu, nên sửa bên trong cái dict cũ thì `commit()` không
+    thấy gì đổi và thay đổi im lặng biến mất.
+    """
+    ra: dict[str, Any] = dict(hien or {})
+    if patch is None:
+        return ra
+
+    for field in fields:
+        gia_tri = getattr(patch, field, None)
+        if gia_tri is not None:
+            # UUID không phải kiểu JSON — cột JSONB nuốt được `str`, không nuốt
+            # được `uuid.UUID`, và lỗi chỉ nổ ra lúc commit.
+            ra[field] = str(gia_tri) if isinstance(gia_tri, uuid.UUID) else gia_tri
+
+    # Gỡ ảnh: cần cờ riêng vì `None` đã mang nghĩa "không gửi".
+    for co, khoa in (
+        ("clear_background", "background_media_id"),
+        ("clear_title", "title_media_id"),
+        ("clear_desc", "desc_media_id"),
+    ):
+        if getattr(patch, co, None):
+            ra.pop(khoa, None)
+
+    return ra
+
+
+def _merge_lobby_portrait(hien: dict[str, Any] | None, patch) -> dict[str, Any]:
+    """GỘP bản vá bố cục dọc của phòng chờ.
+
+    Hai tầng, vì cấu trúc có hai tầng: mấy trường phẳng (ảnh nền, hai cái khung)
+    gộp như thiên hà, còn `blocks` gộp Ở MỨC KHỐI — gửi `{"play": {...}}` không
+    được làm mất mười hai khối kia. Cùng luật mà `lobby_json` của bản ngang đang
+    dùng.
+
+    Bên trong MỘT khối thì THAY HẲN, không gộp sâu hơn: chỗ gọi luôn gửi trọn
+    một khối, và gộp sâu thì xoá một ảnh khỏi khối sẽ không bao giờ xoá được.
+    """
+    # Hai cờ hiện/ẩn khung chỉ phòng chờ có. `False` là một giá trị THẬT ở
+    # đây (tắt), không phải "không gửi" — `_merge_portrait` chỉ bỏ qua `None`,
+    # nên tắt đi vẫn ghi xuống được.
+    ra = _merge_portrait(
+        hien, patch, GALAXY_PORTRAIT_FIELDS + ("title_visible", "desc_visible")
+    )
+    if patch is None:
+        return ra
+
+    if patch.blocks:
+        khoi = dict(ra.get("blocks") or {})
+        for key, element in patch.blocks.items():
+            khoi[key] = element.model_dump(mode="json", exclude_none=True)
+        ra["blocks"] = khoi
+
+    return ra
+
+
 @router.patch("/galaxies/{galaxy_id}", response_model=GalaxyOut, summary="Sửa thiên hà")
 async def update_galaxy(galaxy_id: uuid.UUID, payload: GalaxyUpdate, db: DbDep) -> GalaxyOut:
     galaxy = await db.scalar(select(Galaxy).where(Galaxy.id == galaxy_id))
@@ -685,6 +894,9 @@ async def update_galaxy(galaxy_id: uuid.UUID, payload: GalaxyUpdate, db: DbDep) 
         galaxy.desc_media_id = None
 
     galaxy.audio_json = _merge_audio(galaxy.audio_json, payload.audio)
+    galaxy.portrait_json = _merge_portrait(
+        galaxy.portrait_json, payload.portrait, GALAXY_PORTRAIT_FIELDS
+    )
 
     await db.commit()
     await db.refresh(galaxy)
@@ -799,6 +1011,14 @@ async def update_world(
 
     _apply_optional(world, payload, ("world_code",))
     world.audio_json = _merge_audio(world.audio_json, payload.audio)
+    # Chỗ đứng ở bố cục DỌC. Cùng phép gộp với thiên hà, chỉ khác danh sách
+    # trường — world chỉ mang toạ độ và cỡ, không mang ảnh nào.
+    world.portrait_json = _merge_portrait(
+        world.portrait_json, payload.portrait, ("scene_x", "scene_y", "icon_size")
+    )
+    world.lobby_portrait_json = _merge_lobby_portrait(
+        world.lobby_portrait_json, payload.lobby_portrait
+    )
 
     if payload.clear_cover:
         world.cover_media_id = None
@@ -1063,6 +1283,11 @@ async def update_stage(
     elif payload.dialogue_json is not None:
         stage.dialogue_json = payload.dialogue_json
 
+    # BỐ CỤC DỌC. Gộp theo TRƯỜNG, nhưng `collision` và `dialogue` bên trong thì
+    # ghi đè cả cục — cùng luật với hai thứ cùng tên của bản ngang ngay dưới:
+    # người dựng gửi lên bản vẽ đầy đủ đang có trên màn hình họ.
+    stage.portrait_json = _merge_stage_portrait(stage.portrait_json, payload.portrait)
+
     if payload.clear_collision:
         stage.collision_json = None
     elif payload.collision is not None:
@@ -1264,6 +1489,13 @@ async def update_quest(quest_id: uuid.UUID, payload: QuestUpdate, db: DbDep) -> 
 
     _apply(quest, payload, QUEST_KEEP_FIELDS)
     _apply_optional(quest, payload, QUEST_CLEARABLE_FIELDS)
+    # Chỗ đứng ở bố cục DỌC. Cùng phép gộp với thiên hà, chỉ khác danh sách
+    # trường — xem `_merge_portrait`.
+    quest.portrait_json = _merge_portrait(
+        quest.portrait_json,
+        payload.portrait,
+        ("scene_x", "scene_y", "icon_size", "trigger_radius"),
+    )
     # `pass_score = None` trong PATCH nghĩa là "không gửi". Muốn xoá về mặc định
     # thì phải nói rõ bằng cờ riêng.
     if payload.clear_pass_score:

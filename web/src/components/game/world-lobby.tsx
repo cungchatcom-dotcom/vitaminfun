@@ -1,6 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 
@@ -10,11 +11,19 @@ import { LobbyContent } from '@/components/world/lobby-content';
 import { AmbientPlayer, useAmbientVideoSound } from './ambient-player';
 import { BackgroundLayer } from './background-layer';
 import { MusicControls } from './music-controls';
+import { FullscreenButton } from './fullscreen-button';
+import { PlayerMenu } from './player-menu';
+import { ScaleToHeight } from './scale-to-height';
 import {
   GALAXY,
+  galaxyCanvas,
+  type Orientation,
   isLobbyAction,
+  isLobbyControl,
   isLobbyStat,
   LOBBY_ELEMENT_KEYS,
+  LOBBY_PAGE_SIZE,
+  CHAPTER_ARROW_CLASS,
   LOBBY_RANK_ROWS,
   lobbyBox,
   lobbyGroupOf,
@@ -22,16 +31,21 @@ import {
   type LobbyElementKey,
   type LobbySaved,
 } from '@/game/world';
+import { usePortraitScreen } from '@/game/pointer';
+import { highlightedStageIds, isHighlightedChapter, playTarget } from '@/game/progress';
 import { pickText } from '@/lib/i18n-text';
 import { localizedPath } from '@/lib/routes';
 
 import { ChapterMinimap } from './chapter-minimap';
 import { CharacterInfo, CharacterSlot } from './character-slot';
+// Gắn sẵn trình mở khoá thẻ video mở màn: cú bấm Chơi ở đây là cú chạm iOS
+// cần để video mở màn của màn chơi được phát có tiếng. Xem `game/intro-video`.
+import '@/game/intro-video';
+// Cùng lý do cho TIẾNG của màn chơi: cú chạm ở phòng chờ mở khoá sẵn ngữ cảnh
+// âm thanh dùng chung. Xem `game/shared-audio`.
+import '@/game/shared-audio';
 
 import type { PlayChapter, PlayWorldDetail } from '@/lib/types';
-
-/** Số chương hiện cùng lúc trên hàng ngang. */
-const PER_PAGE = 5;
 
 /**
  * Nhịp của mọi hiệu ứng chuột trong phòng chờ. Vào chậm rãi, nhún xuống thì
@@ -64,7 +78,9 @@ const MOTION = 'transition-transform duration-150 ease-out motion-reduce:transit
  * một tên ghép chuỗi kiểu `scale-[${n}]` sẽ không bao giờ được sinh ra.
  */
 function zoomOf(key: LobbyElementKey): number {
-  if (key === 'chapters') return 1;
+  // Hàng chương: xem trên. Khối điều khiển: một cái nút phóng lên khi rê chuột
+  // là một cái nút nhảy khỏi chỗ con trỏ đang nhắm tới.
+  if (key === 'chapters' || isLobbyControl(key)) return 1;
   return isLobbyAction(key) ? 1.06 : 1.03;
 }
 
@@ -82,7 +98,24 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
   const t = useTranslations();
   const locale = useLocale();
 
-  const lobby = world.lobby;
+  /**
+   * BỐ CỤC DỌC hay NGANG — cùng luật với `GalaxyMap`.
+   *
+   * Hai vế: màn hình đang dọc, VÀ người dựng đã thiết kế bản dọc. Server chỉ
+   * trả `lobby_portrait` khi bản dọc đã có ảnh nền, nên ở đây chỉ cần kiểm
+   * `null` — "chưa thiết kế" đã được quyết một lần, ở một chỗ.
+   */
+  const manDoc = usePortraitScreen();
+  const doc = manDoc && Boolean(world.lobby_portrait);
+  const huong: Orientation = doc ? 'portrait' : 'landscape';
+  const canvas = galaxyCanvas(huong);
+
+  /**
+   * Phòng chờ đang vẽ. CÙNG hình dạng ở cả hai hướng (`PlayLobbyOut`), nên
+   * phần vẽ bên dưới không có một nhánh "nếu dọc thì..." nào — chỉ một dòng
+   * chọn, ở đây.
+   */
+  const lobby = doc ? world.lobby_portrait! : world.lobby;
   const layout = (lobby.layout ?? {}) as Record<string, LobbySaved>;
 
   // Nút Chơi chỉ nhún khi nó thật sự dẫn đi đâu đó — cùng điều kiện mà
@@ -104,7 +137,8 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
   return (
     <div
       /**
-       * PHỦ HẾT CHỖ ĐƯỢC CHO, nhưng GIỮ NGUYÊN TỈ LỆ 3200×1800.
+       * PHỦ HẾT CHỖ ĐƯỢC CHO, nhưng GIỮ NGUYÊN TỈ LỆ của bố cục đang dùng —
+       * 3200×1800 ở bản ngang, 1800×3200 ở bản dọc.
        *
        * Tỉ lệ không phải để cho đẹp: mọi khối trong bản đồ được đặt theo PHẦN
        * TRĂM của khung này, còn ảnh nền thì `object-cover`. Khung lệch tỉ lệ là
@@ -117,11 +151,27 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
        * mới là thứ hết trước, nên phải hạ chiều cao xuống cho bề rộng vừa đủ
        * 100vw. Trừ `1.5rem` là phần đệm `p-3` hai bên của khung cha.
        */
-      className="relative m-auto h-full w-auto max-w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950"
-      style={{
-        aspectRatio: `${GALAXY.width} / ${GALAXY.height}`,
-        maxHeight: `calc((100vw - 1.5rem) * ${GALAXY.height} / ${GALAXY.width})`,
-      }}
+      className={
+        doc
+          ? // BẢN DỌC: PHỦ KÍN màn, mọi tỉ lệ điện thoại — xem `GalaxyMap` cho
+            // đoạn giải thích đầy đủ. Tấm phòng chờ tràn ra ngoài và bị cắt
+            // chứ không để hai dải đen, và CẢ TẤM phóng chứ không riêng ảnh
+            // nền: mười ba cái khối đặt theo phần trăm của tấm này, cho riêng
+            // ảnh phóng ra là khối trôi khỏi hoa văn nền.
+            'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden'
+          : 'relative m-auto h-full w-auto max-w-full overflow-hidden rounded-2xl border border-abyss-700 bg-abyss-950'
+      }
+      style={
+        doc
+          ? {
+              width: `max(100cqw, calc(100cqh * ${canvas.width} / ${canvas.height}))`,
+              aspectRatio: `${canvas.width} / ${canvas.height}`,
+            }
+          : {
+              aspectRatio: `${canvas.width} / ${canvas.height}`,
+              maxHeight: `calc((100vw - 1.5rem) * ${canvas.height} / ${canvas.width})`,
+            }
+      }
     >
       <BackgroundLayer
         url={lobby.background_url}
@@ -139,10 +189,12 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
         audioUrls={lobby.audio_urls}
         backgroundKind={lobby.background_kind}
       />
-      <MusicControls className="absolute top-3 right-3 z-20" />
 
       {LOBBY_ELEMENT_KEYS.map((key) => {
-        const box = lobbyBox(key, layout[key]);
+        // Người dựng tắt khối (hiện chỉ ba cái nút có ô này) thì học sinh không
+        // thấy gì cả — kể cả tấm ảnh nền của nút.
+        if (layout[key]?.hidden) return null;
+        const box = lobbyBox(key, layout[key], huong);
         const group = lobbyGroupOf(key);
         const zoom = zoomOf(key);
         const on = hoveredGroup === group && zoom !== 1;
@@ -172,10 +224,10 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
             // có quyền sắp lại. Ô chương thì khác, xem `ChapterRow`.
             className={`absolute ${zoom === 1 ? '' : MOTION}`}
             style={{
-              left: `${(box.x / GALAXY.width) * 100}%`,
-              top: `${(box.y / GALAXY.height) * 100}%`,
-              width: `${(box.width / GALAXY.width) * 100}%`,
-              height: `${(box.height / GALAXY.height) * 100}%`,
+              left: `${(box.x / canvas.width) * 100}%`,
+              top: `${(box.y / canvas.height) * 100}%`,
+              width: `${(box.width / canvas.width) * 100}%`,
+              height: `${(box.height / canvas.height) * 100}%`,
               // Phép phóng nằm TRONG `transform`, và nằm SAU phép căn giữa.
               //
               // Không dùng thuộc tính `scale:` riêng của CSS. Thứ tự hợp thành
@@ -190,12 +242,17 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
               // Viết `translate(...) scale(...)` thì phép căn giữa chạy trước và
               // không bị nhân: khối nở ra ĐỀU quanh tâm của chính nó.
               transform: `translate(-50%, -50%)` + (on ? ` scale(${zoom})` : ''),
+              // Khối điều khiển luôn nằm TRÊN: một tấm khung trang trí đè lên
+              // cái nút là cái nút không bấm được.
+              ...(isLobbyControl(key) && { zIndex: 30 }),
             }}
           >
             <div
-              className={`relative size-full overflow-hidden rounded-xl ${
-                pressable ? `${MOTION} active:scale-[0.96] active:duration-75` : ''
-              }`}
+              // Khối điều khiển KHÔNG cắt phần tràn: bảng thả xuống của nút
+              // tài khoản mọc ra ngoài khối, cắt đi là bấm nút không thấy gì.
+              className={`relative size-full rounded-xl ${
+                isLobbyControl(key) ? '' : 'overflow-hidden'
+              } ${pressable ? `${MOTION} active:scale-[0.96] active:duration-75` : ''}`}
             >
               {lobby.urls?.[key] && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -206,16 +263,40 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
                   draggable={false}
                 />
               )}
-              <LobbyContent elementKey={key} saved={layout[key]?.content}>
-                <BlockBody elementKey={key} saved={layout[key]} world={world} locale={locale} />
-              </LobbyContent>
+              {isLobbyControl(key) ? (
+                // Khối điều khiển KHÔNG đi qua `LobbyContent`: thứ đó tô viền
+                // đen quanh mọi con chữ và đặt cỡ chữ theo bề rộng khối — đúng
+                // cho chữ trên tranh, sai cho một cái nút tự có kiểu riêng.
+                <BlockBody
+                  elementKey={key}
+                  saved={layout[key]}
+                  world={world}
+                  locale={locale}
+                  orientation={huong}
+                />
+              ) : (
+                <LobbyContent elementKey={key} saved={layout[key]?.content}>
+                  <BlockBody
+                    elementKey={key}
+                    saved={layout[key]}
+                    world={world}
+                    locale={locale}
+                    orientation={huong}
+                  />
+                </LobbyContent>
+              )}
             </div>
           </div>
         );
       })}
 
+      {/* `visible === false` chứ không `!visible`: bản ngang không bao giờ tắt,
+          và một phản hồi cũ thiếu trường này phải được hiểu là "hiện" — đúng
+          như trước khi có công tắc. */}
+      {lobby.title.visible !== false && (
       <GalaxyFrame
         kind="title"
+        orientation={huong}
         imageUrl={lobby.title.url}
         x={lobby.title.x}
         y={lobby.title.y}
@@ -226,9 +307,12 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
       >
         {pickText(world.name_i18n, locale)}
       </GalaxyFrame>
+      )}
 
+      {lobby.desc.visible !== false && (
       <GalaxyFrame
         kind="desc"
+        orientation={huong}
         imageUrl={lobby.desc.url}
         x={lobby.desc.x}
         y={lobby.desc.y}
@@ -239,15 +323,8 @@ export function WorldLobby({ world }: { world: PlayWorldDetail }) {
       >
         {pickText(world.story_i18n, locale)}
       </GalaxyFrame>
+      )}
 
-      {/* Lối về bản đồ thiên hà. Ở góc trên bên trái vì đó là chỗ mắt tìm nút
-          "quay lại", và nó không đè lên khối nào ở bố cục mặc định. */}
-      <Link
-        href={localizedPath('/play', locale)}
-        className="absolute top-3 left-3 rounded-lg border border-white/40 bg-abyss-950/70 px-3 py-1.5 text-xs font-bold text-white no-underline backdrop-blur transition hover:border-lagoon-400"
-      >
-        ← {t('play.title')}
-      </Link>
     </div>
   );
 }
@@ -257,13 +334,45 @@ function BlockBody({
   saved,
   world,
   locale,
+  orientation,
 }: {
   elementKey: LobbyElementKey;
   saved: LobbySaved | undefined;
   world: PlayWorldDetail;
   locale: string;
+  /** Hướng đang vẽ — quyết cỡ khung mặc định, nên quyết luôn số dòng chữ. */
+  orientation: Orientation;
 }) {
   const t = useTranslations();
+
+  if (elementKey === 'back') {
+    return (
+      <ScaleToHeight>
+        <Link
+          href={localizedPath('/play', locale)}
+          className="block rounded-lg border border-white/40 bg-abyss-950/70 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-white no-underline backdrop-blur transition hover:border-lagoon-400"
+        >
+          ← {t('play.title')}
+        </Link>
+      </ScaleToHeight>
+    );
+  }
+
+  if (elementKey === 'controls') {
+    // Đây là chỗ DUY NHẤT mang lối đăng xuất trong màn học sinh — thanh trên
+    // cùng đã bỏ, xem `PlayerMenu`. Neo về mép PHẢI của khối: nút toàn màn hình
+    // chỉ có trên cảm ứng, nên hàng nút dài ra về phía trái chứ không đẩy nút
+    // tài khoản đi.
+    return (
+      <ScaleToHeight align="end">
+        <div className="flex items-center gap-2">
+          <FullscreenButton />
+          <MusicControls />
+          <PlayerMenu />
+        </div>
+      </ScaleToHeight>
+    );
+  }
 
   // Khối `stats` giờ chỉ còn TẤM KHUNG. Năm con số bên trong nó là năm khối
   // riêng, kéo và chỉnh được một mình — xem `LOBBY_STAT_KEYS`.
@@ -297,7 +406,7 @@ function BlockBody({
     );
   }
 
-  if (elementKey === 'chapters') return <ChapterRow world={world} locale={locale} />;
+  if (elementKey === 'chapters') return <ChapterRow world={world} locale={locale} saved={saved} />;
 
   if (elementKey === 'character') {
     return (
@@ -314,7 +423,7 @@ function BlockBody({
       <CharacterInfo
         characters={world.characters ?? []}
         chosenId={world.my_character_id}
-        lines={lobbyTextLines(elementKey, saved)}
+        lines={lobbyTextLines(elementKey, saved, orientation)}
       />
     );
   }
@@ -447,20 +556,42 @@ function statText(
  * Rê chuột thì CHỈ Ô ĐANG RÊ phóng lên, không phải cả hàng — người chơi nhắm
  * vào một chương, và bốn ô kia nhúc nhích theo là nhiễu.
  */
-function ChapterRow({ world, locale }: { world: PlayWorldDetail; locale: string }) {
+function ChapterRow({
+  world,
+  locale,
+  saved,
+}: {
+  world: PlayWorldDetail;
+  locale: string;
+  /** Khối hàng chương CỦA HƯỚNG ĐANG VẼ — mang số chương và số màn mỗi trang. */
+  saved: LobbySaved | undefined;
+}) {
   const t = useTranslations();
   const chapters = world.chapters ?? [];
 
-  const unlocked = chapters.map((chapter) => chapter.stages.some((stage) => stage.unlocked));
-  const lastUnlocked = unlocked.lastIndexOf(true);
+  // Số ô mỗi trang do người dựng chọn, RIÊNG cho từng hướng (khối nằm trong bố
+  // cục của hướng đó). Màn dọc hẹp gấp ba, năm ô ở đó là năm cái tem.
+  const perPage = saved?.count ?? LOBBY_PAGE_SIZE.base;
+  const stagesPerPage = saved?.stage_count ?? LOBBY_PAGE_SIZE.base;
 
-  const maxStart = Math.max(0, chapters.length - PER_PAGE);
-  const centred = Math.max(0, Math.min(maxStart, (lastUnlocked < 0 ? 0 : lastUnlocked) - 2));
+  const unlocked = chapters.map((chapter) => chapter.stages.some((stage) => stage.unlocked));
+  const sang = highlightedStageIds(world);
+  const noiBat = chapters.map((chapter) => isHighlightedChapter(chapter, sang));
+
+  // Mở ra đúng trang có chương ĐANG ĐƯỢC TÔ SÁNG — ưu tiên chương có màn dở,
+  // vì đó là nơi nút Chơi sẽ đưa tới. Tô sáng một ô ở trang thứ ba mà mở ra ở
+  // trang đầu thì cái viền sáng chẳng ai thấy.
+  const dich = playTarget(world);
+  const chuongDich = dich ? chapters.findIndex((c) => c.stages.some((s) => s.id === dich.id)) : -1;
+  const moc = chuongDich >= 0 ? chuongDich : Math.max(0, noiBat.lastIndexOf(true));
+
+  const maxStart = Math.max(0, chapters.length - perPage);
+  const centred = Math.max(0, Math.min(maxStart, moc - Math.floor(perPage / 2)));
   const [start, setStart] = useState(centred);
   /** Chương đang mở minimap. `null` = chưa mở cái nào. */
   const [openChapter, setOpenChapter] = useState<PlayChapter | null>(null);
 
-  const shown = chapters.slice(start, start + PER_PAGE);
+  const shown = chapters.slice(start, start + perPage);
 
   return (
     <div className="flex size-full items-stretch gap-[1.5%]">
@@ -468,20 +599,20 @@ function ChapterRow({ world, locale }: { world: PlayWorldDetail; locale: string 
         label={t('lobby.character.prev')}
         arrow="‹"
         disabled={start === 0}
-        onClick={() => setStart((s) => Math.max(0, s - PER_PAGE))}
+        onClick={() => setStart((s) => Math.max(0, s - perPage))}
       />
 
       {shown.map((chapter, index) => {
         const globalIndex = start + index;
         const open = unlocked[globalIndex];
-        const current = globalIndex === lastUnlocked;
+        const current = noiBat[globalIndex];
 
         const title = `${chapter.order_index}. ${pickText(chapter.name_i18n, locale)}`;
 
         const cover = (
           <div
             className={`relative flex-1 overflow-hidden rounded-lg border ${
-              current ? 'border-orichalcum-400 ring-2 ring-orichalcum-400/60' : 'border-white/40'
+              current ? 'glow-current border-orichalcum-300' : 'border-white/40'
             } bg-abyss-950/40`}
           >
             {chapter.cover_url && (
@@ -497,6 +628,10 @@ function ChapterRow({ world, locale }: { world: PlayWorldDetail; locale: string 
               <span className="absolute inset-0 flex items-center justify-center bg-abyss-950/50 text-[2em]">
                 🔒
               </span>
+            )}
+            {/* Lớp sáng HẮT VÀO, nằm TRÊN ảnh bìa — xem `.glow-current-inner`. */}
+            {current && (
+              <span className="glow-current-inner pointer-events-none absolute inset-0 rounded-lg" />
             )}
           </div>
         );
@@ -538,11 +673,16 @@ function ChapterRow({ world, locale }: { world: PlayWorldDetail; locale: string 
         label={t('lobby.character.next')}
         arrow="›"
         disabled={start >= maxStart}
-        onClick={() => setStart((s) => Math.min(maxStart, s + PER_PAGE))}
+        onClick={() => setStart((s) => Math.min(maxStart, s + perPage))}
       />
 
       {openChapter && (
-        <ChapterMinimap chapter={openChapter} onClose={() => setOpenChapter(null)} />
+        <ChapterMinimap
+          chapter={openChapter}
+          perPage={stagesPerPage}
+          highlighted={sang}
+          onClose={() => setOpenChapter(null)}
+        />
       )}
     </div>
   );
@@ -566,7 +706,7 @@ function PageArrow({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="shrink-0 self-center rounded-lg border border-white/40 bg-abyss-950/50 px-1 text-sm text-white transition hover:border-lagoon-400 disabled:pointer-events-none disabled:opacity-25"
+      className={`${CHAPTER_ARROW_CLASS} transition hover:border-lagoon-400 active:bg-abyss-950/80 disabled:pointer-events-none disabled:opacity-25`}
     >
       {arrow}
     </button>
@@ -614,20 +754,10 @@ function ActionButton({
     );
   }
 
-  // Đích của nút Chơi ngay, theo thứ tự ưu tiên:
-  //
-  //   1. Màn đang chơi DỞ và còn giờ — `resume_stage_id`. Người chơi đóng nhầm
-  //      tab giữa chừng rồi quay lại thì thứ họ muốn là cái đang làm dở, không
-  //      phải một màn khác. Server quyết chuyện "còn giờ hay không", vì chỉ nó
-  //      biết `started_at`.
-  //   2. Màn mở CUỐI CÙNG. Nút này là "chơi tiếp", và chỗ người chơi đang đứng
-  //      là mép tiến độ của họ. Ném họ về màn 1 mỗi lần bấm là bắt chơi lại thứ
-  //      đã xong để tới được thứ chưa xong.
-  const stages = world.chapters?.flatMap((c) => c.stages) ?? [];
-  const resuming = world.resume_stage_id
-    ? stages.find((stage) => stage.id === world.resume_stage_id)
-    : undefined;
-  const last = resuming ?? stages.filter((stage) => stage.unlocked).at(-1);
+  // Đích của nút Chơi ngay — màn dở còn giờ, không thì màn mở cuối. Luật nằm
+  // ở `playTarget` vì hàng chương và minimap tô sáng theo đúng luật đó.
+  const last = playTarget(world);
+  const resuming = last !== undefined && last.id === world.resume_stage_id ? last : undefined;
   if (!last) {
     return (
       <span

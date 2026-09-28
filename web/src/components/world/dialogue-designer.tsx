@@ -13,9 +13,12 @@ import { Card, PageHeader, SectionTitle, Skeleton } from '@/components/ui/primit
 import { dialoguePoses } from '@/game/character';
 import {
   DIALOGUE,
+  dialogueCanvas,
   DIALOGUE_BACKGROUND,
   DIALOGUE_BLOCK_KEYS,
   DIALOGUE_GAP,
+  DIALOGUE_TEXT,
+  textPx,
   DIALOGUE_MOMENTS,
   DIALOGUE_MOMENT_KEYS,
   gapMs,
@@ -28,6 +31,7 @@ import {
   type DialogueSaved,
 } from '@/game/dialogue';
 import { DIALOGUE_THEME_KEYS } from '@/game/dialogue-theme';
+import type { Orientation } from '@/game/world';
 import { promptOf, stripPrompt } from '@/game/npc-voice';
 import { ApiError } from '@/lib/api-error';
 import { dialogueActor, listWorldCharacters } from '@/lib/characters';
@@ -170,16 +174,37 @@ export function DialogueDesigner({ stageId, worldId }: { stageId: string; worldI
     getQuestion(firstQuestionId).then(setQuestion, () => setQuestion(null));
   }, [firstQuestionId]);
 
+  /**
+   * Bố cục đang sửa: NGANG hay DỌC.
+   *
+   * Tấm bảng hội thoại của bản dọc là một tấm KHÁC — ảnh nền của nó phải vẽ cho
+   * khung hẹp và cao, còn tấm ngang kéo vào đó là cắt mất hai bên.
+   */
+  const [huong, setHuong] = useState<Orientation>('landscape');
+  const doc = huong === 'portrait';
+  const khungHT = dialogueCanvas(huong);
+
   // Bố cục ĐANG DÙNG — đã giải xong kế thừa. Mọi phép sửa xuất phát từ đây, nên
   // cú sửa đầu tiên ở một màn đang thừa kế không làm gì nhảy chỗ.
-  const effective = useMemo(() => readDialogue(stage?.dialogue_effective), [stage]);
-  const urls = stage?.dialogue_urls ?? {};
-  const inherited = stage != null && stage.dialogue_json == null;
+  //
+  // Bản dọc KHÔNG thừa kế: không của màn đầu world, cũng không của bản ngang.
+  // Trống là trống, và giao diện dùng mặc định của chính nó.
+  const effective = useMemo(
+    () => readDialogue(doc ? stage?.portrait?.dialogue : stage?.dialogue_effective),
+    [stage, doc],
+  );
+  const urls = (doc ? stage?.portrait?.dialogue_urls : stage?.dialogue_urls) ?? {};
+  const inherited = !doc && stage != null && stage.dialogue_json == null;
 
   async function save(next: DialogueSaved) {
     setSaveState('saving');
     try {
-      setStage(await updateStage(stageId, { dialogue_json: next }));
+      setStage(
+        await updateStage(
+          stageId,
+          doc ? { portrait: { dialogue: next } } : { dialogue_json: next },
+        ),
+      );
       setErrorKey(null);
     } catch (error) {
       setErrorKey(error instanceof ApiError ? error.messageKey : 'error.INTERNAL_ERROR');
@@ -261,6 +286,24 @@ export function DialogueDesigner({ stageId, worldId }: { stageId: string; worldI
         description={t('dialogue.designer.subtitle')}
         actions={
           <div className="flex items-center gap-2">
+            {/* CÔNG TẮC NGANG / DỌC — cùng dáng với ba trình thiết kế kia. */}
+            <div className="flex overflow-hidden rounded-lg border border-abyss-700 text-xs">
+              {(['landscape', 'portrait'] as const).map((huongNut) => (
+                <button
+                  key={huongNut}
+                  type="button"
+                  aria-pressed={huong === huongNut}
+                  onClick={() => setHuong(huongNut)}
+                  className={`px-3 py-1.5 transition ${
+                    huong === huongNut
+                      ? 'bg-lagoon-500/20 font-bold text-lagoon-400'
+                      : 'text-slate-400 hover:bg-abyss-800 hover:text-slate-200'
+                  }`}
+                >
+                  {t(`galaxy.designer.${huongNut}`)}
+                </button>
+              ))}
+            </div>
             <span className="text-xs text-slate-400">
               {saveState === 'saving' ? t('common.loading') : `✓ ${t('designer.saved')}`}
             </span>
@@ -286,8 +329,10 @@ export function DialogueDesigner({ stageId, worldId }: { stageId: string; worldI
           <div
             className="relative mx-auto overflow-hidden rounded-2xl select-none"
             style={{
-              aspectRatio: `${DIALOGUE.width} / ${DIALOGUE.height}`,
-              width: `min(100%, 60vh * ${DIALOGUE.width} / ${DIALOGUE.height})`,
+              // Tỉ lệ tấm bảng theo HƯỚNG đang sửa: 1000×700 ngang, 700×1000
+              // dọc. Người dựng phải thấy đúng khuôn hình học sinh sẽ thấy.
+              aspectRatio: `${khungHT.width} / ${khungHT.height}`,
+              width: `min(100%, 60vh * ${khungHT.width} / ${khungHT.height})`,
             }}
           >
             {/* Ảnh nền của MÀN, vẽ DƯỚI tấm bảng.
@@ -629,6 +674,51 @@ export function DialogueDesigner({ stageId, worldId }: { stageId: string; worldI
                   }}
                 />
                 <span className="text-xs text-slate-500">{t('dialogue.designer.gapUnit')}</span>
+              </span>
+            </label>
+          </Card>
+
+          {/* CỠ CHỮ bong bóng + đáp án. Nằm trong bố cục của HƯỚNG đang sửa,
+              nên bản ngang và bản dọc mỗi bản một số. Bỏ trống = mặc định của
+              hướng đó — màn chưa ai chỉnh trông y như cũ. */}
+          <Card>
+            <SectionTitle>{t('dialogue.designer.textSize')}</SectionTitle>
+            <label className="block">
+              <span className="mb-1 block text-[11px] leading-snug text-slate-500">
+                {t('dialogue.designer.textSizeHint', {
+                  mac: Math.round(DIALOGUE_TEXT[huong]),
+                })}
+              </span>
+              <span className="flex items-center gap-2">
+                <input
+                  // `key` theo hướng: ô không kiểm soát, đổi hướng mà không dựng
+                  // lại thì nó vẫn hiện con số của hướng kia.
+                  key={huong}
+                  type="number"
+                  className="field-input w-28 font-mono text-xs"
+                  min={DIALOGUE_TEXT.min}
+                  max={DIALOGUE_TEXT.max}
+                  step={1}
+                  placeholder={String(Math.round(DIALOGUE_TEXT[huong]))}
+                  defaultValue={textPx(effective) ?? ''}
+                  onBlur={(event) => {
+                    const raw = event.target.value.trim();
+                    // Xoá trắng = về mặc định.
+                    const next =
+                      raw === ''
+                        ? null
+                        : Number.isFinite(Number(raw))
+                          ? Math.min(
+                              DIALOGUE_TEXT.max,
+                              Math.max(DIALOGUE_TEXT.min, Math.round(Number(raw))),
+                            )
+                          : textPx(effective);
+                    event.target.value = next === null ? '' : String(next);
+                    if (next === textPx(effective)) return;
+                    void save({ ...effective, textPx: next });
+                  }}
+                />
+                <span className="text-xs text-slate-500">px</span>
               </span>
             </label>
           </Card>
