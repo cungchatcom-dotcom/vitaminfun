@@ -1165,7 +1165,9 @@ không làm nhân vật chạy.
 (Chơi lại, Rời màn), `tools` (toàn màn hình, loa, sổ tay, năng lượng). Nút "?" trợ giúp
 **tạm gỡ** (2026-09-21) ở cả hai bản; sổ tay là nút viên thuốc rộng, biểu tượng
 to (≥44px trên màn cảm ứng) vì đó là thứ bấm nhiều nhất trong cụm.
-Chưa nhận sổ tay thì nút mờ + xám và không bấm được. Sổ tay đang mở thì cảnh
+Ở bản dọc, sổ tay mở thành bảng GIỮA MÀN HÌNH (portal vào `body`, nền tối phía sau,
+nút ✕, cuộn khi dài) thay vì bung ra từ góc — cụm công cụ ở đó bị co giãn theo
+khối và sát mép dưới. Chưa nhận sổ tay thì nút mờ + xám và không bấm được. Sổ tay đang mở thì cảnh
 **không nhận cú chạm** (khoá như lúc mở bảng nhiệm vụ, mở lại trễ 250ms sau khi
 đóng) — chạm vào chữ để đọc không được làm nhân vật chạy theo.
 

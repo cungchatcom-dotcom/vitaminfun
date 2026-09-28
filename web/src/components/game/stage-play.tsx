@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useCurrentUser } from '@/components/auth-context';
 import { Badge } from '@/components/ui/primitives';
@@ -1409,9 +1410,16 @@ function CornerBubble({
   label,
   disabled,
   wide,
+  center,
   onOpenChange,
   children,
 }: {
+  /**
+   * Mở thành bảng GIỮA MÀN HÌNH (vẽ thẳng vào `body`) thay vì bung ra từ góc.
+   * Dùng ở màn dọc: cụm công cụ ở đó nằm trong `ScaleToHeight` (bị co giãn) và
+   * sát mép dưới, nên một bảng neo vào nút vừa bị co theo vừa lệch sang một bên.
+   */
+  center?: boolean;
   /** Báo ra ngoài mỗi khi bảng mở/đóng — màn chơi khoá cảnh trong lúc mở. */
   onOpenChange?: (open: boolean) => void;
   icon: string;
@@ -1423,6 +1431,8 @@ function CornerBubble({
 }) {
   const [open, setOpen] = useState(false);
   const holder = useRef<HTMLDivElement>(null);
+  /** Bảng giữa màn hình nằm NGOÀI `holder` (portal) — cũng tính là "bên trong". */
+  const panel = useRef<HTMLDivElement>(null);
   const shown = open && !disabled;
 
   useEffect(() => {
@@ -1442,6 +1452,7 @@ function CornerBubble({
 
     const closeIfOutside = (event: Event) => {
       if (holder.current?.contains(event.target as Node)) return;
+      if (panel.current?.contains(event.target as Node)) return;
       setOpen(false);
     };
     // Gõ phím nào cũng đóng: W A D X là đang đi, Esc là muốn thoát ra.
@@ -1463,7 +1474,34 @@ function CornerBubble({
 
   return (
     <div ref={holder} className="relative flex flex-col items-end gap-2">
-      {open && !disabled && (
+      {shown &&
+        center &&
+        createPortal(
+          // Bấm vào lớp nền tối (ngoài bảng) là đóng — `closeIfOutside` lo.
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-abyss-950/60 p-4">
+            <div
+              ref={panel}
+              role="dialog"
+              aria-label={label}
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="relative max-h-[75dvh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-2xl border border-abyss-700 bg-abyss-950 p-5 pt-4 text-sm shadow-2xl"
+            >
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label={label}
+                className="absolute top-1.5 right-1.5 grid size-10 place-items-center rounded-full text-lg text-slate-400 transition hover:bg-white/10 hover:text-slate-100"
+              >
+                ✕
+              </button>
+              <div className="pr-8">{children}</div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {shown && !center && (
         <div
           role="tooltip"
           // Cú chạm vào nội dung dừng Ở ĐÂY: Phaser nghe `touchstart`/`mousedown`
@@ -1573,6 +1611,7 @@ function CornerTools({
         <CornerBubble
           icon="📖"
           wide
+          center={huong === 'portrait'}
           onOpenChange={onBubbleOpen}
           label={cluebookReady ? t('game.cluebook.title') : t('game.cluebook.locked')}
           disabled={!cluebookReady}
