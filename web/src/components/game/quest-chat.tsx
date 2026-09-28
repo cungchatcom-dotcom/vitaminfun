@@ -223,6 +223,12 @@ export function QuestChat({
     const el = loa.current;
     if (!el || daMoKhoa.current) return;
     daMoKhoa.current = true;
+    // Loa ĐÃ TỪNG PHÁT được (câu tự đọc lúc mở bảng chạy trót lọt) thì nó đã
+    // được phép rồi — không cần mở khoá nữa. Chạy mở khoá lúc này là hỏng
+    // việc: câu vừa đọc xong nằm ở giây cuối, mở khoá phát-thử rồi TRẢ LOA VỀ
+    // đúng giây cuối đó, và cú bấm "nghe lại" ngay sau phát từ giây cuối —
+    // loé một cái rồi tắt, phải bấm lần hai mới nghe.
+    if (el.played.length > 0) return;
     // ĐANG ĐỌC thì loa đã mở sẵn rồi — không đụng vào. Bản trước vẫn chạy
     // play→pause ở đây, và cú chạm đầu tiên vào màn hình cắt ngang câu hỏi
     // đang tự đọc.
@@ -305,6 +311,11 @@ export function QuestChat({
     // nhảy về đầu thay vì nghe tiếp.
     if (!el.src.endsWith(src)) {
       el.src = src;
+      el.currentTime = 0;
+    } else if (el.ended || (el.duration > 0 && el.currentTime >= el.duration - 0.05)) {
+      // Câu này đã đọc HẾT: bấm lại là nghe lại từ đầu. Để nguyên thì `play()`
+      // ở giây cuối — có trình duyệt tự tua về đầu, có trình duyệt (Safari)
+      // phát đúng một khung rồi báo hết.
       el.currentTime = 0;
     }
     setSeqPhat(seq);
