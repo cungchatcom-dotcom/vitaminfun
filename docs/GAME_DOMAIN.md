@@ -1053,7 +1053,8 @@ Trình duyệt di động vẽ một khối có `backdrop-filter` thành lớp r
 bảng kết quả hết giờ). Nên ở điện thoại dọc (cùng điều kiện `PORTRAIT_SCREEN`)
 `globals.css` tắt MỌI `backdrop-filter` bằng một luật chung, thay vì gỡ ba chục
 chỗ dùng. Khối nào từng dựa vào kính mờ để chữ nổi thì đục nền hơn ở đó (cụm HUD:
-55% → 80%). Máy bàn và bản ngang không đổi.
+55% → 80%; lòng bảng hội thoại theme classic: 55% → 90%, qua biến `--q-inner-bg`
+trên `.q-board[data-q-theme='classic']`). Máy bàn và bản ngang không đổi.
 
 ### Bảng HƯỚNG DẪN CHƠI của màn
 

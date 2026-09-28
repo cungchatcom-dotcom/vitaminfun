@@ -273,6 +273,16 @@ body {
  * `classic` (không đặt biến nào) không bị đụng tới.
  */
 @media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  /*
+   * Theme MẶC ĐỊNH (classic): lòng bảng chỉ đục 55% và từng dựa vào kính mờ
+   * phía sau để trông đặc. Kính mờ bị tắt ở màn này (chữ nhoè — xem luật cuối
+   * file), nên nâng độ đục lên cho ra đúng dáng tối-đặc như cũ. Không cần
+   * `!important`: theme classic không đặt biến nào inline.
+   */
+  .q-board[data-q-theme='classic'] {
+    --q-inner-bg: rgba(4, 18, 31, 0.9);
+  }
+
   .q-board[data-q-theme='atlantis'] {
     --q-frame-pad: 5px !important;
     --q-frame-radius: 1rem !important;
